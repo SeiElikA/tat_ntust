@@ -49,7 +49,7 @@ class BasePage extends StatelessWidget {
       body: isError
           ? ErrorPage(errorMsg: errorMsg)
           : isLoading
-              ? const LoadingPage(isLoading: true)
+              ? const LoadingPage(isLoading: true, isShowBackground: false,)
               : SafeArea(child: child),
     );
   }

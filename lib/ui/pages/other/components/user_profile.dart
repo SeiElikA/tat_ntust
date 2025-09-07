@@ -13,6 +13,7 @@ class UserProfile extends StatelessWidget {
       children: [
         CircleAvatar(
           backgroundImage: NetworkImage(data.userpictureurl),
+          backgroundColor: Get.theme.colorScheme.surfaceContainerHigh,
           radius: 24,
         ),
         const SizedBox(width: 12),

@@ -23,8 +23,7 @@ class CourseDirectoryPage extends StatefulWidget {
   State<StatefulWidget> createState() => _CourseDirectoryPageState();
 }
 
-class _CourseDirectoryPageState extends State<CourseDirectoryPage>
-    with AutomaticKeepAliveClientMixin {
+class _CourseDirectoryPageState extends State<CourseDirectoryPage> with AutomaticKeepAliveClientMixin {
   Future<List<MoodleCoreCourseGetContents>?> initTask() async {
     String courseId = widget.courseInfo.main.course.id;
     TaskFlow taskFlow = TaskFlow();
@@ -43,8 +42,7 @@ class _CourseDirectoryPageState extends State<CourseDirectoryPage>
       padding: const EdgeInsets.only(top: 10),
       child: FutureBuilder<List<MoodleCoreCourseGetContents>?>(
         future: initTask(),
-        builder: (BuildContext context,
-            AsyncSnapshot<List<MoodleCoreCourseGetContents>?> snapshot) {
+        builder: (BuildContext context, AsyncSnapshot<List<MoodleCoreCourseGetContents>?> snapshot) {
           if (snapshot.connectionState == ConnectionState.done) {
             if (snapshot.data == null) {
               return const ErrorPage();

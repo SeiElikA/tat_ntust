@@ -3,9 +3,9 @@ import 'package:flutter_app/src/connector/moodle_webapi_connector.dart';
 import 'package:flutter_app/src/model/moodle_webapi/moodle_setting_entity.dart';
 import 'package:get/get.dart';
 
-class MoodleSettingController extends GetxController
-    with GetSingleTickerProviderStateMixin {
+class MoodleSettingController extends GetxController with GetSingleTickerProviderStateMixin {
   TabController? tabController;
+  ScrollController scrollController = ScrollController();
 
   var settingList = RxList<MoodleSettingPreferencesComponents>();
   var tab = RxList<MoodleSettingPreferencesProcessors>();

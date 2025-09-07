@@ -1,5 +1,6 @@
 import 'package:awesome_dialog/awesome_dialog.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_app/debug/log/log.dart';
 import 'package:flutter_app/src/R.dart';
 import 'package:flutter_app/src/connector/moodle_webapi_connector.dart';
@@ -45,6 +46,7 @@ class MainController extends GetxController {
   /// Event Handler
   void onBottomNavigationTap(int index) {
     pageController.jumpToPage(index);
+    HapticFeedback.mediumImpact();
   }
 
   void onPageChanged(int index) {

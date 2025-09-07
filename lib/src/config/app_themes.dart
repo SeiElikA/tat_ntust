@@ -1,16 +1,14 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_app/src/config/app_colors.dart';
 import 'package:flutter_app/src/config/app_styles.dart';
-import 'package:get/get.dart';
 
 class AppThemes {
   static ThemeData lightTheme(ColorScheme? lightDynamic) =>
       ThemeData(
           fontFamily: 'MyFont',
           useMaterial3: true,
-          dialogTheme: AppStyles.dialogTheme(),
           brightness: Brightness.light,
+          dialogTheme: AppStyles.dialogTheme(),
+          iconTheme: AppStyles.iconTheme(),
           colorScheme: ColorScheme.fromSeed(
             seedColor: lightDynamic?.primary ?? Colors.blue,
             brightness: Brightness.light,
@@ -20,8 +18,9 @@ class AppThemes {
       ThemeData(
           fontFamily: 'MyFont',
           useMaterial3: true,
-          dialogTheme: AppStyles.dialogTheme(),
           brightness: Brightness.dark,
+          dialogTheme: AppStyles.dialogTheme(),
+          iconTheme: AppStyles.iconTheme(),
           colorScheme: ColorScheme.fromSeed(
             seedColor: darkDynamic?.primary ?? Colors.blue,
             brightness: Brightness.dark,

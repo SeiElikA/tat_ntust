@@ -82,7 +82,7 @@ class LoginScreen extends GetView<LoginController> {
           ],
         ),
         SizedBox(height: Get.height * 0.2),
-      ],
+      ]
     );
   }
 

@@ -77,7 +77,7 @@ class ScorePageController extends GetxController
       var courseScoreItems = semesterScoreList[i].item;
 
       courseScoreItems.sort((a,b) {
-        return a.score.compareTo(b.score);
+        return ScoreUtils.gradeToGP[b.score]?.compareTo(ScoreUtils.gradeToGP[a.score] ?? 0) ?? 0;
       });
 
       tabLabelList.add(_buildTabLabel("${semester.year}-${semester.semester}"));
@@ -149,17 +149,25 @@ class ScorePageController extends GetxController
       children: [
         Text(
           "GPA ${ScoreUtils.calculateGPA(courseList)}",
-          style: const TextStyle(
-            fontSize: 22,
+          style: TextStyle(
+            fontSize: 20,
             fontWeight: FontWeight.bold,
+            color: Get.theme.colorScheme.onSurface
           ),
         ),
 
-        Text(
-          "$totalCredit ${R.current.credit}",
-          style: const TextStyle(
-            fontSize: 22,
-            fontWeight: FontWeight.bold,
+        Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(999),
+            color: Get.theme.colorScheme.secondaryContainer
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          child: Text(
+            "$totalCredit ${R.current.credit}",
+            style: TextStyle(
+              fontSize: 16,
+              color: Get.theme.colorScheme.onSecondaryContainer
+            ),
           ),
         ),
       ],
