@@ -47,7 +47,7 @@ class MyProgressDialog {
             SizedBox(
               height: 60,
               width: 100,
-              child: kits[10],
+              child: kits[number],
             ),
             Visibility(
               visible: message != null,

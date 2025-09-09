@@ -8,6 +8,7 @@ import 'package:flutter_app/src/util/web_view_utils.dart';
 import 'package:flutter_app/ui/other/my_progress_dialog.dart';
 import 'package:flutter_app/ui/other/my_toast.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
+import 'package:fluttertoast/fluttertoast.dart';
 import 'package:get/get.dart';
 
 class LoginMoodlePage extends StatefulWidget {
@@ -29,6 +30,7 @@ class _LoginMoodlePageState extends State<LoginMoodlePage> {
   final String loginPageUri = "https://ssoam2.ntust.edu.tw/account/login";
   late InAppWebViewController webView;
   double progress = 0;
+  bool showDialog = true;
   Widget dialog = MyProgressDialog.dialog(R.current.loginMoodle);
 
   @override
@@ -67,8 +69,7 @@ class _LoginMoodlePageState extends State<LoginMoodlePage> {
 
                 return NavigationActionPolicy.ALLOW;
               },
-              onLoadStop:
-                  (InAppWebViewController controller, WebUri? url) async {
+              onLoadStop: (InAppWebViewController controller, WebUri? url) async {
                 if (url.toString().startsWith(loginPageUri)) {
                   if (await controller.waitForElement(
                       condition:
@@ -89,7 +90,10 @@ class _LoginMoodlePageState extends State<LoginMoodlePage> {
                         source:
                             'document.getElementById("loginButton").click();');
                   } else {
-                    MyToast.show(R.current.needValidateCaptcha);
+                    setState(() {
+                      showDialog = false;
+                    });
+                    MyToast.show(R.current.needValidateCaptcha, toastLength: Toast.LENGTH_LONG);
                   }
                 }
               },
@@ -100,7 +104,8 @@ class _LoginMoodlePageState extends State<LoginMoodlePage> {
                 });
               },
             ),
-            dialog
+
+            Visibility(visible: showDialog, child: dialog)
           ],
         ),
       ),

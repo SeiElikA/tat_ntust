@@ -18,8 +18,8 @@ class LoginNTUSTPage extends StatefulWidget {
   const LoginNTUSTPage({
     required this.username,
     required this.password,
-    Key? key,
-  }) : super(key: key);
+    super.key,
+  });
 
   @override
   State<StatefulWidget> createState() => _LoginNTUSTPageState();
@@ -84,8 +84,7 @@ class _LoginNTUSTPageState extends State<LoginNTUSTPage> {
                   }
                   String? result = await webView.getHtml();
                   var tagNode = parse(result);
-                  var nodes = tagNode
-                      .getElementsByClassName("validation-summary-errors");
+                  var nodes = tagNode.getElementsByClassName("validation-summary-errors");
                   if (nodes.length == 1) {
                     Get.back(result: {
                       "status": NTUSTLoginStatus.fail,
@@ -97,8 +96,7 @@ class _LoginNTUSTPageState extends State<LoginNTUSTPage> {
                     List<io.Cookie> ioCookies = [];
                     bool add = false;
                     for (var i in cookies) {
-                      if ([".ASPXAUTH", "ntustjwtsecret", "ntustsecret"]
-                          .contains(i.name)) {
+                      if ([".ASPXAUTH", "ntustjwtsecret", "ntustsecret"].contains(i.name)) {
                         io.Cookie k = io.Cookie(i.name, i.value);
                         k.domain = ".ntust.edu.tw";
                         k.path = "/";
@@ -115,8 +113,7 @@ class _LoginNTUSTPageState extends State<LoginNTUSTPage> {
                   }
                 }
               },
-              onProgressChanged:
-                  (InAppWebViewController controller, int progress) {
+              onProgressChanged: (InAppWebViewController controller, int progress) {
                 setState(
                   () {
                     this.progress = progress / 100;
