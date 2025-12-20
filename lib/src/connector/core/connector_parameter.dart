@@ -16,6 +16,7 @@ class ConnectorParameter {
   String charsetName = presetCharsetName; //設定編碼預設utf-8 可以設定big5
   String userAgent = presetUserAgent;
   String? referer;
+  Map<String, dynamic>? headers;
 
-  ConnectorParameter(this.url, {this.data, this.referer});
+  ConnectorParameter(this.url, {this.data, this.referer, this.headers});
 }

@@ -66,9 +66,14 @@ class _LoginNTUSTPageState extends State<LoginNTUSTPage> {
                           'document.getElementsByName("UserName")[0].value = "${widget.username}";');
                   await webView.evaluateJavascript(
                       source:
+                      'document.getElementsByName("Username")[0].value = "${widget.username}";');
+                  await webView.evaluateJavascript(
+                      source:
                           'document.getElementsByName("Password")[0].value = "${widget.password}";');
                   await webView.evaluateJavascript(
                       source: 'document.getElementById("btnLogIn").click();');
+                  await webView.evaluateJavascript(
+                      source: 'document.getElementById("loginButton").click();');
                   await Future.delayed(const Duration(seconds: 5));
                   if(mounted) {
                     setState(() {
@@ -96,13 +101,15 @@ class _LoginNTUSTPageState extends State<LoginNTUSTPage> {
                     List<io.Cookie> ioCookies = [];
                     bool add = false;
                     for (var i in cookies) {
-                      if ([".ASPXAUTH", "ntustjwtsecret", "ntustsecret"].contains(i.name)) {
-                        io.Cookie k = io.Cookie(i.name, i.value);
-                        k.domain = ".ntust.edu.tw";
-                        k.path = "/";
-                        ioCookies.add(k);
-                        add = true;
-                      }
+                      io.Cookie k = io.Cookie(i.name, i.value);
+                      k.domain = ".ntust.edu.tw";
+                      k.path = "/";
+                      ioCookies.add(k);
+                      add = true;
+
+                      // if ([".ASPXAUTH", "ntustjwtsecret", "ntustsecret", "AuthServer"].contains(i.name)) {
+                      //
+                      // }
                     }
                     if (add) {
                       await cookieJar.saveFromResponse(ntustLoginUri, ioCookies);

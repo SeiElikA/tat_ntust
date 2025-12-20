@@ -82,8 +82,13 @@ class ScoreItemTile extends StatelessWidget {
         ? Get.theme.colorScheme.onSurface
         : Get.theme.colorScheme.error;
 
+    var scoreLabel = score.score;
+    if(scoreLabel == "-" && score.remark.isNotEmpty) {
+      scoreLabel = score.remark;
+    }
+
     return Text(
-      score.score,
+      scoreLabel,
       style:
           TextStyle(fontSize: 16.0, color: color, fontWeight: FontWeight.bold),
       textAlign: TextAlign.end,

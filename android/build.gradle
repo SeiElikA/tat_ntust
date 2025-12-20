@@ -11,7 +11,21 @@ subprojects {
     project.buildDir = "${rootProject.buildDir}/${project.name}"
 }
 
-subprojects { afterEvaluate { android { compileSdkVersion 34 } } }
+subprojects {
+    afterEvaluate {
+        android {
+            compileSdkVersion 34
+
+            if (project.plugins.hasPlugin("com.android.library") || project.plugins.hasPlugin("com.android.application")) {
+                tasks.withType(JavaCompile) {
+                    options.compilerArgs.remove("-Werror")
+                    options.compilerArgs.remove("-Xlint:all")
+                    options.compilerArgs << "-Xlint:-options"
+                }
+            }
+        }
+    }
+}
 
 subprojects {
     project.evaluationDependsOn(':app')

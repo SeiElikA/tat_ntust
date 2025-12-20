@@ -21,15 +21,12 @@ class ScoreUtils {
   static String calculateGPA(List<ScoreItemJson> courseList) {
     final totalCredit = courseList
         .where((e) => e.isValidScore)
-        .map((c) =>
-            int.tryParse(c.credit.replaceAll("(", "").replaceAll(")", "")) ?? 0)
-        .reduce((a, b) => a + b);
+        .map((c) => int.tryParse(c.credit.replaceAll("(", "").replaceAll(")", "")) ?? 0)
+        .fold(0, (a, b) => a + b);
 
     final totalScore = courseList.map((c) {
-      return (int.tryParse(c.credit.replaceAll("(", "").replaceAll(")", "")) ??
-              0) *
-          (gradeToGP[c.score] ?? 0);
-    }).reduce((a, b) => a + b);
+      return (int.tryParse(c.credit.replaceAll("(", "").replaceAll(")", "")) ?? 0) * (gradeToGP[c.score] ?? 0);
+    }).fold(0, (num a, num b) => a + b);
 
     return (totalScore / totalCredit).toStringAsFixed(2);
   }
