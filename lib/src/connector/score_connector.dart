@@ -1,12 +1,10 @@
+import 'dart:async';
 import 'package:flutter_app/debug/log/log.dart';
 import 'package:flutter_app/src/model/course/course_class_json.dart';
 import 'package:flutter_app/src/model/score/score_json.dart';
-import 'package:flutter_app/src/util/language_utils.dart';
+import 'package:flutter_inappwebview/flutter_inappwebview.dart' hide CookieManager;
 import 'package:html/dom.dart';
 import 'package:html/parser.dart';
-
-import 'core/connector.dart';
-import 'core/connector_parameter.dart';
 
 class ScoreConnector {
   static const host = "https://stuinfosys.ntust.edu.tw";
@@ -17,27 +15,30 @@ class ScoreConnector {
   }
 
   static Future<ScoreRankJson?> getScoreRank() async {
-    ConnectorParameter parameter;
-    String result;
-    Document tagNode;
-    List<Element> nodes, items;
+    List<Element> items = [];
     ScoreRankJson info = ScoreRankJson();
-    Element node;
+
     try {
-      parameter = ConnectorParameter(_scoreUrl);
-      parameter.data = {
-        "ntustLan":
-            (LanguageUtils.getLangIndex() == LangEnum.zh) ? "zh-TW" : "en-US"
-      };
-      result = await Connector.getDataByGet(parameter);
-      tagNode = parse(result);
-      nodes = tagNode.getElementsByClassName("box-content alerts");
+      Completer<String> completer = Completer();
+      final webView = HeadlessInAppWebView(
+          initialUrlRequest: URLRequest(url: WebUri(_scoreUrl)),
+          onLoadStop: (controller, url) async {
+            final html = await controller.getHtml();
+            completer.complete(html);
+          }
+      );
+      await webView.run();
+
+      final result = await completer.future;
+
+      final tagNode = parse(result);
+      final nodes = tagNode.getElementsByClassName("box-content alerts");
       //排名
       try {
         items = nodes[0]
             .getElementsByTagName("tbody")[0]
             .getElementsByTagName("tr");
-        for (node in items) {
+        for (final node in items) {
           var i = node.getElementsByTagName("td");
           SemesterJson semester = SemesterJson(
             year: clearString(i[0].text).substring(0, 3),
@@ -58,9 +59,13 @@ class ScoreConnector {
       }
 
       //成績
-      items =
-          nodes[1].getElementsByTagName("tbody")[0].getElementsByTagName("tr");
-      for (node in items) {
+      if (nodes.length >= 2) {
+        items = nodes[1]
+            .getElementsByTagName("tbody")[0]
+            .getElementsByTagName("tr");
+      }
+
+      for (final node in items) {
         var i = node.getElementsByTagName("td");
         SemesterJson semester = SemesterJson(
           year: clearString(i[1].text).substring(0, 3),

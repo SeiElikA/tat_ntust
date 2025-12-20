@@ -1,4 +1,3 @@
-import 'package:auto_size_text/auto_size_text.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_app/src/R.dart';
 import 'package:flutter_app/src/model/score/score_json.dart';
@@ -7,7 +6,6 @@ import 'package:flutter_app/src/task/score/score_task.dart';
 import 'package:flutter_app/src/task/task_flow.dart';
 import 'package:flutter_app/src/util/score_utils.dart';
 import 'package:flutter_app/ui/components/tile/score_item_tile.dart';
-import 'package:flutter_app/ui/other/my_toast.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 import 'package:get/get.dart';
 
@@ -23,9 +21,9 @@ class ScorePageController extends GetxController
   late TabController tabController;
 
   @override
-  void onInit() {
+  Future<void> onInit() async {
     super.onInit();
-    initTask();
+    await initTask();
   }
 
   @override
@@ -34,7 +32,7 @@ class ScorePageController extends GetxController
     super.onClose();
   }
 
-  void initTask({refresh = false}) async {
+  Future<void> initTask({refresh = false}) async {
     if (Model.instance.getAccount().isEmpty) {
       state(ScoreUIState.notLogin);
       return;
@@ -76,8 +74,10 @@ class ScorePageController extends GetxController
       var semester = semesterScoreList[i].semester;
       var courseScoreItems = semesterScoreList[i].item;
 
-      courseScoreItems.sort((a,b) {
-        return a.score.compareTo(b.score);
+      courseScoreItems.sort((a, b) {
+        return ScoreUtils.gradeToGP[b.score]
+                ?.compareTo(ScoreUtils.gradeToGP[a.score] ?? 0) ??
+            0;
       });
 
       tabLabelList.add(_buildTabLabel("${semester.year}-${semester.semester}"));
@@ -142,24 +142,28 @@ class ScorePageController extends GetxController
     final totalCredit = courseList
         .where((x) => x.isPassScore)
         .map((c) => int.tryParse(c.credit) ?? 0)
-        .reduce((a,b) => a + b);
+        .fold(0, (a, b) => a + b);
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(
           "GPA ${ScoreUtils.calculateGPA(courseList)}",
-          style: const TextStyle(
-            fontSize: 22,
-            fontWeight: FontWeight.bold,
-          ),
+          style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Get.theme.colorScheme.onSurface),
         ),
-
-        Text(
-          "$totalCredit ${R.current.credit}",
-          style: const TextStyle(
-            fontSize: 22,
-            fontWeight: FontWeight.bold,
+        Container(
+          decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(999),
+              color: Get.theme.colorScheme.secondaryContainer),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          child: Text(
+            "$totalCredit ${R.current.credit}",
+            style: TextStyle(
+                fontSize: 16,
+                color: Get.theme.colorScheme.onSecondaryContainer),
           ),
         ),
       ],

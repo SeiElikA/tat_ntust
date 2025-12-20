@@ -8,6 +8,7 @@ import 'package:flutter_app/src/store/model.dart';
 import 'package:flutter_app/src/task/ntust/ntust_sub_system_task.dart';
 import 'package:flutter_app/src/task/task_flow.dart';
 import 'package:flutter_app/src/util/route_utils.dart';
+import 'package:flutter_app/src/util/ui_utils.dart';
 import 'package:flutter_app/ui/components/custom_appbar.dart';
 import 'package:flutter_app/ui/components/page/error_page.dart';
 import 'package:flutter_app/ui/pages/password/webmail_password_dialog.dart';
@@ -75,11 +76,7 @@ class _SubSystemPageState extends State<SubSystemPage> {
             child: SlideAnimation(
               verticalOffset: 50.0,
               child: FadeInAnimation(
-                child: GestureDetector(
-                  behavior: HitTestBehavior.opaque, //讓透明部分有反應
-                  child: buildTree(apTree[index]),
-                  onTap: () {},
-                ),
+                child: buildTree(apTree[index]),
               ),
             ),
           );
@@ -114,10 +111,10 @@ class _SubSystemPageState extends State<SubSystemPage> {
           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 2,
               childAspectRatio: (Get.width - 12 * 2) / 100,
-              crossAxisSpacing: 8,
-              mainAxisSpacing: 12),
+              crossAxisSpacing: 6,
+              mainAxisSpacing: 6),
           itemBuilder: (context, index) {
-            return buildItem(ap.apList[index]);
+            return buildItem(index, ap.apList.length, ap.apList[index]);
           },
           itemCount: ap.apList.length,
         ),
@@ -126,15 +123,17 @@ class _SubSystemPageState extends State<SubSystemPage> {
     );
   }
 
-  Widget buildItem(APListJson ap) {
+  Widget buildItem(int index, int length, APListJson ap) {
     return FilledButton(
       style: FilledButton.styleFrom(
-        backgroundColor: Get.theme.colorScheme.surfaceContainer,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8),),
-        minimumSize: const Size(0, 120)
-      ),
+          backgroundColor: Get.theme.colorScheme.surfaceContainer,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12)
+          ),
+          minimumSize: const Size(0, 120)),
       onPressed: () {
-        RouteUtils.toWebViewPage(ap.name, ap.url, openWithExternalWebView: false);
+        RouteUtils.toWebViewPage(ap.name, ap.url,
+            openWithExternalWebView: false);
       },
       child: Text(
         ap.name,
@@ -190,7 +189,10 @@ class _SubSystemPageState extends State<SubSystemPage> {
                       Get.dialog(const WebMailPasswordDialog(),
                           barrierDismissible: false);
                     },
-                    icon: SvgPicture.asset("assets/image/img_refresh.svg"))
+                    icon: SvgPicture.asset(
+                      "assets/image/img_refresh.svg",
+                      color: Get.theme.colorScheme.onSurface,
+                    ))
             ],
           ),
         ),

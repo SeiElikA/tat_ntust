@@ -23,7 +23,8 @@ class ThemeService {
   }
 
   void changeThemeMode(ThemeMode mode) {
-    _box.setInt(_key, ThemeMode.values.indexOf(mode));
+    currentTheme = ThemeMode.values.indexOf(mode);
+    _box.setInt(_key, currentTheme);
     Get.changeThemeMode(mode);
     Future.delayed(const Duration(milliseconds: 250), () {
       Get.forceAppUpdate();

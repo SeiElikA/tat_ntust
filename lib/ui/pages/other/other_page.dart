@@ -219,6 +219,7 @@ class _OtherPageState extends State<OtherPage> {
             Text(
               data['title'],
               style: TextStyle(
+                  fontFamily: 'MyFont',
                   color: Get.theme.colorScheme.onSurface, fontSize: 15),
             ),
           ],

@@ -6,7 +6,10 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.os.Bundle
+import android.view.WindowManager
 import androidx.annotation.NonNull
+import androidx.core.view.WindowCompat
 import com.anggrayudi.storage.file.DocumentFileCompat
 import com.anggrayudi.storage.file.absolutePath
 import io.flutter.Log
@@ -133,6 +136,17 @@ class MainActivity : FlutterFragmentActivity() {
         } catch (ex: java.lang.Exception) {
             Log.e(logTag, "Was not able to restart application")
         }
+    }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+
+        window.setFlags(WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS, WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS)
+    }
+
+    override fun onPostResume() {
+        super.onPostResume()
+        WindowCompat.setDecorFitsSystemWindows(window, false)
     }
 
 }

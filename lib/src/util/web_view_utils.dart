@@ -3,7 +3,7 @@ import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 extension InAppWebViewControllerExtension on InAppWebViewController {
   Future<bool> waitForElement({
     required String condition,
-    Duration timeout = const Duration(seconds: 10),
+    Duration timeout = const Duration(seconds: 5),
     Duration pollingInterval = const Duration(milliseconds: 200),
   }) async {
     final stopwatch = Stopwatch()..start();

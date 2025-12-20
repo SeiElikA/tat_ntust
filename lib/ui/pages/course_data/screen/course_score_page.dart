@@ -1,17 +1,9 @@
-import 'dart:convert';
 import 'dart:typed_data';
 
-import 'package:cached_network_image/cached_network_image.dart';
-import 'package:cookie_jar/cookie_jar.dart';
-import 'package:dio_cookie_manager/dio_cookie_manager.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_app/src/ad/ad_manager.dart';
-import 'package:flutter_app/src/config/app_colors.dart';
-import 'package:flutter_app/src/connector/core/connector.dart';
 import 'package:flutter_app/src/connector/core/connector_parameter.dart';
 import 'package:flutter_app/src/connector/core/dio_connector.dart';
-import 'package:flutter_app/src/connector/moodle_webapi_connector.dart';
 import 'package:flutter_app/src/model/course_table/course_table_json.dart';
 import 'package:flutter_app/src/model/grade/table_data_type_a.dart';
 import 'package:flutter_app/src/model/grade/table_data_type_b.dart';
@@ -46,9 +38,7 @@ class _CourseScorePageState extends State<CourseScorePage>
     TaskFlow taskFlow = TaskFlow();
     var task = MoodleScoreTask(courseId);
     taskFlow.addTask(task);
-    if (await taskFlow.start()) {
-      AdManager.showDownloadAD();
-    }
+    await taskFlow.start();
     return task.result;
   }
 

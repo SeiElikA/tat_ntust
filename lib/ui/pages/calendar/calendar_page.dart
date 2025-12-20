@@ -4,6 +4,7 @@ import 'package:flutter_app/src/R.dart';
 import 'package:flutter_app/src/config/app_colors.dart';
 import 'package:flutter_app/src/controller/calendar/calendar_controller.dart';
 import 'package:flutter_app/src/util/language_utils.dart';
+import 'package:flutter_app/src/util/ui_utils.dart';
 import 'package:flutter_app/ui/components/custom_appbar.dart';
 import 'package:flutter_app/ui/components/page/loading_page.dart';
 import 'package:get/get.dart';
@@ -58,14 +59,65 @@ class CalendarPage extends GetView<CalendarController> {
               rangeSelectionMode: controller.rangeSelectionMode.value,
               eventLoader: (day) => controller.events[day] ?? [],
               startingDayOfWeek: StartingDayOfWeek.sunday,
-              calendarStyle: const CalendarStyle(
-                outsideDaysVisible: false,
-              ),
               onDaySelected: controller.onDaySelected,
               onFormatChanged: controller.onFormatChanged,
               onPageChanged: controller.onPageChanged,
+              headerStyle: HeaderStyle(
+                formatButtonVisible: false,
+                titleCentered: true,
+                titleTextStyle: Get.textTheme.titleMedium!.copyWith(
+                  color: Get.theme.colorScheme.onSurface,
+                ),
+                leftChevronIcon: Icon(
+                  Icons.chevron_left,
+                  color: Get.theme.colorScheme.onSurface,
+                ),
+                rightChevronIcon: Icon(
+                  Icons.chevron_right,
+                  color: Get.theme.colorScheme.onSurface,
+                ),
+              ),
+
+              daysOfWeekStyle: DaysOfWeekStyle(
+                weekdayStyle: Get.textTheme.bodySmall!.copyWith(
+                  color: Get.theme.colorScheme.onSurfaceVariant,
+                ),
+                weekendStyle: Get.textTheme.bodySmall!.copyWith(
+                  color: Get.theme.colorScheme.primary,
+                ),
+              ),
+              calendarStyle: CalendarStyle(
+                defaultTextStyle: Get.textTheme.bodyMedium!.copyWith(
+                  color: Get.theme.colorScheme.onSurface,
+                ),
+                weekendTextStyle: Get.textTheme.bodyMedium!.copyWith(
+                  color: Get.theme.colorScheme.primary,
+                ),
+                outsideDaysVisible: false,
+                todayDecoration: BoxDecoration(
+                  color: Colors.transparent,
+                  border: Border.all(color: Get.theme.colorScheme.primary, width: 1.5),
+                  shape: BoxShape.circle,
+                ),
+                todayTextStyle: Get.textTheme.bodyMedium!.copyWith(
+                  color: Get.theme.colorScheme.primary,
+                ),
+                selectedDecoration: BoxDecoration(
+                  color: Get.theme.colorScheme.primary,
+                  shape: BoxShape.circle,
+                ),
+                selectedTextStyle: Get.textTheme.bodyMedium!.copyWith(
+                  color: Get.theme.colorScheme.onPrimary,
+                ),
+                markerDecoration: BoxDecoration(
+                  color: Get.theme.colorScheme.secondary,
+                  shape: BoxShape.circle,
+                ),
+                markerMargin: const EdgeInsets.only(top: 4),
+                markerSize: 6
+              ),
             ),
-            const SizedBox(height: 8.0),
+            const SizedBox(height: 12.0),
             Expanded(child: _buildEventList()),
           ],
         ),
@@ -78,25 +130,8 @@ class CalendarPage extends GetView<CalendarController> {
       padding: const EdgeInsets.symmetric(horizontal: 12),
       itemBuilder: (BuildContext context, int index) {
         final event = controller.selectedEvents[index];
-        const baseRadius = 14.0;
-        const subRadius = 4.0;
-        BorderRadius? borderRadius;
-
-        if (controller.selectedEvents.length == 1) {
-          borderRadius = BorderRadius.circular(baseRadius);
-        } else if (index == 0) {
-          borderRadius = const BorderRadius.vertical(
-              top: Radius.circular(baseRadius),
-              bottom: Radius.circular(subRadius)
-          );
-        } else if (index == controller.selectedEvents.length - 1) {
-          borderRadius = const BorderRadius.vertical(
-              top: Radius.circular(subRadius),
-              bottom: Radius.circular(baseRadius)
-          );
-        } else {
-          borderRadius = BorderRadius.circular(subRadius);
-        }
+        BorderRadius? borderRadius =
+            UIUtils.getBorderRadius(index, controller.selectedEvents.length);
 
         return Container(
           decoration: BoxDecoration(
@@ -105,8 +140,8 @@ class CalendarPage extends GetView<CalendarController> {
           padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 14),
           child: Text(
             event,
-            style: TextStyle(
-                color: Get.theme.colorScheme.onSurface, fontSize: 15),
+            style:
+                TextStyle(color: Get.theme.colorScheme.onSurface, fontSize: 15),
           ),
         );
       },

@@ -7,8 +7,8 @@ class UIUtils {
 
   static Color getListColor(int index) {
     return ((index % 2 == 1)
-            ? Get.theme.colorScheme.surface
-            : Get.theme.colorScheme.surfaceContainer)
+            ? Get.theme.colorScheme.surfaceContainer
+            : Get.theme.colorScheme.surface)
         .withAlpha(CourseConfig.courseTableWithAlpha);
   }
 

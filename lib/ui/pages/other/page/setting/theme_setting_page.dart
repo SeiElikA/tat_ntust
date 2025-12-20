@@ -1,5 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_app/src/R.dart';
 import 'package:flutter_app/src/service/theme_service.dart';
 import 'package:flutter_app/src/util/ui_utils.dart';
@@ -35,17 +36,11 @@ class _ThemeSettingPageState extends State<ThemeSettingPage> {
           padding: const EdgeInsets.symmetric(horizontal: 12),
           itemBuilder: (context, index) {
             final item = ThemeMode.values[index];
-            final borderRadius =
-                UIUtils.getBorderRadius(index, ThemeMode.values.length);
+            final borderRadius = UIUtils.getBorderRadius(index, ThemeMode.values.length);
 
             return CupertinoButton(
               padding: EdgeInsets.zero,
-              onPressed: () {
-                setState(() {
-                  groupValue = item;
-                });
-                ThemeService.instance.changeThemeMode(item);
-              },
+              onPressed: () => onRadioChanged(item),
               child: Container(
                   decoration: BoxDecoration(
                       color: Get.theme.colorScheme.surfaceContainer,
@@ -57,31 +52,37 @@ class _ThemeSettingPageState extends State<ThemeSettingPage> {
                       Text(
                         themeText[item] ?? "-",
                         style: TextStyle(
-                            color: Get.theme.colorScheme.onSurfaceVariant),
+                            fontFamily: 'MyFont',
+                            color: Get.theme.colorScheme.onSurfaceVariant
+                        ),
                       ),
                       const Spacer(),
-                      Radio.adaptive(
+                      Radio(
                           value: item,
                           groupValue: groupValue,
-                          onChanged: (value) async {
-                            if (value == null) {
-                              return;
-                            }
-
-                            setState(() {
-                              groupValue = value;
-                            });
-
-                            ThemeService.instance.changeThemeMode(item);
-                          })
+                          onChanged: onRadioChanged)
                     ],
                   )),
             );
           },
           separatorBuilder: (context, index) {
-            return const SizedBox(height: 1);
+            return const SizedBox(height: 2);
           },
           itemCount: ThemeMode.values.length),
     );
+  }
+
+  Future<void> onRadioChanged(ThemeMode? value) async {
+    if(value == null) {
+      return;
+    }
+
+    await HapticFeedback.mediumImpact();
+
+    setState(() {
+      groupValue = value;
+    });
+
+    ThemeService.instance.changeThemeMode(value);
   }
 }

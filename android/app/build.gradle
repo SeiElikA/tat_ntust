@@ -1,5 +1,6 @@
 plugins {
     id "com.android.application"
+    id "org.jetbrains.kotlin.android"
     id "kotlin-android"
     id "dev.flutter.flutter-gradle-plugin"
     id "com.google.gms.google-services"
@@ -33,17 +34,22 @@ if (keystorePropertiesFile.exists()) {
 android {
     namespace "club.ntust.tat"
 
-    compileSdk 35
-    ndkVersion "27.0.12077973"
+    compileSdk 36
+    ndkVersion "29.0.13113456 rc1"
     sourceSets {
         main.java.srcDirs += 'src/main/kotlin'
     }
 
+    packagingOptions {
+        jniLibs {
+            useLegacyPackaging = true
+        }
+    }
 
     defaultConfig {
         applicationId "club.ntust.tat"
-        minSdkVersion 23
-        targetSdkVersion 34
+        minSdkVersion flutter.minSdkVersion
+        targetSdkVersion 36
         versionCode flutterVersionCode.toInteger()
         versionName flutterVersionName
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"

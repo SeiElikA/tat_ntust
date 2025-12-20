@@ -2,7 +2,6 @@ import 'package:flutter_app/debug/log/log.dart';
 import 'package:flutter_app/src/store/model.dart';
 import 'package:flutter_app/src/util/route_utils.dart';
 import 'package:get/get.dart';
-import 'package:flutter_app/src/ad/ad_manager.dart';
 import 'package:flutter_app/src/file/my_downloader.dart';
 import 'package:flutter_app/src/notifications/notifications.dart';
 import 'package:flutter_app/src/util/language_utils.dart';
@@ -26,7 +25,6 @@ class AppService extends GetxService {
     try {
       await LanguageUtils.init(context);
       await RemoteConfigUtils.init();
-      await AdManager.init();
       await MyDownloader.init();
       await Notifications.instance.init();
       Log.init();

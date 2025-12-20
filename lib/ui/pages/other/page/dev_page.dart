@@ -1,7 +1,6 @@
 import 'package:clipboard/clipboard.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_app/src/R.dart';
-import 'package:flutter_app/src/ad/ad_manager.dart';
 import 'package:flutter_app/src/util/cloud_messaging_utils.dart';
 import 'package:flutter_app/src/util/remote_config_utils.dart';
 import 'package:flutter_app/src/util/route_utils.dart';
@@ -15,7 +14,6 @@ enum OnListViewPress {
   dioLog,
   appLog,
   storeEdit,
-  adRemove,
   announcement
 }
 
@@ -53,12 +51,6 @@ class _DevPageState extends State<DevPage> {
       "onPress": OnListViewPress.storeEdit
     },
     {
-      "icon": Icons.code_outlined,
-      "title": "AD Remover",
-      "color": Colors.red,
-      "onPress": OnListViewPress.adRemove
-    },
-    {
       "icon": Icons.announcement,
       "title": "Announcement",
       "color": Colors.deepPurple,
@@ -70,19 +62,6 @@ class _DevPageState extends State<DevPage> {
   void initState() {
     super.initState();
     RemoteConfigUtils.init(focusUpdate: true);
-    removeADItem();
-  }
-
-  Future<void> removeADItem() async {
-    if (!await AdManager.getADEnable()) {
-      int index = listViewData
-          .indexWhere((e) => e["onPress"] == OnListViewPress.adRemove);
-      if (index >= 0) {
-        setState(() {
-          listViewData.removeAt(index);
-        });
-      }
-    }
   }
 
   int pressTime = 0;
@@ -102,24 +81,6 @@ class _DevPageState extends State<DevPage> {
         break;
       case OnListViewPress.storeEdit:
         RouteUtils.toStoreEditPage();
-        break;
-      case OnListViewPress.adRemove:
-        await Get.dialog(CustomInputDialog(
-          title: "Input Valid Code",
-          initText: "",
-          hint: "Please input valid code",
-          onOk: (String value) async {
-            List<String> keyList = await RemoteConfigUtils.getRemoveADKey();
-            if (keyList.contains(value)) {
-              MyToast.show("Remove AD success");
-              AdManager.setADEnable(value);
-            } else {
-              MyToast.show("Invalid code");
-            }
-          },
-          onCancel: (String value) {},
-        ));
-        removeADItem();
         break;
       case OnListViewPress.announcement:
         RemoteConfigUtils.showAnnouncementDialog(test: true);

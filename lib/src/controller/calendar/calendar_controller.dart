@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_app/debug/log/log.dart';
 import 'package:flutter_app/src/task/ntust/ntust_calendar_task.dart';
 import 'package:flutter_app/src/task/task_flow.dart';
@@ -35,7 +36,7 @@ class CalendarController extends GetxController {
       final icsLines = await File(savePath).readAsLines();
       final iCalendar = ICalendar.fromLines(icsLines);
       for (var i in iCalendar.data) {
-        if(!i.containsKey("dtstart") || !i.containsKey("summary")) {
+        if (!i.containsKey("dtstart") || !i.containsKey("summary")) {
           continue;
         }
 
@@ -47,7 +48,7 @@ class CalendarController extends GetxController {
           i = i.replaceAll(" ", "");
           if (i != "") {
             final isInt = int.tryParse(i[0]) != null;
-            if(isInt) {
+            if (isInt) {
               i = i.substring(2, i.length);
             }
 
@@ -77,6 +78,7 @@ class CalendarController extends GetxController {
       rangeEnd.value = null;
       rangeSelectionMode.value = RangeSelectionMode.toggledOff;
       selectedEvents.value = events[focusedDay] ?? [];
+      HapticFeedback.lightImpact();
     }
   }
 

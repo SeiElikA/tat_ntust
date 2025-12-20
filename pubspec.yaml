@@ -5,7 +5,7 @@ description: NTUST Life TAT, convenient, concise, fast, powerful, enrich your NT
 # flutter clean && flutter build ios --split-debug-info=build/app/outputs/symbols --obfuscate && flutter build appbundle --split-debug-info=build/app/outputs/symbols --obfuscate --shrink
 # follow the google play new policy in 2021, do not build apk but aab.
 # CHECK THE BUILD CODE BEFORE DISTRIBUTION!!
-version: 1.6.2+112
+version: 1.6.5+117
 
 environment:
   flutter: ">=3.3.0 <4.0.0"
@@ -16,12 +16,15 @@ dependencies:
     sdk: flutter
   flutter_localizations:
     sdk: flutter
+  flutter_plugin_android_lifecycle: ^2.0.33
   path: ^1.8.1
   provider: ^6.0.5
-  path_provider: ^2.0.14
+  path_provider: ^2.1.5
   quiver: ^3.2.1
-  url_launcher: ^6.2.5
-  url_launcher_ios: ^6.2.5
+  url_launcher: ^6.3.2
+  url_launcher_ios: ^6.3.6
+  url_launcher_android: ^6.3.28
+  video_player_android: ^2.9.1
   #開啟email phone url...
   logger: ^2.1.0
   #顯示Log
@@ -30,19 +33,19 @@ dependencies:
   #通知欄  需修改android原始碼
   rxdart: ^0.27.7
   #通知欄有使用到
-  android_intent_plus: ^4.0.3
+  android_intent_plus: ^6.0.0
   device_info_plus: ^9.1.2
   html_unescape: ^2.0.0
   #處理HTML特殊字
-  local_auth: ^2.1.6
+  local_auth: ^3.0.0
   #驗證身分指紋
   version: ^3.0.2
   #版本比較
-  file_picker: ^6.2.0
+  file_picker: ^10.3.8
   #選擇android資料夾
   #----------store data----------#
-  shared_preferences: ^2.0.20
-  flutter_cache_manager: ^3.3.0
+  shared_preferences: ^2.5.4
+  flutter_cache_manager: ^3.4.1
   #----------internet----------#
   dio: ^5.4.1
   #網路get post API
@@ -61,6 +64,7 @@ dependencies:
   #剪貼簿
   #----------WebView----------#
   flutter_inappwebview: ^6.1.0
+  webview_flutter_android: ^4.10.11
   #---------icon----------#
   eva_icons_flutter: ^3.1.0
   #https://akveo.github.io/eva-icons/#/
@@ -76,15 +80,15 @@ dependencies:
   #檢測app版本用於檢查更新
   #----------html viewer----------#
   #flutter_html: ^2.2.1
-  flutter_widget_from_html: ^0.14.11
+  flutter_widget_from_html: ^0.17.1
   #----------animation----------#
   flutter_staggered_animations: ^1.1.1
   #listView or gridView動畫
   #----------download----------#
-  flutter_downloader: ^1.11.6
+  flutter_downloader: ^1.12.0
   #下載app更新
-  open_filex: ^4.3.2
-  permission_handler: ^11.3.0
+  open_filex: ^4.7.0
+  permission_handler: ^12.0.1
   mime_type: ^1.0.0
   github: ^9.11.0
   #----------Widget----------#
@@ -98,9 +102,9 @@ dependencies:
   table_calendar: ^3.0.9
   #顯示行事曆
   expansion_tile_card: ^3.0.0
-  fluttertoast: ^8.2.1
+  fluttertoast: ^9.0.0
   #Toast
-  awesome_dialog: ^3.0.2
+  awesome_dialog: ^3.3.0
   #顯示Error時用到
   flutter_slidable: ^3.0.1
   #email使用可左右滑抽屜
@@ -114,7 +118,7 @@ dependencies:
   alice_lightweight: ^3.1.0
   pretty_json: ^2.0.0
   icalendar_parser: ^2.0.0
-  charset_converter: ^2.1.1
+  charset_converter: ^2.3.0
 
   # Firebase
   firebase_core: ^2.8.0
@@ -122,13 +126,13 @@ dependencies:
   firebase_crashlytics: ^3.0.17
   firebase_remote_config: ^4.3.17
   firebase_messaging: ^14.3.0
-  google_mobile_ads: ^4.0.0
   flutter_svg: ^2.0.10+1
   screenshot: ^3.0.0
   photo_view: ^0.14.0
   shimmer: ^3.0.0
   flutter_native_splash: ^2.4.0
   dynamic_color: 1.7.0
+
 
 dependency_overrides:
   intl: ^0.18.0

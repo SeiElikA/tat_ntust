@@ -8,7 +8,9 @@ import 'package:flutter_app/src/connector/ntust_connector.dart';
 import 'package:flutter_app/src/file/file_download.dart';
 import 'package:flutter_app/src/store/model.dart';
 import 'package:flutter_app/src/util/open_utils.dart';
+import 'package:flutter_app/src/util/web_view_utils.dart';
 import 'package:flutter_app/ui/components/custom_appbar.dart';
+import 'package:flutter_app/ui/components/page/loading_page.dart';
 import 'package:flutter_app/ui/other/my_toast.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -43,7 +45,7 @@ class _InAppWebViewPageState extends State<InAppWebViewPage> {
   int onLoadStopTime = -1;
   Uri? lastLoadUri;
   final String ntustLoginUri = "https://ssoam.ntust.edu.tw/nidp/app/login";
-  final String moodleLoginUri = "https://moodle2.ntust.edu.tw/login";
+  final String moodleLoginUri = "https://ssoam2.ntust.edu.tw/account/login";
 
   @override
   void initState() {
@@ -101,90 +103,102 @@ class _InAppWebViewPageState extends State<InAppWebViewPage> {
         future: setCookies(),
         builder: (BuildContext context, AsyncSnapshot<bool> snapshot) {
           if (snapshot.hasData) {
-            return SafeArea(
-              child: Column(
-                children: <Widget>[
-                  Container(
-                    child: progress < 1.0
-                        ? LinearProgressIndicator(value: progress)
-                        : Container(),
-                  ),
-                  Expanded(
-                    child: InAppWebView(
-                      initialUrlRequest: URLRequest(url: widget.url),
-                      initialSettings: InAppWebViewSettings(
-                          useHybridComposition: true, useOnDownloadStart: true),
-                      onWebViewCreated: (InAppWebViewController controller) {
-                        webView = controller;
-                      },
-                      onLoadStart:
-                          (InAppWebViewController controller, Uri? url) {
-                        setState(() {
-                          if (lastLoadUri != url) {
-                            onLoadStopTime++;
-                          }
-                          lastLoadUri = url;
-                          this.url = url!;
-                        });
-                      },
-                      onLoadStop:
-                          (InAppWebViewController controller, Uri? url) async {
-                        if (url?.toString().startsWith(ntustLoginUri) == true) {
-                          await controller.evaluateJavascript(
-                              source:
-                                  'document.getElementsByName("Ecom_User_ID")[0].value = "${Model.instance.getAccount()}";');
-                          await controller.evaluateJavascript(
-                              source:
-                                  'document.getElementsByName("Ecom_Password")[0].value = "${Model.instance.getPassword()}";');
-                          await controller.evaluateJavascript(
-                              source:
-                                  'document.getElementById("loginButton2").click();');
-                        } else if (url.toString().startsWith(moodleLoginUri)) {
-                          await controller.evaluateJavascript(
-                              source:
-                                  'document.getElementsByName("username")[0].value = "${Model.instance.getAccount()}";');
-                          await controller.evaluateJavascript(
-                              source:
-                                  'document.getElementsByName("password")[0].value = "${Model.instance.getPassword()}";');
+            return Column(
+              children: <Widget>[
+                Container(
+                  child: progress < 1.0
+                      ? LinearProgressIndicator(value: progress)
+                      : Container(),
+                ),
+                Expanded(
+                  child: InAppWebView(
+                    initialUrlRequest: URLRequest(url: widget.url),
+                    initialSettings: InAppWebViewSettings(
+                        useHybridComposition: true, useOnDownloadStart: true),
+                    onWebViewCreated: (InAppWebViewController controller) {
+                      webView = controller;
+                    },
+                    onLoadStart:
+                        (InAppWebViewController controller, Uri? url) {
+                      setState(() {
+                        if (lastLoadUri != url) {
+                          onLoadStopTime++;
                         }
-                        widget.loadDone(controller);
-                        setState(
-                          () {
-                            this.url = url!;
-                          },
-                        );
-                      },
-                      onProgressChanged:
-                          (InAppWebViewController controller, int progress) {
-                        setState(
-                          () {
-                            this.progress = progress / 100;
-                          },
-                        );
-                      },
-                      onDownloadStartRequest:
-                          (InAppWebViewController controller,
-                              DownloadStartRequest downloadStartRequest) {
-                        var url = downloadStartRequest.url;
-                        Log.d("WebView download ${url.toString()}");
-                        if (widget.onWebViewDownload != null) {
-                          widget.onWebViewDownload!(url);
+                        lastLoadUri = url;
+                        this.url = url!;
+                      });
+                    },
+                    onLoadStop:
+                        (InAppWebViewController controller, Uri? url) async {
+                      if (url.toString().startsWith(ntustLoginUri)) {
+                        await controller.evaluateJavascript(
+                            source:
+                                'document.getElementsByName("Ecom_User_ID")[0].value = "${Model.instance.getAccount()}";');
+                        await controller.evaluateJavascript(
+                            source:
+                                'document.getElementsByName("Ecom_Password")[0].value = "${Model.instance.getPassword()}";');
+                        await controller.evaluateJavascript(
+                            source:
+                                'document.getElementById("loginButton2").click();');
+                      } else if (url.toString().startsWith(moodleLoginUri)) {
+                        if (await controller.waitForElement(condition: 'document.getElementById("Username") != null')) {
+                          await controller.evaluateJavascript(source: 'document.getElementById("Username").value = "${Model.instance.getAccount()}";');
+                          await controller.evaluateJavascript(source: 'document.getElementById("Password").value = "${Model.instance.getPassword()}";');
+                        }
+
+                        // 等待 Cloudflare Turnstile 驗證
+                        if (await controller.waitForElement(
+                            condition:
+                            'document.querySelector(\'[name="cf-turnstile-response"]\') != null && document.querySelector(\'[name="cf-turnstile-response"]\').value !== ""')) {
+                          await controller.evaluateJavascript(
+                              source:
+                              'document.getElementById("loginButton").click();');
                         } else {
-                          String dirName = "WebView";
-                          FileDownload.download(
-                              context, url.toString(), dirName);
+                          MyToast.show(R.current.needValidateCaptcha);
                         }
-                      },
-                    ),
+                      } else if (url.toString().startsWith(moodleLoginUri)) {
+                        await controller.evaluateJavascript(
+                            source:
+                                'document.getElementsByName("username")[0].value = "${Model.instance.getAccount()}";');
+                        await controller.evaluateJavascript(
+                            source:
+                                'document.getElementsByName("password")[0].value = "${Model.instance.getPassword()}";');
+                      }
+                      widget.loadDone(controller);
+                      setState(
+                        () {
+                          this.url = url!;
+                        },
+                      );
+                    },
+                    onProgressChanged:
+                        (InAppWebViewController controller, int progress) {
+                      setState(
+                        () {
+                          this.progress = progress / 100;
+                        },
+                      );
+                    },
+                    onDownloadStartRequest:
+                        (InAppWebViewController controller,
+                            DownloadStartRequest downloadStartRequest) {
+                      var url = downloadStartRequest.url;
+                      Log.d("WebView download ${url.toString()}");
+                      if (widget.onWebViewDownload != null) {
+                        widget.onWebViewDownload!(url);
+                      } else {
+                        String dirName = "WebView";
+                        FileDownload.download(
+                            context, url.toString(), dirName);
+                      }
+                    },
                   ),
-                ],
-              ),
-            );
-          } else {
-            return const Center(
-              child: CircularProgressIndicator(),
+                ),
+              ],
             );
           }
+
+          return const LoadingPage(isLoading: true, isShowBackground: false,);
         },
       ),
     );

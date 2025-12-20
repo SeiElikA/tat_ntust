@@ -16,7 +16,29 @@ class MainScreen extends StatefulWidget {
 }
 
 class _MainScreenState extends State<MainScreen> with RouteAware {
-  var controller = Get.put(MainController());
+  final controller = Get.put(MainController());
+  final items = [
+    {
+      "icon": "img_clock.svg",
+      "name": R.current.titleCourse
+    },
+    {
+      "icon": "img_info.svg",
+      "name": R.current.informationSystem
+    },
+    {
+      "icon": "img_calendar.svg",
+      "name": R.current.calendar
+    },
+    {
+      "icon": "img_book.svg",
+      "name": R.current.titleScore
+    },
+    {
+      "icon": "img_menu.svg",
+      "name": R.current.titleOther
+    }
+  ];
 
   @override
   void didChangeDependencies() {
@@ -59,29 +81,6 @@ class _MainScreenState extends State<MainScreen> with RouteAware {
   }
 
   Widget _buildBottomNavigationBar() {
-    final items = [
-      {
-        "icon": "img_clock.svg",
-        "name": R.current.titleCourse
-      },
-      {
-        "icon": "img_info.svg",
-        "name": R.current.informationSystem
-      },
-      {
-        "icon": "img_calendar.svg",
-        "name": R.current.calendar
-      },
-      {
-        "icon": "img_book.svg",
-        "name": R.current.titleScore
-      },
-      {
-        "icon": "img_menu.svg",
-        "name": R.current.titleOther
-      }
-    ];
-
     return Obx(() {
       var currentIndex = controller.currentIndex.value;
 

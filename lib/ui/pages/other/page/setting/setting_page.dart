@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_app/src/R.dart';
 import 'package:flutter_app/src/controller/main_page/main_controller.dart';
 import 'package:flutter_app/src/file/file_store.dart';
@@ -98,6 +99,7 @@ class _SettingPageState extends State<SettingPage> {
             Switch.adaptive(
                 value: LanguageUtils.getLangIndex() == LangEnum.en,
                 onChanged: (value) async {
+                  await HapticFeedback.lightImpact();
                   int langIndex = 1 - LanguageUtils.getLangIndex().index;
                   await LanguageUtils.setLangByIndex(
                       LangEnum.values.toList()[langIndex]);
@@ -136,6 +138,7 @@ class _SettingPageState extends State<SettingPage> {
             Switch.adaptive(
                 value: Model.instance.getOtherSetting().useExternalVideoPlayer,
                 onChanged: (value) async {
+                  await HapticFeedback.lightImpact();
                   setState(() {
                     Model.instance.getOtherSetting().useExternalVideoPlayer =
                         value;
@@ -170,9 +173,10 @@ class _SettingPageState extends State<SettingPage> {
               ),
             ),
             const SizedBox(width: 12),
-            const Icon(
+            Icon(
               Icons.chevron_right,
               size: 20,
+              color: Get.theme.colorScheme.onSurface,
             ),
           ],
         ), () {
@@ -203,9 +207,10 @@ class _SettingPageState extends State<SettingPage> {
               ),
             ),
             const SizedBox(width: 12),
-            const Icon(
+            Icon(
               Icons.chevron_right,
               size: 20,
+              color: Get.theme.colorScheme.onSurface,
             ),
           ],
         ), () {

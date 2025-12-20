@@ -63,13 +63,13 @@ class LoginScreen extends GetView<LoginController> {
             AdaptiveButton(
               onPressed: controller.onLoginEvent,
               width: double.infinity,
-              backgroundColor: Get.theme.colorScheme.primaryContainer,
+              backgroundColor: Get.theme.colorScheme.primary,
               padding: const EdgeInsets.symmetric(vertical: 14),
               borderRadius: BorderRadius.circular(10),
               child: Text(
                 R.current.login,
                 style:
-                    TextStyle(color: Get.theme.colorScheme.onPrimaryContainer),
+                    TextStyle(color: Get.theme.colorScheme.onPrimary),
               ),
             ),
             const SizedBox(height: 8),
@@ -82,7 +82,7 @@ class LoginScreen extends GetView<LoginController> {
           ],
         ),
         SizedBox(height: Get.height * 0.2),
-      ],
+      ]
     );
   }
 

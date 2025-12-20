@@ -39,8 +39,7 @@ class DioConnector {
       responseDecoder: null);
   Dio dio = Dio(dioOptions);
   late PersistCookieJar _cookieJar;
-  static final Exception connectorError =
-      Exception("Connector statusCode is not 200");
+  static final Exception connectorError = Exception("Connector statusCode is not 200");
 
   DioConnector._privateConstructor();
 
@@ -51,10 +50,10 @@ class DioConnector {
     try {
       Directory appDocDir = await getApplicationSupportDirectory();
       String appDocPath = appDocDir.path;
-      _cookieJar =
-          PersistCookieJar(storage: FileStorage("$appDocPath/.cookies/"));
+      _cookieJar = PersistCookieJar(storage: FileStorage("$appDocPath/.cookies/"));
       alice.setNavigatorKey(get_utils.Get.key);
       dio.interceptors.add(CookieManager(_cookieJar));
+      dio.interceptors.add(LogInterceptor(requestHeader: true, responseHeader: true,));
       dio.interceptors.add(RequestInterceptors());
       dio.interceptors.add(alice.getDioInterceptor());
       await FkUserAgent.init();
@@ -98,8 +97,7 @@ class DioConnector {
     }
   }
 
-  Future<Map<String, List<String>>> getHeadersByGet(
-      ConnectorParameter parameter) async {
+  Future<Map<String, List<String>>> getHeadersByGet(ConnectorParameter parameter) async {
     try {
       var response = await dio.get<ResponseBody>(
         parameter.url,
@@ -161,6 +159,9 @@ class DioConnector {
     dio.options.headers[HttpHeaders.userAgentHeader] = parameter.userAgent;
     if (parameter.referer != null) {
       dio.options.headers[HttpHeaders.refererHeader] = parameter.referer;
+    }
+    if(parameter.headers != null) {
+      dio.options.headers.addAll(parameter.headers!);
     }
   }
 
