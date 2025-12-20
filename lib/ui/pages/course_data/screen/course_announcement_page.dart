@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_app/src/R.dart';
-import 'package:flutter_app/src/ad/ad_manager.dart';
 import 'package:flutter_app/src/model/course_table/course_table_json.dart';
 import 'package:flutter_app/src/model/moodle_webapi/moodle_mod_forum_get_forum_discussions_paginated.dart';
 import 'package:flutter_app/src/task/moodle_webapi/moodle_course_message_task.dart';
@@ -31,9 +30,7 @@ class _CourseAnnouncementPageState extends State<CourseAnnouncementPage>
     TaskFlow taskFlow = TaskFlow();
     var task = MoodleCourseMessageTask(courseId);
     taskFlow.addTask(task);
-    if (await taskFlow.start()) {
-      AdManager.showDownloadAD();
-    }
+    await taskFlow.start();
     return task.result.discussions;
   }
 

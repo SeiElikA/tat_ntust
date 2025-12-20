@@ -1,7 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_app/src/R.dart';
-import 'package:flutter_app/src/ad/ad_manager.dart';
 import 'package:flutter_app/src/model/course_table/course_table_json.dart';
 import 'package:flutter_app/src/model/moodle_webapi/moodle_core_course_get_contents.dart';
 import 'package:flutter_app/src/task/moodle_webapi/moodle_course_directory_task.dart';
@@ -29,9 +28,7 @@ class _CourseDirectoryPageState extends State<CourseDirectoryPage> with Automati
     TaskFlow taskFlow = TaskFlow();
     var task = MoodleCourseDirectoryTask(courseId);
     taskFlow.addTask(task);
-    if (await taskFlow.start()) {
-      AdManager.showDownloadAD();
-    }
+    await taskFlow.start();
     return task.result;
   }
 

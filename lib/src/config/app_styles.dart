@@ -4,8 +4,8 @@ import 'package:get/get.dart';
 class AppStyles {
   AppStyles._();
 
-  static DialogTheme dialogTheme() {
-    return const DialogTheme(
+  static DialogThemeData dialogTheme() {
+    return const DialogThemeData(
       actionsPadding: EdgeInsets.all(12),
     );
   }
