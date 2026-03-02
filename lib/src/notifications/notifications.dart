@@ -1,12 +1,14 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_app/debug/log/log.dart';
+import 'package:flutter_app/src/util/file_utils.dart';
 import 'package:flutter_app/src/util/permissions_utils.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:open_filex/open_filex.dart';
 import 'package:rxdart/rxdart.dart';
+import 'package:share_plus/share_plus.dart';
 
 class Notifications {
   Notifications._();
@@ -97,7 +99,7 @@ class Notifications {
           if (parse.containsKey("path")) {
             String path = parse["path"];
             Log.d("open $path");
-            await OpenFilex.open(path);
+            await FileUtils.openFile(path);
           }
           break;
         case "download_fail":
@@ -112,8 +114,7 @@ class Notifications {
     });
   }
 
-  Future<void> showProgressNotification(
-      ReceivedNotification value, int maxProgress, int nowProgress) async {
+  Future<void> showProgressNotification(ReceivedNotification value, int maxProgress, int nowProgress) async {
     //顯示下載進度
     var androidPlatformChannelSpecifics = AndroidNotificationDetails(
         downloadChannelId, downloadChannelName,
@@ -136,8 +137,7 @@ class Notifications {
         payload: value.payload);
   }
 
-  Future<void> showIndeterminateProgressNotification(
-      ReceivedNotification value) async {
+  Future<void> showIndeterminateProgressNotification(ReceivedNotification value) async {
     //顯示未知下載進度
     var androidPlatformChannelSpecifics = AndroidNotificationDetails(
         downloadChannelId, downloadChannelName,

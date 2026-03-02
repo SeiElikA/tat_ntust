@@ -14,7 +14,7 @@ class ScoreViewerPage extends GetView<ScorePageController> {
     Get.put(ScorePageController());
 
     return Obx(
-      () {
+          () {
         switch (controller.state.value) {
           case ScoreUIState.success:
             return _buildContentPage();
@@ -30,34 +30,36 @@ class ScoreViewerPage extends GetView<ScorePageController> {
   }
 
   Widget _buildContentPage() {
-    return DefaultTabController(
-      length: controller.tabLabelList.length,
-      child: Scaffold(
-        appBar: mainAppbar(
-            title: R.current.searchScore,
-            action: [
-              IconButton(
-                icon: const Icon(CupertinoIcons.refresh),
-                splashRadius: 18,
-                iconSize: 24,
-                onPressed: () async {
-                  controller.initTask(refresh: true);
-                },
-                tooltip: R.current.update,
-              ),
-            ],
-            bottom: TabBar(
-              controller: controller.tabController,
-              isScrollable: true,
-              tabs: controller.tabLabelList,
-              onTap: controller.toIndex,
-            )),
-        body: TabBarView(
-          controller: controller.tabController,
-          children: controller.tabChildList,
+    return Obx(() {
+      return DefaultTabController(
+        length: controller.tabLabelList.length,
+        child: Scaffold(
+          appBar: mainAppbar(
+              title: R.current.searchScore,
+              action: [
+                IconButton(
+                  icon: const Icon(CupertinoIcons.refresh),
+                  splashRadius: 18,
+                  iconSize: 24,
+                  onPressed: () async {
+                    controller.initTask(refresh: true);
+                  },
+                  tooltip: R.current.update,
+                ),
+              ],
+              bottom: TabBar(
+                controller: controller.tabController,
+                isScrollable: true,
+                tabs: controller.tabLabelList,
+                onTap: controller.toIndex,
+              )),
+          body: TabBarView(
+            controller: controller.tabController,
+            children: controller.tabChildList.value,
+          ),
         ),
-      ),
-    );
+      );
+    });
   }
 
   Widget _buildErrorPage() {

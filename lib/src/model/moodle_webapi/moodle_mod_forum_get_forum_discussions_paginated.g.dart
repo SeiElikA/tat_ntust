@@ -39,7 +39,7 @@ Discussions _$DiscussionsFromJson(Map<String, dynamic> json) => Discussions(
       message: json['message'] as String? ?? "",
       messageformat: json['messageformat'] as int? ?? 0,
       messagetrust: json['messagetrust'] as int? ?? 0,
-      attachment: json['attachment'] as String? ?? "",
+      attachment: json['attachment'] as bool? ?? false,
       attachments: (json['attachments'] as List<dynamic>?)
           ?.map((e) => Attachments.fromJson(e as Map<String, dynamic>))
           .toList(),

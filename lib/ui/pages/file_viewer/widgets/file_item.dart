@@ -2,8 +2,8 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_app/src/util/file_utils.dart';
-import 'package:open_filex/open_filex.dart';
 import 'package:path/path.dart' as p;
+import 'package:share_plus/share_plus.dart';
 
 import 'file_icon.dart';
 import 'file_popup.dart';
@@ -21,7 +21,9 @@ class FileItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListTile(
-      onTap: () => OpenFilex.open(file!.path),
+      onTap: () async {
+        await FileUtils.openFile(file!.path);
+      },
       contentPadding: const EdgeInsets.all(0),
       leading: SizedBox(
         height: 40,

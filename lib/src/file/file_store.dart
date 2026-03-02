@@ -17,11 +17,9 @@ class FileStore {
       MyToast.show(R.current.noPermission);
       return "";
     }
-    Directory? directory = await _getFilePath();
-    directory ??= Get.theme.platform == TargetPlatform.android
-        ? await getExternalStorageDirectory()
-        : await getApplicationSupportDirectory();
-    return directory!.path;
+
+    Directory? directory = await _getFilePath() ?? await getApplicationSupportDirectory();
+    return directory.path;
   }
 
   static Future<String> getDownloadDir(

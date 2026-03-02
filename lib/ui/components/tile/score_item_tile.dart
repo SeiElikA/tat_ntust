@@ -35,11 +35,14 @@ class ScoreItemTile extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 24),
-          GestureDetector(
-            child: _buildScore(),
-            onTap: () {
-              MyToast.show(score.score);
-            },
+          Container(
+            constraints: const BoxConstraints(maxWidth: 100),
+            child: GestureDetector(
+              child: _buildScore(),
+              onTap: () {
+                MyToast.show(score.score);
+              },
+            ),
           ),
           const SizedBox(width: 4),
         ],
@@ -78,12 +81,13 @@ class ScoreItemTile extends StatelessWidget {
   }
 
   Widget _buildScore() {
-    final color = score.isPassScore
-        ? Get.theme.colorScheme.onSurface
-        : Get.theme.colorScheme.error;
+    final color =
+        score.isPassScore || score.courseId.toUpperCase() == "TC1010301"
+            ? Get.theme.colorScheme.onSurface
+            : Get.theme.colorScheme.error;
 
     var scoreLabel = score.score;
-    if(scoreLabel == "-" && score.remark.isNotEmpty) {
+    if (scoreLabel == "-" && score.remark.isNotEmpty) {
       scoreLabel = score.remark;
     }
 
@@ -91,6 +95,8 @@ class ScoreItemTile extends StatelessWidget {
       scoreLabel,
       style:
           TextStyle(fontSize: 16.0, color: color, fontWeight: FontWeight.bold),
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
       textAlign: TextAlign.end,
     );
   }

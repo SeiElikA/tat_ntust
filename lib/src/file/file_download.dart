@@ -13,14 +13,13 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_app/debug/log/log.dart';
-import 'package:flutter_app/generated/l10n.dart';
 import 'package:flutter_app/src/R.dart';
 import 'package:flutter_app/src/connector/core/dio_connector.dart';
 import 'package:flutter_app/src/notifications/notifications.dart';
 import 'package:flutter_app/src/util/analytics_utils.dart';
 import 'package:flutter_app/src/util/file_utils.dart';
 import 'package:flutter_app/ui/other/my_toast.dart';
-import 'package:open_filex/open_filex.dart';
+import 'package:share_plus/share_plus.dart' show Share, XFile;
 
 import 'file_store.dart';
 
@@ -55,13 +54,7 @@ class FileDownload {
     }
     try {
       Log.d("try open $savePath");
-      OpenResult result = await OpenFilex.open(savePath);
-      if (result.type == ResultType.done) {
-        return;
-      } else if (result.type == ResultType.noAppToOpen) {
-        MyToast.show(S.current.noAppToOpen);
-        return;
-      }
+      await FileUtils.openFile(savePath);
     } catch (e) {
       Log.d(e);
     }

@@ -16,8 +16,8 @@ class ScorePageController extends GetxController
   var state = ScoreUIState.loading.obs;
   var semesterScoreList = <SemesterScoreJson>[].obs;
   var currentTabIndex = 0.obs;
-  var tabLabelList = <Widget>[];
-  var tabChildList = <Widget>[];
+  var tabLabelList = <Widget>[].obs;
+  var tabChildList = <Widget>[].obs;
   late TabController tabController;
 
   @override
@@ -128,14 +128,10 @@ class ScorePageController extends GetxController
       _buildTitle(courseScore),
       const SizedBox(height: 12),
       for (var score in courseScore) ...{
-        _buildScoreItem(score),
+        ScoreItemTile(score: score),
         const SizedBox(height: 8)
       }
     ];
-  }
-
-  Widget _buildScoreItem(ScoreItemJson score) {
-    return ScoreItemTile(score: score);
   }
 
   Widget _buildTitle(List<ScoreItemJson> courseList) {

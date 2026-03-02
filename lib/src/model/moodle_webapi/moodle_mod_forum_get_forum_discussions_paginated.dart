@@ -106,7 +106,7 @@ class Discussions extends Object {
   int messagetrust;
 
   @JsonKey(name: 'attachment')
-  String attachment;
+  bool attachment;
 
   @JsonKey(name: 'attachments')
   late List<Attachments> attachments;
@@ -156,7 +156,7 @@ class Discussions extends Object {
     this.message = "",
     this.messageformat = 0,
     this.messagetrust = 0,
-    this.attachment = "",
+    this.attachment = false,
     List<Attachments>? attachments,
     this.totalscore = 0,
     this.mailnow = 0,

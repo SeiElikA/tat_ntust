@@ -223,7 +223,7 @@ class CourseConnector {
 
     var courseIds = await Model.instance.getScore().getCourseIdBySemester(semester);
 
-    if(courseIds.isEmpty) {
+    if(courseIds.where((id) => id.toUpperCase() != "TC1010301").isEmpty) {
       // 如果成績查詢系統抓不到資料，改用moodle查詢課程代碼
       var taskFlow = TaskFlow();
       var task = MoodleCourseTask(semester);

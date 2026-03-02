@@ -3,7 +3,6 @@ import 'dart:math';
 
 import 'package:dio/dio.dart';
 import 'package:flutter_app/debug/log/log.dart';
-import 'package:flutter_app/src/R.dart';
 import 'package:flutter_app/src/connector/core/connector.dart';
 import 'package:flutter_app/src/connector/core/connector_parameter.dart';
 import 'package:flutter_app/src/connector/core/dio_connector.dart';
@@ -19,7 +18,6 @@ import 'package:flutter_app/src/model/moodle_webapi/moodle_setting_entity.dart';
 import 'package:flutter_app/src/store/model.dart';
 import 'package:flutter_app/src/task/moodle_webapi/moodle_task.dart';
 import 'package:flutter_app/src/util/html_utils.dart';
-import 'package:flutter_app/ui/other/my_toast.dart';
 import 'package:get/get.dart' as g;
 
 enum MoodleWebApiConnectorStatus { loginSuccess, loginFail, unknownError }
@@ -28,15 +26,19 @@ class MoodleWebApiConnector {
   static const String host = "https://moodle2.ntust.edu.tw";
   static const String _webAPIUrl = "$host/webservice/rest/server.php";
   static const String _webAPILoginUrl = "$host/login/token.php";
-  static String moodleLoginUrl = "$host/admin/tool/mobile/launch.php?service=moodle_mobile_app&passport=${Random.secure().nextInt(500)}&urlscheme=moodlemobile&lang=zh_tw";
+  static String moodleLoginUrl =
+      "$host/admin/tool/mobile/launch.php?service=moodle_mobile_app&passport=${Random.secure().nextInt(500)}&urlscheme=moodlemobile&lang=zh_tw";
 
   static String? wsToken;
   static String? privateToken;
 
-  static Future<MoodleWebApiConnectorStatus> login(String account, String password) async {
+  static Future<MoodleWebApiConnectorStatus> login(
+      String account, String password) async {
     try {
-      final tokenData = (await g.Get.to(() => LoginMoodlePage(username: account, password: password))) as MoodleTokenEntity?;
-      if(tokenData == null) {
+      final tokenData = (await g.Get.to(
+              () => LoginMoodlePage(username: account, password: password)))
+          as MoodleTokenEntity?;
+      if (tokenData == null) {
         return MoodleWebApiConnectorStatus.loginFail;
       }
 
@@ -55,7 +57,7 @@ class MoodleWebApiConnector {
   }
 
   static Future<bool> isMoodleTokenAvailable() async {
-    if(wsToken == null) {
+    if (wsToken == null) {
       return false;
     }
 
@@ -68,7 +70,7 @@ class MoodleWebApiConnector {
 
     final result = await Connector.getJsonByPost(parameter);
     Log.d(result);
-    if((result as Map<String, dynamic>).containsKey("errorcode")) {
+    if ((result as Map<String, dynamic>).containsKey("errorcode")) {
       return false;
     }
 
@@ -172,11 +174,13 @@ class MoodleWebApiConnector {
         "moodlewsrestformat": "json",
         "moodlewssettingfilter": "true",
         "moodlewssettingfileurl": "true",
-        "wsfunction": "mod_forum_get_forum_discussions_paginated",
+        "wsfunction": "mod_forum_get_forum_discussions",
         "wstoken": wsToken,
         "forumid": forumId,
-        "sortby": "timemodified",
-        "sortdirection": "desc",
+        "page": 0,
+        "perpage": 100,
+        "sortorder": 1,
+        "groupid": 0
       };
       result = await Connector.getJsonByPost(parameter);
       return MoodleModForumGetForumDiscussionsPaginated.fromJson(
@@ -226,7 +230,8 @@ class MoodleWebApiConnector {
       parameter = ConnectorParameter(_webAPIUrl);
       parameter.data = {
         "moodlewsrestformat": "json",
-        "wsfunction": "core_course_get_enrolled_courses_by_timeline_classification",
+        "wsfunction":
+            "core_course_get_enrolled_courses_by_timeline_classification",
         "classification": "inprogress",
         "wstoken": wsToken
       };

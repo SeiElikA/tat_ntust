@@ -1,10 +1,15 @@
 import 'dart:io';
 import 'dart:math';
 
+import 'package:android_intent_plus/android_intent.dart';
+import 'package:android_intent_plus/flag.dart';
 import 'package:intl/intl.dart';
 import 'package:mime_type/mime_type.dart';
+import 'package:open_filex/open_filex.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 
 class FileUtils {
   static String waPath = "/storage/emulated/0/WhatsApp/Media/.Statuses";
@@ -204,5 +209,34 @@ class FileUtils {
       default:
         return list..sort();
     }
+  }
+
+  static Future<void> openFile(String path) async {
+    final originFile = File(path);
+    if (!await originFile.exists()) {
+      throw Exception("File not found");
+    }
+
+    if (Platform.isAndroid) {
+      PackageInfo packageInfo = await PackageInfo.fromPlatform();
+      String packageName = packageInfo.packageName;
+      String fileName = path.split("/").last;
+      String contentUri = "content://$packageName.fileProvider/internal_files/$fileName";
+
+      final intent = AndroidIntent(
+        action: 'action_view',
+        data: contentUri,
+        type: mime(fileName),
+        flags: <int>[
+          Flag.FLAG_GRANT_READ_URI_PERMISSION,
+          Flag.FLAG_ACTIVITY_NEW_TASK,
+        ],
+      );
+
+      await intent.launch();
+      return;
+    }
+
+    final result = await OpenFilex.open(originFile.path);
   }
 }

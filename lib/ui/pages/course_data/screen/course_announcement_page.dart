@@ -23,8 +23,7 @@ class CourseAnnouncementPage extends StatefulWidget {
   State<StatefulWidget> createState() => _CourseAnnouncementPageState();
 }
 
-class _CourseAnnouncementPageState extends State<CourseAnnouncementPage>
-    with AutomaticKeepAliveClientMixin {
+class _CourseAnnouncementPageState extends State<CourseAnnouncementPage> with AutomaticKeepAliveClientMixin {
   Future<List<Discussions>?> initTask() async {
     String courseId = widget.courseInfo.main.course.id;
     TaskFlow taskFlow = TaskFlow();
