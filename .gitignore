@@ -30,6 +30,7 @@
 .pub-cache/
 .pub/
 /build/
+**/build/
 
 # Web related
 lib/generated_plugin_registrant.dart
@@ -37,9 +38,24 @@ lib/generated_plugin_registrant.dart
 # Exceptions to above rules.
 !/packages/flutter_tools/test/data/dart_dependencies_test/**/.packages
 
+# fvm / puro (SDK 版本以 .fvmrc 為準，本機 SDK 路徑不進版控)
+.fvm/flutter_sdk
+.fvm/versions
+.puro.json
+
+# 建置產物
+android/app/release/
+
 # Firebase
 android/app/google-services.json
 ios/Runner/GoogleService-Info.plist
 
 # release build
 *.symbols
+
+.env
+# python 執行 tool/ 底下腳本產生的
+__pycache__/
+
+# Kotlin 2.x 的建置快取，Gradle 產生的。
+android/.kotlin/

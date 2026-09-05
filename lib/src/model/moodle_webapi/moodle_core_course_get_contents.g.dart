@@ -9,11 +9,11 @@ part of 'moodle_core_course_get_contents.dart';
 MoodleCoreCourseGetContents _$MoodleCoreCourseGetContentsFromJson(
         Map<String, dynamic> json) =>
     MoodleCoreCourseGetContents(
-      id: json['id'] as int? ?? 0,
+      id: (json['id'] as num?)?.toInt() ?? 0,
       name: json['name'] as String? ?? "",
       summary: json['summary'] as String? ?? "",
-      summaryformat: json['summaryformat'] as int? ?? 0,
-      visible: json['visible'] as int? ?? 0,
+      summaryformat: (json['summaryformat'] as num?)?.toInt() ?? 0,
+      visible: (json['visible'] as num?)?.toInt() ?? 0,
       modules: (json['modules'] as List<dynamic>?)
           ?.map((e) => Modules.fromJson(e as Map<String, dynamic>))
           .toList(),
@@ -31,16 +31,16 @@ Map<String, dynamic> _$MoodleCoreCourseGetContentsToJson(
     };
 
 Modules _$ModulesFromJson(Map<String, dynamic> json) => Modules(
-      id: json['id'] as int? ?? 0,
+      id: (json['id'] as num?)?.toInt() ?? 0,
       url: json['url'] as String? ?? "",
       name: json['name'] as String? ?? "",
-      instance: json['instance'] as int? ?? 0,
+      instance: (json['instance'] as num?)?.toInt() ?? 0,
       description: json['description'] as String? ?? "",
-      visible: json['visible'] as int? ?? 0,
+      visible: (json['visible'] as num?)?.toInt() ?? 0,
       modicon: json['modicon'] as String? ?? "",
       modname: json['modname'] as String? ?? "",
       modplural: json['modplural'] as String? ?? "",
-      indent: json['indent'] as int? ?? 0,
+      indent: (json['indent'] as num?)?.toInt() ?? 0,
       folderIsNone: json['folderIsNone'] as bool? ?? false,
       contents: (json['contents'] as List<dynamic>?)
           ?.map((e) => Contents.fromJson(e as Map<String, dynamic>))
@@ -66,12 +66,12 @@ Contents _$ContentsFromJson(Map<String, dynamic> json) => Contents(
       type: json['type'] as String? ?? "",
       filename: json['filename'] as String? ?? "",
       filepath: json['filepath'] as String? ?? "",
-      filesize: json['filesize'] as int? ?? 0,
+      filesize: (json['filesize'] as num?)?.toInt() ?? 0,
       fileurl: json['fileurl'] as String? ?? "",
-      timecreated: json['timecreated'] as int? ?? 0,
-      timemodified: json['timemodified'] as int? ?? 0,
-      sortorder: json['sortorder'] as int? ?? 0,
-      userid: json['userid'] as int? ?? 0,
+      timecreated: (json['timecreated'] as num?)?.toInt() ?? 0,
+      timemodified: (json['timemodified'] as num?)?.toInt() ?? 0,
+      sortorder: (json['sortorder'] as num?)?.toInt() ?? 0,
+      userid: (json['userid'] as num?)?.toInt() ?? 0,
       author: json['author'] as String? ?? "",
       license: json['license'] as String? ?? "",
     );

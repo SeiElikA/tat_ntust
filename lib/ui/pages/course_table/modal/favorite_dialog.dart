@@ -25,9 +25,10 @@ class FavoriteDialog extends StatelessWidget {
               child: TextButton(
                 onPressed: () => onPressed(index),
                 onLongPress: () => showDeleteDialog(index),
-                child: Text(sprintf("%s %s %s-%s", [
+                // 不放 studentName：現存的 querycourse 路徑一律寫死空字串，加上
+                // 去會讓新存的課表多一個空格、舊的又有名字，同一份清單兩種樣子。
+                child: Text(sprintf("%s %s-%s", [
                   value[index].studentId,
-                  value[index].studentName,
                   value[index].courseSemester.year,
                   value[index].courseSemester.semester
                 ]), style: TextStyle(color: Get.theme.colorScheme.onSurface),),

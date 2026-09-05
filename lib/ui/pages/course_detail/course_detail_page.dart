@@ -1,5 +1,9 @@
+import 'dart:async';
+
+import 'package:flutter_app/src/controller/course_detail/course_detail_controller.dart';
 import 'package:auto_size_text/auto_size_text.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_app/ui/other/svg_tint.dart';
 import 'package:flutter_app/src/R.dart';
 import 'package:flutter_app/src/model/course/course_class_json.dart';
 import 'package:flutter_app/src/model/course_table/course_table_json.dart';
@@ -24,35 +28,39 @@ class CourseDetailPage extends StatefulWidget {
   State<StatefulWidget> createState() => _CourseDetailPageState();
 }
 
-class _CourseDetailPageState extends State<CourseDetailPage> with SingleTickerProviderStateMixin {
+class _CourseDetailPageState extends State<CourseDetailPage>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
   final PageController _pageController = PageController();
   int _currentIndex = 0;
   List<Widget> _pages = [];
   List<Map<String, dynamic>> _tabItems = [];
 
+  late final CourseDetailController _controller;
+
   @override
   void initState() {
     super.initState();
+    _controller = CourseDetailController(
+      courseId: widget.courseInfo.main.course.id,
+      semester: widget.semester,
+    );
+    // 課程資訊與成員一起抓，不等使用者滑到成員那一頁。理由同 CourseDataPage。
+    unawaited(_controller.loadAll());
     _pages = [
       CourseInfoPage(
         widget.courseInfo.main.course.id,
         widget.semester,
+        controller: _controller,
       ),
       CourseMemberPage(
         widget.courseInfo.main.course.id,
-        widget.semester,
+        controller: _controller,
       ),
     ];
     _tabItems = [
-      {
-        "name": R.current.course,
-        "icon": "img_info.svg"
-      },
-      {
-        "name": R.current.member,
-        "icon": "img_group.svg"
-      }
+      {"name": R.current.course, "icon": "img_info.svg"},
+      {"name": R.current.member, "icon": "img_group.svg"}
     ];
     _tabController = TabController(vsync: this, length: _tabItems.length);
   }
@@ -73,7 +81,6 @@ class _CourseDetailPageState extends State<CourseDetailPage> with SingleTickerPr
           bottom: _buildTabBar(_tabItems),
         ),
         body: PageView(
-          //控制滑動
           controller: _pageController,
           children: _pages,
           onPageChanged: (index) {
@@ -96,9 +103,9 @@ class _CourseDetailPageState extends State<CourseDetailPage> with SingleTickerPr
         final index = items.indexOf(item);
         return Tab(
           icon: SvgPicture.asset("assets/image/${item["icon"]}",
-              color: _currentIndex == index
+              colorFilter: svgTint(_currentIndex == index
                   ? Get.theme.colorScheme.primary
-                  : Get.theme.colorScheme.onSurface,
+                  : Get.theme.colorScheme.onSurface),
               height: 24),
           iconMargin: const EdgeInsets.only(bottom: 6),
           child: AutoSizeText(

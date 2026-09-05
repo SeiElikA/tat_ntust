@@ -1,3 +1,4 @@
+import 'package:flutter_app/src/store/credentials_store.dart';
 import 'package:flutter_app/debug/log/log.dart';
 import 'package:flutter_app/src/model/remote_config/remote_config_version_info.dart';
 import 'package:flutter_app/src/store/model.dart';
@@ -8,7 +9,7 @@ import 'package:version/version.dart';
 class APPVersion {
   static Future<bool> initAndCheck() async {
     try {
-      await checkIFAPPUpdate(); //檢查是否有更新
+      await checkIFAPPUpdate();
       return await check();
     } catch (e) {
       Log.e(e);
@@ -18,7 +19,7 @@ class APPVersion {
 
   static Future<bool> check({focusCheck = false}) async {
     RemoteConfigVersionInfo config = await RemoteConfigUtils.getVersionConfig();
-    if (!(await config.isFocusUpdate)) {
+    if (!config.isFocusUpdateFor(await AppUpdate.getAppVersion())) {
       if (!focusCheck) {
         if (!Model.instance.autoCheckAppUpdate) {
           Log.d("close check update because of close auto check");
@@ -28,7 +29,10 @@ class APPVersion {
           Log.d("close check update because of already check");
           return false; //跳過檢查
         }
-        if (Model.instance.getAccount().isEmpty) {
+        // 不走 AuthSession.instance.isSignedIn（判準完全相同）：這個檔案在
+        // tool/deps.py 裡排在 auth 下面，往 auth 是上行邊，往 store 才是
+        // 下行的。
+        if (!CredentialsStore.instance.hasCredentials) {
           Log.d("close check update because of not login");
           return false; //跳過檢查
         }
@@ -41,19 +45,20 @@ class APPVersion {
   }
 
   static Future<void> checkIFAPPUpdate() async {
-    //檢查是否有更新APP
     String version = await AppUpdate.getAppVersion();
     String preVersion = await Model.instance.getVersion();
     Log.d(" preVersion: $preVersion \n version: $version");
-    await Model.instance.setVersion(version);
+    // 版本戳記必須在遷移成功之後才落盤：先寫版本的話，遷移中途失敗（例外被
+    // 外層 try/catch 吞掉）下次冷啟動 preVersion == version 就直接跳過，
+    // 遷移永遠不會再跑，使用者停在半遷移狀態且畫面上零徵兆。
     if (preVersion != version) {
       await updateVersionCallback(preVersion);
     }
+    await Model.instance.setVersion(version);
   }
 
   static Future<void> updateVersionCallback(String preVersion) async {
-    //更新版本後會執行函數
-    //用途資料更新...
+    //更新版本後執行的資料遷移
     Version version;
     try {
       version = Version.parse(preVersion);

@@ -1,5 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_app/ui/other/svg_tint.dart';
+import 'package:flutter_app/src/util/course_table_control.dart';
 import 'package:flutter_app/src/model/course/course_main_extra_json.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get/get.dart';
@@ -34,13 +36,17 @@ class CourseSearchCard extends StatelessWidget {
                     const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 2),
-              Text(info.course.id, style: const TextStyle(fontSize: 14, color: Colors.grey),),
+              Text(
+                info.course.id,
+                style: const TextStyle(fontSize: 14, color: Colors.grey),
+              ),
               const SizedBox(height: 2),
               teacherText(),
               const SizedBox(height: 2),
               timeText(),
               const SizedBox(height: 2),
-              Text("${R.current.startClass}: ${info.getOpenClassName().isEmpty ? "--" : info.getOpenClassName()}"),
+              Text(
+                  "${R.current.startClass}: ${info.getOpenClassName().isEmpty ? "--" : info.getOpenClassName()}"),
               const SizedBox(height: 2),
               Text("${R.current.classroom}: ${info.getClassroomName()}"),
               const SizedBox(height: 2),
@@ -53,7 +59,7 @@ class CourseSearchCard extends StatelessWidget {
   }
 
   Widget timeText() {
-    return _iconWithText("img_clock.svg", info.getTime());
+    return _iconWithText("img_clock.svg", courseTimeString(info.course.time));
   }
 
   Widget teacherText() {
@@ -63,7 +69,8 @@ class CourseSearchCard extends StatelessWidget {
   Widget _iconWithText(String assetName, String content) {
     return Row(
       children: [
-        SvgPicture.asset("assets/image/$assetName", color: Get.iconColor, height: 20, width: 20),
+        SvgPicture.asset("assets/image/$assetName",
+            colorFilter: svgTint(Get.iconColor), height: 20, width: 20),
         const SizedBox(width: 4),
         Text(content),
       ],

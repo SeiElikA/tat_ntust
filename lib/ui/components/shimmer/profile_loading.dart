@@ -9,23 +9,26 @@ class ProfileLoading extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Shimmer.fromColors(
-      baseColor: Get.theme.cardColor,
-      period: const Duration(milliseconds: 2000),
-      highlightColor: Colors.grey.withOpacity(0.6),
-      child: const Row(
-        children: [
-          CircleAvatar(radius: 24,),
-          SizedBox(width: 12),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              TextShimmer(),
-              SizedBox(height: 8),
-              TextShimmer(width: 160,),
-            ],
-          ),
-        ],
-      )
-    );
+        baseColor: Get.theme.cardColor,
+        period: const Duration(milliseconds: 2000),
+        highlightColor: Colors.grey.withValues(alpha: 0.6),
+        child: const Row(
+          children: [
+            CircleAvatar(
+              radius: 24,
+            ),
+            SizedBox(width: 12),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                TextShimmer(),
+                SizedBox(height: 8),
+                TextShimmer(
+                  width: 160,
+                ),
+              ],
+            ),
+          ],
+        ));
   }
 }

@@ -1,13 +1,13 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_app/src/R.dart';
-import 'package:flutter_app/src/config/app_link.dart';
 import 'package:flutter_app/src/model/remote_config/remote_config_version_info.dart';
 import 'package:flutter_app/src/util/open_utils.dart';
 import 'package:flutter_app/src/util/remote_config_utils.dart';
-import 'package:flutter_app/ui/other/my_toast.dart';
+import 'package:flutter_app/src/util/my_toast.dart';
 import 'package:get/get.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:sprintf/sprintf.dart';
@@ -39,7 +39,7 @@ class AppUpdate {
 
   static void _showUpdateDialog(RemoteConfigVersionInfo value) async {
     String title = sprintf("%s %s", [R.current.findNewVersion, value.version]);
-    bool isFocusUpdate = await value.isFocusUpdate;
+    bool isFocusUpdate = value.isFocusUpdateFor(await getAppVersion());
     await Get.dialog<bool>(
       AlertDialog(
         title: Text(title),
@@ -78,17 +78,14 @@ class AppUpdate {
     if (isFocusUpdate) {
       MyToast.show(R.current.appWillClose);
       await Future.delayed(const Duration(seconds: 1));
-      SystemNavigator.pop();
+      // 不等 pop：它要求平台關掉 App，等到了也沒得往下做，而下一行的
+      // exit(0) 就是 pop 沒生效時的第二條退場路。
+      unawaited(SystemNavigator.pop());
       exit(0);
     }
   }
 
   static void _openLink(String url) async {
-    await OpenUtils.launchURL(url);
-  }
-
-  static void _openAppStore() async {
-    String url = AppLink.storeLink;
     await OpenUtils.launchURL(url);
   }
 }

@@ -10,7 +10,8 @@ class CourseSearchBar extends StatelessWidget {
       this.onChange,
       this.readOnly = false,
       this.onTap,
-      this.isBack = false, this.onSubmit});
+      this.isBack = false,
+      this.onSubmit});
 
   final TextEditingController? controller;
   final bool isBack;
@@ -22,8 +23,7 @@ class CourseSearchBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(14)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       color: Get.theme.colorScheme.surfaceContainer,
       clipBehavior: Clip.antiAlias,
       child: Container(
@@ -69,10 +69,10 @@ class CourseSearchBar extends StatelessWidget {
 
     return CupertinoButton(
         padding: EdgeInsets.zero,
-        minSize: 0.0,
         onPressed: () {
           Get.back();
         },
+        minimumSize: const Size(0.0, 0.0),
         child: icon);
   }
 }

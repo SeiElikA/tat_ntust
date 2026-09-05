@@ -1,5 +1,9 @@
+import 'dart:async';
+
+import 'package:flutter_app/src/controller/course_data/course_data_controller.dart';
 import 'package:auto_size_text/auto_size_text.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_app/ui/other/svg_tint.dart';
 import 'package:flutter_app/src/R.dart';
 import 'package:flutter_app/src/model/course/course_class_json.dart';
 import 'package:flutter_app/src/model/course_table/course_table_json.dart';
@@ -30,29 +34,35 @@ class _CourseDataPageState extends State<CourseDataPage>
   List<Widget> _pages = [];
   List<Map<String, dynamic>> _tabItems = [];
 
+  late final CourseDataController _controller;
+
   @override
   void initState() {
     super.initState();
+    _controller = CourseDataController(widget.courseInfo.main.course.id);
+    // 三個分頁一起抓，不等使用者滑過去：PageView(children:) 是懶載入的
+    // （cacheExtent 0），分頁各自在 initState 發請求的話，每換一個分頁就要
+    // 從頭等一次。
+    unawaited(_controller.loadAll());
     _pages = [
-      CourseDirectoryPage(widget.courseInfo),
-      CourseAnnouncementPage(widget.courseInfo),
-      CourseScorePage(widget.courseInfo)
+      CourseDirectoryPage(widget.courseInfo, controller: _controller),
+      CourseAnnouncementPage(widget.courseInfo, controller: _controller),
+      CourseScorePage(widget.courseInfo, controller: _controller)
     ];
     _tabItems = [
-      {
-        "name": R.current.file,
-        "icon": "img_file.svg"
-      },
-      {
-        "name": R.current.announcement,
-        "icon": "img_message.svg"
-      },
-      {
-        "name": R.current.score,
-        "icon": "img_education.svg"
-      }
+      {"name": R.current.file, "icon": "img_file.svg"},
+      {"name": R.current.announcement, "icon": "img_message.svg"},
+      {"name": R.current.score, "icon": "img_education.svg"}
     ];
     _tabController = TabController(vsync: this, length: _tabItems.length);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    _pageController.dispose();
+    _tabController?.dispose();
+    super.dispose();
   }
 
   @override
@@ -90,9 +100,9 @@ class _CourseDataPageState extends State<CourseDataPage>
         final index = items.indexOf(item);
         return Tab(
           icon: SvgPicture.asset("assets/image/${item["icon"]}",
-              color: _currentIndex == index
+              colorFilter: svgTint(_currentIndex == index
                   ? Get.theme.colorScheme.primary
-                  : Get.theme.colorScheme.onSurface,
+                  : Get.theme.colorScheme.onSurface),
               height: 24),
           iconMargin: const EdgeInsets.only(bottom: 6),
           child: AutoSizeText(

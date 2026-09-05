@@ -3,7 +3,14 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 class AdaptiveButton extends StatelessWidget {
-  const AdaptiveButton({super.key, required this.onPressed, required this.child, this.padding, this.width, this.backgroundColor, this.borderRadius});
+  const AdaptiveButton(
+      {super.key,
+      required this.onPressed,
+      required this.child,
+      this.padding,
+      this.width,
+      this.backgroundColor,
+      this.borderRadius});
 
   final Function() onPressed;
   final Widget child;
@@ -17,31 +24,27 @@ class AdaptiveButton extends StatelessWidget {
     if (GetPlatform.isIOS) {
       return CupertinoButton(
         onPressed: onPressed,
-        minSize: 0,
         padding: EdgeInsets.zero,
+        minimumSize: const Size(0, 0),
         child: Container(
-          alignment: Alignment.center,
-          width: width,
-          padding: padding,
-          decoration: BoxDecoration(
-              color: backgroundColor,
-              borderRadius: borderRadius
-          ),
-          child: child
-        ),
+            alignment: Alignment.center,
+            width: width,
+            padding: padding,
+            decoration: BoxDecoration(
+                color: backgroundColor, borderRadius: borderRadius),
+            child: child),
       );
     }
     return TextButton(
-      style: TextButton.styleFrom(
-        backgroundColor: backgroundColor,
-        shape: RoundedRectangleBorder(
-          borderRadius: borderRadius ?? BorderRadius.zero,
+        style: TextButton.styleFrom(
+          backgroundColor: backgroundColor,
+          shape: RoundedRectangleBorder(
+            borderRadius: borderRadius ?? BorderRadius.zero,
+          ),
+          minimumSize: Size(width ?? 0, 0),
+          padding: padding,
         ),
-        minimumSize: Size(width ?? 0, 0),
-        padding: padding,
-      ),
-      onPressed: onPressed,
-      child: child
-    );
+        onPressed: onPressed,
+        child: child);
   }
 }

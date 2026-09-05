@@ -14,14 +14,14 @@ class CustomInputDialog extends StatelessWidget {
   final String hint;
 
   CustomInputDialog({
-    Key? key,
+    super.key,
     required this.title,
     required this.initText,
     required this.onOk,
     required this.onCancel,
     this.maxLine = 1,
     this.hint = "",
-  }) : super(key: key) {
+  }) {
     controller.text = initText;
   }
 

@@ -41,7 +41,8 @@ class CustomProgressDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AnimatedPadding(
-      padding: MediaQuery.of(context).viewInsets + const EdgeInsets.symmetric(horizontal: 40.0, vertical: 24.0),
+      padding: MediaQuery.of(context).viewInsets +
+          const EdgeInsets.symmetric(horizontal: 40.0, vertical: 24.0),
       duration: insetAnimationDuration,
       curve: insetAnimationCurve,
       child: MediaQuery.removeViewInsets(
@@ -59,7 +60,8 @@ class CustomProgressDialog extends StatelessWidget {
                 filter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
                 child: Material(
                   elevation: 24.0,
-                  color: Get.theme.colorScheme.surfaceContainerHighest.withOpacity(0.85),
+                  color: Get.theme.colorScheme.surfaceContainerHighest
+                      .withValues(alpha: 0.85),
                   type: MaterialType.card,
                   borderRadius: const BorderRadius.all(Radius.circular(24)),
                   child: child,

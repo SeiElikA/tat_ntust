@@ -1,12 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
-import 'package:flutter_app/src/connector/core/connector.dart';
 import 'package:flutter_app/src/connector/moodle_webapi_connector.dart';
-import 'package:flutter_app/src/file/file_download.dart';
+import 'package:flutter_app/ui/service/file_download.dart';
 import 'package:flutter_app/src/model/course_table/course_table_json.dart';
-import 'package:flutter_app/src/model/moodle_webapi/moodle_mod_forum_get_forum_discussions_paginated.dart';
-import 'package:flutter_app/src/task/moodle_webapi/moodle_course_message_detail_task.dart';
-import 'package:flutter_app/src/task/task_flow.dart';
-import 'package:flutter_app/src/util/route_utils.dart';
+import 'package:flutter_app/src/model/moodle_webapi/moodle_mod_forum_get_forum_discussions.dart';
+import 'package:flutter_app/ui/routes/route_utils.dart';
 import 'package:flutter_app/ui/components/custom_appbar.dart';
 import 'package:flutter_app/ui/components/page/error_page.dart';
 import 'package:flutter_app/ui/components/tile/course_info_tile.dart';
@@ -32,23 +31,19 @@ class _CourseAnnouncementDetailPageState
   late String html;
 
   Future<Discussions?> initTask() async {
-    if (widget.discussions.isNone) {
-      TaskFlow taskFlow = TaskFlow();
-      var task = MoodleCourseMessageDetailTask(widget.discussions);
-      taskFlow.addTask(task);
-      await taskFlow.start();
-      return task.result;
-    } else {
-      return widget.discussions;
-    }
+    return widget.discussions;
   }
+
+  /// Future 只建一次。理由同 course_folder_page。
+  late final Future<Discussions?> _task = initTask();
 
   Future<bool> onLinkTap(Discussions discussions, String url) async {
     if (Uri.parse(url).path.contains("pluginfile.php")) {
       String dirName = widget.courseInfo.main.course.name;
-      FileDownload.download(context, url, dirName);
+      // 下載自己有進度通知與生命週期，不擋住 onLinkTap 的回傳。
+      unawaited(FileDownload.download(context, url, dirName));
     } else {
-      RouteUtils.toWebViewPage(discussions.name, url);
+      unawaited(RouteUtils.toWebViewPage(discussions.name, url));
     }
     return true;
   }
@@ -58,13 +53,11 @@ class _CourseAnnouncementDetailPageState
     Discussions discussions = widget.discussions;
     html = discussions.message;
     return Scaffold(
-      appBar: baseAppbar(
-        title: HtmlUnescape().convert(discussions.name)
-      ),
+      appBar: baseAppbar(title: HtmlUnescape().convert(discussions.name)),
       body: Container(
         padding: const EdgeInsets.only(top: 10),
         child: FutureBuilder<Discussions?>(
-          future: initTask(),
+          future: _task,
           builder:
               (BuildContext context, AsyncSnapshot<Discussions?> snapshot) {
             if (snapshot.connectionState == ConnectionState.done) {
@@ -102,17 +95,20 @@ class _CourseAnnouncementDetailPageState
           itemCount: discussions.attachments.length,
           itemBuilder: (BuildContext context, int index) {
             var ap = discussions.attachments[index];
-            return CourseInfoTile(index: index, title: ap.filename, img: "img_doc", onTap: () {
-              String dirName = widget.courseInfo.main.course.name;
-              FileDownload.download(
-                  context,
-                  Connector.uriAddQuery(
-                    ap.fileurl,
-                    {"token": MoodleWebApiConnector.wsToken},
-                  ),
-                  dirName,
-                  name: ap.filename);
-            });
+            return CourseInfoTile(
+                index: index,
+                title: ap.filename,
+                img: "img_doc",
+                onTap: () {
+                  String dirName = widget.courseInfo.main.course.name;
+                  // 下載自己管生命週期與通知，不等它；這裡是同步回呼，
+                  // unawaited_futures 抓不到，所以手動標示。
+                  unawaited(FileDownload.download(
+                      context,
+                      MoodleWebApiConnector.fileUrlWithToken(ap.fileurl),
+                      dirName,
+                      name: ap.filename));
+                });
           },
         )
       ],

@@ -1,12 +1,9 @@
-import 'dart:io';
-
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_app/src/R.dart';
 import 'package:flutter_app/src/controller/main_page/main_controller.dart';
 import 'package:flutter_app/src/file/file_store.dart';
-import 'package:flutter_app/src/store/model.dart';
 import 'package:flutter_app/src/util/document_utils.dart';
 import 'package:flutter_app/src/util/language_utils.dart';
 import 'package:flutter_app/ui/components/custom_appbar.dart';
@@ -32,12 +29,18 @@ class _SettingPageState extends State<SettingPage> {
     super.initState();
     WidgetsFlutterBinding.ensureInitialized()
         .addPostFrameCallback((timeStamp) async {
+      // callback 是掛在 binding 上而不是這個 State 上，即使頁面在第一幀後
+      // 馬上被 pop 掉也照樣會跑；此時讀 State.context 會 assert 失敗。
+      if (!mounted) return;
       await _getDownloadPath();
     });
   }
 
   Future<void> _getDownloadPath() async {
     String path = await FileStore.findLocalPath(context);
+    // 這個 await 可能停在系統的儲存權限對話框上，長度不可控。使用者在對話框
+    // 開著的時候退出設定頁，setState 就會打在已經 dispose 的 State 上。
+    if (!mounted) return;
     setState(() {
       downloadPath = path;
     });
@@ -51,10 +54,6 @@ class _SettingPageState extends State<SettingPage> {
       _buildMoodleSetting(),
       _buildFolderPathSetting()
     ];
-
-    if (Platform.isAndroid) {
-      listViewData.insert(1, _buildOpenExternalVideoSetting());
-    }
 
     return Scaffold(
       appBar: baseAppbar(title: R.current.setting),
@@ -106,44 +105,6 @@ class _SettingPageState extends State<SettingPage> {
                   Get.find<MainController>().pageController.jumpToPage(0);
                   Get.back();
                   setState(() {});
-                })
-          ],
-        ),
-        () {});
-  }
-
-  Widget _buildOpenExternalVideoSetting() {
-    return _buildItemWrapper(
-        Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    R.current.openExternalVideo,
-                    style: TextStyle(color: Get.theme.colorScheme.onSurface),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    R.current.openExternalVideoHint,
-                    style: TextStyle(
-                        fontSize: 14,
-                        color: Get.theme.colorScheme.onSurfaceVariant),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 12),
-            Switch.adaptive(
-                value: Model.instance.getOtherSetting().useExternalVideoPlayer,
-                onChanged: (value) async {
-                  await HapticFeedback.lightImpact();
-                  setState(() {
-                    Model.instance.getOtherSetting().useExternalVideoPlayer =
-                        value;
-                    Model.instance.saveOtherSetting();
-                  });
                 })
           ],
         ),
@@ -239,7 +200,9 @@ class _SettingPageState extends State<SettingPage> {
             ],
           ), () async {
         String? directory = await DocumentUtils.choiceFolder();
-        if (directory != null) {
+        // mounted 同 _getDownloadPath：系統資料夾選擇器會停留任意久，
+        // 期間使用者可以退出設定頁，回來時 State 已經 dispose。
+        if (directory != null && mounted) {
           setState(() {
             downloadPath = directory;
           });

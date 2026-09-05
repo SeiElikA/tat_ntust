@@ -2,7 +2,7 @@ import 'dart:async';
 import 'package:flutter_app/debug/log/log.dart';
 import 'package:flutter_app/src/model/course/course_class_json.dart';
 import 'package:flutter_app/src/model/score/score_json.dart';
-import 'package:flutter_inappwebview/flutter_inappwebview.dart' hide CookieManager;
+import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:html/dom.dart';
 import 'package:html/parser.dart';
 
@@ -11,28 +11,105 @@ class ScoreConnector {
   static const _scoreUrl = "$host/StuScoreQueryServ/StuScoreQuery/DisplayAll";
 
   static String clearString(String v) {
-    return v.replaceAll("\n", "").trim(); //trim去除兩旁空格
+    return v.replaceAll("\n", "").trim();
+  }
+
+  /// 轉址鏈的終點特徵。onLoadStop 每一站都會觸發，只有這一站是成績頁。
+  static const String _scorePathMarker = "StuScoreQuery";
+
+  /// 以 HeadlessInAppWebView 取得成績頁 HTML。逾時或載入失敗回 null。
+  ///
+  /// 三件事都不能拿掉：20 秒逾時（外層進度框是 allowClick=false 的全螢幕
+  /// 遮罩，不收網使用者就只能殺掉 App）、每個回呼開頭的 isCompleted 檢查
+  /// （client-side 導向會讓 onLoadStop 觸發第二次，重複 complete 丟出的
+  /// StateError 在 plugin 的 async 回呼裡外層 try 接不到）、以及 finally 的
+  /// dispose（原生端以 HashMap 強持有，不 dispose 不會被回收）。
+  static Future<String?> _fetchScorePage() async {
+    final completer = Completer<String?>();
+    HeadlessInAppWebView? webView;
+    try {
+      webView = HeadlessInAppWebView(
+        initialUrlRequest: URLRequest(url: WebUri(_scoreUrl)),
+        onLoadStop: (controller, url) async {
+          if (completer.isCompleted) return;
+          // **只在真的走到成績頁時才收網。**
+          //
+          // onLoadStop 在轉址鏈的每一站都會觸發，而這個 headless WebView 沒有
+          // 帶任何 cookie 出門，session 失效時第一站是 SSO 的轉址頁——它剛好
+          // 有 `box-content alerts` 區塊卻沒有 <tbody>。在第一站就 complete
+          // 會解析出一份非 null 的空 ScoreRankJson，呼叫端當成功寫回硬碟，
+          // 成績頁就被清空且沒有任何錯誤訊息。
+          //
+          // 不符就直接 return，讓轉址鏈繼續跑；真的到不了就由外層的 20 秒
+          // timeout 收成 null，走既有的失敗流程。
+          if (url == null || !url.toString().contains(_scorePathMarker)) {
+            Log.d("score page: 略過中途頁 ${url?.host}${url?.path}");
+            return;
+          }
+          completer.complete(await controller.getHtml());
+        },
+        onReceivedError: (controller, request, error) {
+          if (completer.isCompleted) return;
+          Log.e("score page load error: ${error.description}");
+          completer.complete(null);
+        },
+      );
+      await webView.run();
+      return await completer.future.timeout(
+        const Duration(seconds: 20),
+        onTimeout: () {
+          Log.e("score page timeout");
+          return null;
+        },
+      );
+    } catch (e, stack) {
+      Log.eWithStack(e.toString(), stack);
+      return null;
+    } finally {
+      await webView?.dispose();
+    }
   }
 
   static Future<ScoreRankJson?> getScoreRank() async {
+    final result = await _fetchScorePage();
+    if (result == null) return null;
+    return parseScoreRank(result);
+  }
+
+  /// 把成績頁的 HTML 解析成 [ScoreRankJson]，看不懂就回 null。
+  ///
+  /// 抽成純函式是為了讓那兩道守衛（見內文）能在 CI 裡驗證——它們防的是
+  /// 「解析失敗卻回傳非 null 的空結果」，那會讓呼叫端把硬碟上的成績蓋掉。
+  static ScoreRankJson? parseScoreRank(String result) {
+    // items 刻意在排名與成績兩段解析之間「不」重設：沒有排名表的學生
+    // （例如新生）第一段解析會失敗，保留上一次的 items 正是他們仍能看到
+    // 成績的原因。「順手修正」成重設，這些學生的成績會變空白且無錯誤訊息。
     List<Element> items = [];
     ScoreRankJson info = ScoreRankJson();
 
     try {
-      Completer<String> completer = Completer();
-      final webView = HeadlessInAppWebView(
-          initialUrlRequest: URLRequest(url: WebUri(_scoreUrl)),
-          onLoadStop: (controller, url) async {
-            final html = await controller.getHtml();
-            completer.complete(html);
-          }
-      );
-      await webView.run();
-
-      final result = await completer.future;
-
       final tagNode = parse(result);
       final nodes = tagNode.getElementsByClassName("box-content alerts");
+
+      // 被導回登入頁（session 過期）時整頁沒有這個 class。少了這道 guard，
+      // 函式會回傳一個「非 null 但完全空」的 ScoreRankJson，而呼叫端
+      // （ScorePageController.initTask）把非 null 當成功，setScore + saveScore
+      // 直接把使用者硬碟上的成績蓋成空白且沒有任何錯誤訊息。
+      // 回 null 才會走到既有的 fail 流程。
+      if (nodes.isEmpty) {
+        Log.e("score page has no score table, probably redirected to login");
+        return null;
+      }
+      // 第二道守衛：有 `box-content alerts` 不代表那是表格，轉址頁與錯誤頁
+      // 也用這個 class 排版。判準是裡面有沒有 <tbody>——沒有的話下面的
+      // `getElementsByTagName("tbody")[0]` 會丟 RangeError 被 inner catch 吞掉，
+      // 同樣回傳「非 null 但完全空」的結果把硬碟蓋掉。新生（沒有排名表）走的
+      // 是 nodes.length == 1 的路徑，那個區塊仍有 tbody，不會被誤傷。
+      if (nodes[0].getElementsByTagName("tbody").isEmpty) {
+        Log.e("score page: box-content alerts 裡沒有 tbody，不是成績表");
+        return null;
+      }
+
       //排名
       try {
         items = nodes[0]
@@ -84,6 +161,13 @@ class ScoreConnector {
           generalDimension: clearString(i[7].text),
         );
         info.addScoreBySemester(semester, item);
+      }
+      // 解析成功但零學期＝頁面看得懂卻沒有內容。對真的沒有成績的新生這是
+      // 合法的，但它與「解析全部失敗」在型別上無法區分，而後者會蓋掉硬碟。
+      // 回 null 讓呼叫端保留既有快取；新生的快取本來就是空的，不會有損失。
+      if (info.info.isEmpty) {
+        Log.e("score page: 解析出零個學期，不寫回快取");
+        return null;
       }
       return info;
     } catch (e, stack) {

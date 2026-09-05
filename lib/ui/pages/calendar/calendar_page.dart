@@ -1,19 +1,15 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_app/src/R.dart';
-import 'package:flutter_app/src/config/app_colors.dart';
 import 'package:flutter_app/src/controller/calendar/calendar_controller.dart';
 import 'package:flutter_app/src/util/language_utils.dart';
 import 'package:flutter_app/src/util/ui_utils.dart';
 import 'package:flutter_app/ui/components/custom_appbar.dart';
-import 'package:flutter_app/ui/components/page/loading_page.dart';
 import 'package:get/get.dart';
 import 'package:table_calendar/table_calendar.dart';
 
 /*
-firstDay是日曆的第一天。用戶將無法在訪問前幾天訪問。
-lastDay是日曆的最後可用日期。幾天后用戶將無法訪問。
-focusedDay是當前的目標日期。使用此屬性來確定當前應顯示的月份。
+kFirstDay / kLastDay 是日曆可存取範圍的上下界，超出這段的日期使用者點不到。
  */
 final kNow = DateTime.now();
 final kFirstDay = DateTime(kNow.year, kNow.month - 12, kNow.day);
@@ -24,7 +20,6 @@ class CalendarPage extends GetView<CalendarController> {
 
   @override
   Widget build(BuildContext context) {
-    Get.put(CalendarController());
     return Obx(() {
       return Scaffold(
         appBar: mainAppbar(title: R.current.calendar, action: [

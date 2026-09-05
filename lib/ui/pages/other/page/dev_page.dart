@@ -1,15 +1,16 @@
+import 'dart:async';
+
 import 'package:clipboard/clipboard.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_app/src/R.dart';
+import 'package:flutter_app/src/connector/core/dio_connector.dart';
 import 'package:flutter_app/src/util/cloud_messaging_utils.dart';
 import 'package:flutter_app/src/util/remote_config_utils.dart';
-import 'package:flutter_app/src/util/route_utils.dart';
-import 'package:flutter_app/ui/other/input_dialog.dart';
+import 'package:flutter_app/ui/routes/route_utils.dart';
 import 'package:flutter_app/ui/other/listview_animator.dart';
-import 'package:flutter_app/ui/other/my_toast.dart';
-import 'package:get/get.dart';
+import 'package:flutter_app/src/util/my_toast.dart';
 
-enum OnListViewPress {
+enum DevMenuAction {
   cloudMessageToken,
   dioLog,
   appLog,
@@ -18,7 +19,7 @@ enum OnListViewPress {
 }
 
 class DevPage extends StatefulWidget {
-  const DevPage({Key? key}) : super(key: key);
+  const DevPage({super.key});
 
   @override
   State<StatefulWidget> createState() => _DevPageState();
@@ -30,31 +31,31 @@ class _DevPageState extends State<DevPage> {
       "icon": Icons.vpn_key_outlined,
       "title": "Cloud Messaging Token",
       "color": Colors.green,
-      "onPress": OnListViewPress.cloudMessageToken
+      "onPress": DevMenuAction.cloudMessageToken
     },
     {
       "icon": Icons.info_outline,
       "title": "Dio Log",
       "color": Colors.blue,
-      "onPress": OnListViewPress.dioLog
+      "onPress": DevMenuAction.dioLog
     },
     {
       "icon": Icons.info_outline,
       "title": "App Log",
       "color": Colors.yellow,
-      "onPress": OnListViewPress.appLog
+      "onPress": DevMenuAction.appLog
     },
     {
       "icon": Icons.edit_outlined,
       "title": "Store Edit",
       "color": Colors.green,
-      "onPress": OnListViewPress.storeEdit
+      "onPress": DevMenuAction.storeEdit
     },
     {
       "icon": Icons.announcement,
       "title": "Announcement",
       "color": Colors.deepPurple,
-      "onPress": OnListViewPress.announcement
+      "onPress": DevMenuAction.announcement
     },
   ];
 
@@ -66,27 +67,24 @@ class _DevPageState extends State<DevPage> {
 
   int pressTime = 0;
 
-  void _onListViewPress(OnListViewPress value) async {
+  void _onListViewPress(DevMenuAction value) async {
     switch (value) {
-      case OnListViewPress.cloudMessageToken:
+      case DevMenuAction.cloudMessageToken:
         String? token = await CloudMessagingUtils.getToken();
         MyToast.show("${token!} copy");
-        FlutterClipboard.copy(token);
+        unawaited(FlutterClipboard.copy(token));
         break;
-      case OnListViewPress.dioLog:
-        RouteUtils.toAliceInspectorPage();
+      case DevMenuAction.dioLog:
+        DioConnector.instance.alice.showInspector();
         break;
-      case OnListViewPress.appLog:
-        RouteUtils.toLogConsolePage();
+      case DevMenuAction.appLog:
+        unawaited(RouteUtils.toLogConsolePage());
         break;
-      case OnListViewPress.storeEdit:
-        RouteUtils.toStoreEditPage();
+      case DevMenuAction.storeEdit:
+        unawaited(RouteUtils.toStoreEditPage());
         break;
-      case OnListViewPress.announcement:
-        RemoteConfigUtils.showAnnouncementDialog(test: true);
-        break;
-      default:
-        MyToast.show(R.current.noFunction);
+      case DevMenuAction.announcement:
+        unawaited(RouteUtils.showAnnouncement(test: true));
         break;
     }
   }
@@ -122,7 +120,6 @@ class _DevPageState extends State<DevPage> {
 
   Container _buildAbout(Map data) {
     return Container(
-      //color: Colors.yellow,
       padding: const EdgeInsets.only(
           top: 20.0, left: 20.0, right: 20.0, bottom: 20.0),
       child: Row(

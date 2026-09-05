@@ -1,0 +1,176 @@
+// mod_forum_get_forum_discussions 的回應。
+//
+// 不要改呼叫 `mod_forum_get_forum_discussions_paginated`：Moodle 3.7 標為
+// 棄用（MDL-65071），4.4 已從核心移除（MDL-70483）。
+
+import 'package:json_annotation/json_annotation.dart';
+
+part 'moodle_mod_forum_get_forum_discussions.g.dart';
+
+@JsonSerializable()
+class MoodleModForumGetForumDiscussions {
+  @JsonKey(name: 'discussions')
+  late List<Discussions> discussions;
+
+  MoodleModForumGetForumDiscussions({List<Discussions>? discussions}) {
+    this.discussions = discussions ?? [];
+  }
+
+  factory MoodleModForumGetForumDiscussions.fromJson(
+          Map<String, dynamic> srcJson) =>
+      _$MoodleModForumGetForumDiscussionsFromJson(srcJson);
+
+  Map<String, dynamic> toJson() =>
+      _$MoodleModForumGetForumDiscussionsToJson(this);
+}
+
+@JsonSerializable()
+class Discussions extends Object {
+  @JsonKey(name: 'id')
+  int id;
+
+  @JsonKey(name: 'name')
+  String name;
+
+  @JsonKey(name: 'groupid')
+  int groupid;
+
+  @JsonKey(name: 'timemodified')
+  int timemodified;
+
+  @JsonKey(name: 'usermodified')
+  int usermodified;
+
+  @JsonKey(name: 'timestart')
+  int timestart;
+
+  @JsonKey(name: 'timeend')
+  int timeend;
+
+  @JsonKey(name: 'discussion')
+  int discussion;
+
+  @JsonKey(name: 'parent')
+  int parent;
+
+  @JsonKey(name: 'userid')
+  int userid;
+
+  @JsonKey(name: 'created')
+  int created;
+
+  @JsonKey(name: 'modified')
+  int modified;
+
+  @JsonKey(name: 'mailed')
+  int mailed;
+
+  @JsonKey(name: 'subject')
+  String subject;
+
+  @JsonKey(name: 'message')
+  String message;
+
+  bool isNone;
+
+  @JsonKey(name: 'messageformat')
+  int messageformat;
+
+  @JsonKey(name: 'messagetrust')
+  int messagetrust;
+
+  @JsonKey(name: 'attachment')
+  bool attachment;
+
+  @JsonKey(name: 'attachments')
+  late List<Attachments> attachments;
+
+  @JsonKey(name: 'totalscore')
+  int totalscore;
+
+  @JsonKey(name: 'mailnow')
+  int mailnow;
+
+  @JsonKey(name: 'userfullname')
+  String userfullname;
+
+  @JsonKey(name: 'usermodifiedfullname')
+  String usermodifiedfullname;
+
+  @JsonKey(name: 'userpictureurl')
+  String userpictureurl;
+
+  @JsonKey(name: 'usermodifiedpictureurl')
+  String usermodifiedpictureurl;
+
+  @JsonKey(name: 'numreplies')
+  int numreplies;
+
+  @JsonKey(name: 'numunread')
+  int numunread;
+
+  @JsonKey(name: 'pinned')
+  bool pinned;
+
+  Discussions({
+    this.id = 0,
+    this.name = "",
+    this.groupid = 0,
+    this.timemodified = 0,
+    this.usermodified = 0,
+    this.timestart = 0,
+    this.timeend = 0,
+    this.discussion = 0,
+    this.parent = 0,
+    this.userid = 0,
+    this.created = 0,
+    this.modified = 0,
+    this.mailed = 0,
+    this.subject = "",
+    this.message = "",
+    this.messageformat = 0,
+    this.messagetrust = 0,
+    this.attachment = false,
+    List<Attachments>? attachments,
+    this.totalscore = 0,
+    this.mailnow = 0,
+    this.userfullname = "",
+    this.usermodifiedfullname = "",
+    this.userpictureurl = "",
+    this.usermodifiedpictureurl = "",
+    this.numreplies = 0,
+    this.numunread = 0,
+    this.pinned = false,
+    this.isNone = false,
+  }) {
+    this.attachments = attachments ?? [];
+  }
+
+  factory Discussions.fromJson(Map<String, dynamic> srcJson) =>
+      _$DiscussionsFromJson(srcJson);
+
+  Map<String, dynamic> toJson() => _$DiscussionsToJson(this);
+}
+
+@JsonSerializable()
+class Attachments extends Object {
+  @JsonKey(name: 'filename')
+  String filename;
+
+  @JsonKey(name: 'mimetype')
+  String mimetype;
+
+  @JsonKey(name: 'fileurl')
+  String fileurl;
+
+  Attachments({
+    this.filename = "",
+    this.mimetype = "",
+    this.fileurl = "",
+  });
+
+  factory Attachments.fromJson(Map<String, dynamic> srcJson) =>
+      _$AttachmentsFromJson(srcJson);
+
+  Map<String, dynamic> toJson() => _$AttachmentsToJson(this);
+}

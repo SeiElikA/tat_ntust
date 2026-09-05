@@ -1,4 +1,3 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_app/src/R.dart';
 import 'package:flutter_app/src/config/app_colors.dart';
@@ -62,10 +61,7 @@ class PrivacyPolicyScreen extends GetView<PrivacyPolicyController> {
       padding: const EdgeInsets.symmetric(vertical: 12),
       child: Text(
         R.current.agree,
-        style: const TextStyle(
-          fontSize: 16,
-          color: Colors.white
-        ),
+        style: const TextStyle(fontSize: 16, color: Colors.white),
       ),
     );
   }

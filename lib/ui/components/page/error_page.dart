@@ -1,8 +1,8 @@
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter_app/src/auth/auth_session.dart';
 import 'package:flutter_app/src/R.dart';
-import 'package:flutter_app/src/store/model.dart';
-import 'package:flutter_app/src/util/route_utils.dart';
+import 'package:flutter_app/ui/routes/route_utils.dart';
 import 'package:flutter_app/ui/components/adaptive_button.dart';
 import 'package:get/get.dart';
 
@@ -57,7 +57,7 @@ class ErrorPage extends StatelessWidget {
             }
           }
           return Text(
-            Model.instance.getAccount().isEmpty
+            !AuthSession.instance.isSignedIn
                 ? R.current.pleaseLoginWarning
                 : R.current.somethingError,
             style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
@@ -70,7 +70,7 @@ class ErrorPage extends StatelessWidget {
   }
 
   Widget loginBtn() {
-    if (Model.instance.getAccount().isEmpty) {
+    if (!AuthSession.instance.isSignedIn) {
       return AdaptiveButton(
         width: Get.context!.width * 0.2,
         onPressed: RouteUtils.toLoginScreen,

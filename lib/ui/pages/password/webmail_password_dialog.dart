@@ -1,12 +1,11 @@
-import 'package:eva_icons_flutter/eva_icons_flutter.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_app/src/R.dart';
+import 'package:flutter_app/ui/pages/password/password_field.dart';
 import 'package:flutter_app/src/store/model.dart';
 import 'package:get/get.dart';
 
 class WebMailPasswordDialog extends StatefulWidget {
-  const WebMailPasswordDialog({Key? key}) : super(key: key);
+  const WebMailPasswordDialog({super.key});
 
   @override
   State<StatefulWidget> createState() => _WebMailPasswordDialogState();
@@ -21,8 +20,13 @@ class _WebMailPasswordDialogState extends State<WebMailPasswordDialog> {
   String _originPasswordErrorMessage = "";
 
   @override
-  void initState() {
-    super.initState();
+  void dispose() {
+    // TextEditingController 會一路持有使用者剛剛輸入的 WebMail 明文密碼，
+    // 對話框關掉之後若不 dispose，它會跟著 State 一起留在記憶體裡；
+    // FocusNode 沒 dispose 也會留在 focus tree 上並持續發通知。
+    _originPasswordController.dispose();
+    _originPasswordFocus.dispose();
+    super.dispose();
   }
 
   @override
@@ -41,63 +45,15 @@ class _WebMailPasswordDialogState extends State<WebMailPasswordDialog> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
-            Material(
-              elevation: 2,
-              child: Row(
-                children: [
-                  Expanded(
-                    child: TextFormField(
-                      controller: _originPasswordController,
-                      cursorColor: Colors.blue[800],
-                      textInputAction: TextInputAction.done,
-                      focusNode: _originPasswordFocus,
-                      onEditingComplete: () {
-                        _originPasswordFocus.unfocus();
-                      },
-                      obscureText: !passwordShow,
-                      validator: (value) => _validatorOriginPassword(value!),
-                      decoration: InputDecoration(
-                        hintText: R.current.password,
-                        errorStyle: const TextStyle(
-                          height: 0,
-                          fontSize: 0,
-                        ),
-                      ),
-                    ),
-                  ),
-                  IconButton(
-                    icon: (!passwordShow)
-                        ? const Icon(EvaIcons.eyeOffOutline)
-                        : const Icon(EvaIcons.eyeOutline),
-                    onPressed: () {
-                      setState(() {
-                        passwordShow = !passwordShow;
-                      });
-                    },
-                  )
-                ],
-              ),
-            ),
-            const SizedBox(
-              height: 4,
-            ),
-            if (_originPasswordErrorMessage.isNotEmpty)
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      _originPasswordErrorMessage,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: Colors.red,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            const SizedBox(
-              height: 20,
+            PasswordField(
+              controller: _originPasswordController,
+              focusNode: _originPasswordFocus,
+              obscured: !passwordShow,
+              onToggleObscured: () =>
+                  setState(() => passwordShow = !passwordShow),
+              hintText: R.current.password,
+              validator: (value) => _validatorOriginPassword(value!),
+              errorMessage: _originPasswordErrorMessage,
             ),
           ],
         ),

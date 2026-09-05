@@ -1,12 +1,15 @@
+import 'package:flutter_app/src/controller/course_data/course_data_controller.dart';
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter_app/ui/components/page/error_page.dart';
+import 'package:flutter_app/ui/components/page/result_view.dart';
+import 'package:flutter_app/src/repository/result.dart';
+import 'package:flutter_app/ui/other/svg_tint.dart';
 import 'package:flutter_app/src/R.dart';
 import 'package:flutter_app/src/model/course_table/course_table_json.dart';
-import 'package:flutter_app/src/model/moodle_webapi/moodle_mod_forum_get_forum_discussions_paginated.dart';
-import 'package:flutter_app/src/task/moodle_webapi/moodle_course_message_task.dart';
-import 'package:flutter_app/src/task/task_flow.dart';
-import 'package:flutter_app/src/util/route_utils.dart';
+import 'package:flutter_app/src/model/moodle_webapi/moodle_mod_forum_get_forum_discussions.dart';
+import 'package:flutter_app/ui/routes/route_utils.dart';
 import 'package:flutter_app/src/util/ui_utils.dart';
-import 'package:flutter_app/ui/components/page/error_page.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
@@ -14,8 +17,13 @@ import 'package:intl/intl.dart';
 class CourseAnnouncementPage extends StatefulWidget {
   final CourseInfoJson courseInfo;
 
+  /// 三個（或兩個）分頁共用的狀態。頁面在進入時就把所有請求發完，
+  /// 所以每個分頁只負責畫自己那一份。
+  final CourseDataController controller;
+
   const CourseAnnouncementPage(
     this.courseInfo, {
+    required this.controller,
     super.key,
   });
 
@@ -23,35 +31,30 @@ class CourseAnnouncementPage extends StatefulWidget {
   State<StatefulWidget> createState() => _CourseAnnouncementPageState();
 }
 
-class _CourseAnnouncementPageState extends State<CourseAnnouncementPage> with AutomaticKeepAliveClientMixin {
-  Future<List<Discussions>?> initTask() async {
-    String courseId = widget.courseInfo.main.course.id;
-    TaskFlow taskFlow = TaskFlow();
-    var task = MoodleCourseMessageTask(courseId);
-    taskFlow.addTask(task);
-    await taskFlow.start();
-    return task.result.discussions;
-  }
+class _CourseAnnouncementPageState extends State<CourseAnnouncementPage>
+    with AutomaticKeepAliveClientMixin {
+  /// null 代表還在載入。
+  ///
+  /// 請求不能寫進 build()，否則每一次 rebuild（切主題、切語言、鍵盤彈出、上層
+  /// setState）都會重跑整段流程。狀態住在 controller 而不是這個 State：三個分頁
+  /// 的請求要在進入頁面時一起發出去，而 PageView 只 mount 當前那一個。
+  Rxn<Result<MoodleModForumGetForumDiscussions>> get _state => widget.controller.announcements;
+
+  // 沒有 initState 觸發請求：由頁面在進入時一次發完三個（或兩個），
+  // 見 CourseDataController.loadAll / CourseDetailController.loadAll。
+
+  Future<void> _load() => widget.controller.loadAnnouncements();
 
   @override
   Widget build(BuildContext context) {
-    super.build(context); //如果使用AutomaticKeepAliveClientMixin需要呼叫
+    super.build(context);
     return Container(
       padding: const EdgeInsets.only(top: 10),
-      child: FutureBuilder<List<Discussions>?>(
-        future: initTask(),
-        builder:
-            (BuildContext context, AsyncSnapshot<List<Discussions>?> snapshot) {
-          if (snapshot.connectionState == ConnectionState.done) {
-            if (snapshot.data == null) {
-              return const ErrorPage();
-            } else {
-              return buildTree(snapshot.data!);
-            }
-          } else {
-            return const Text("");
-          }
-        },
+      child: ResultView<MoodleModForumGetForumDiscussions>(
+        state: _state,
+        onRetry: _load,
+        errorBuilder: (message) => ErrorPage(errorMsg: message),
+        builder: (data) => buildTree(data.discussions),
       ),
     );
   }
@@ -63,7 +66,8 @@ class _CourseAnnouncementPageState extends State<CourseAnnouncementPage> with Au
           mainAxisSize: MainAxisSize.min,
           children: [
             SvgPicture.asset("assets/image/img_open_folder.svg",
-                color: Get.theme.colorScheme.onSurface, height: 72),
+                colorFilter: svgTint(Get.theme.colorScheme.onSurface),
+                height: 72),
             const SizedBox(height: 24),
             Text(R.current.announcementEmpty)
           ],
@@ -91,7 +95,7 @@ class _CourseAnnouncementPageState extends State<CourseAnnouncementPage> with Au
                   padding: const EdgeInsets.symmetric(horizontal: 12.0),
                   child: SvgPicture.asset(
                     "assets/image/img_message.svg",
-                    color: Get.theme.colorScheme.onSurface,
+                    colorFilter: svgTint(Get.theme.colorScheme.onSurface),
                   ),
                 ),
                 Expanded(
@@ -123,7 +127,7 @@ class _CourseAnnouncementPageState extends State<CourseAnnouncementPage> with Au
             ),
           ),
           onTap: () async {
-            RouteUtils.toAnnouncementDetailPage(widget.courseInfo, ap);
+            await RouteUtils.toAnnouncementDetailPage(widget.courseInfo, ap);
           },
         );
       },

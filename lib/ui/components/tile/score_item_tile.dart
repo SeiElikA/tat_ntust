@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_app/src/R.dart';
 import 'package:flutter_app/src/model/score/score_json.dart';
-import 'package:flutter_app/ui/other/my_toast.dart';
+import 'package:flutter_app/src/util/my_toast.dart';
 import 'package:get/get.dart';
 
 class ScoreItemTile extends StatelessWidget {

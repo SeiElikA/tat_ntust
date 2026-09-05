@@ -1,65 +1,15 @@
 //  error_dialog.dart
-//  北科課程助手
 //  用於顯示錯誤視窗
 //  Created by morris13579 on 2020/02/12.
 //  Copyright © 2020 morris13579 All rights reserved.
 //
 
 import 'package:awesome_dialog/awesome_dialog.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter_app/src/R.dart';
+import 'package:flutter_app/src/service/error_dialog_parameter.dart';
 import 'package:get/get.dart';
 
-class ErrorDialogParameter {
-  BuildContext? context;
-  late String? title;
-  String desc;
-  late String? btnOkText;
-  late String? btnCancelText;
-  late DialogType? dialogType;
-  late AnimType? animType;
-  late dynamic Function()? btnOkOnPress;
-  late dynamic Function()? btnCancelOnPress;
-  bool offOkBtn;
-  bool offCancelBtn;
-  bool okResult;
-  bool cancelResult;
-
-  ErrorDialogParameter(
-      {this.context,
-      required this.desc,
-      this.title,
-      this.btnOkText,
-      this.btnCancelText,
-      this.animType,
-      this.dialogType,
-      this.btnCancelOnPress,
-      this.btnOkOnPress,
-      this.okResult = true,
-      this.cancelResult = false,
-      this.offOkBtn = false,
-      this.offCancelBtn = false}) {
-    title = title ?? R.current.alertError;
-    btnOkText = btnOkText ?? R.current.restart;
-    btnCancelText = btnCancelText ?? R.current.cancel;
-    animType = animType ?? AnimType.bottomSlide;
-    dialogType = dialogType ?? DialogType.error;
-    btnCancelOnPress = btnCancelOnPress ??
-        () {
-          Get.back<bool>(result: cancelResult);
-        };
-    btnOkOnPress = btnOkOnPress ??
-        () {
-          Get.back<bool>(result: okResult);
-        };
-    if (offOkBtn) {
-      btnOkOnPress = null;
-    }
-    if (offCancelBtn) {
-      btnCancelOnPress = null;
-    }
-  }
-}
+export 'package:flutter_app/src/service/error_dialog_parameter.dart';
 
 class ErrorDialog {
   ErrorDialogParameter parameter;
@@ -67,35 +17,47 @@ class ErrorDialog {
   ErrorDialog(this.parameter);
 
   Future<bool> show() async {
+    // 預設值在這裡補，而不是在 ErrorDialogParameter 的建構子，
+    // 這樣參數類別才不需要 R.current 與 Get。
+    final title = parameter.title ?? R.current.alertError;
+    final btnOkText = parameter.btnOkText ?? R.current.restart;
+    final btnCancelText = parameter.btnCancelText ?? R.current.cancel;
+    final animType = parameter.animType ?? AnimType.bottomSlide;
+    final dialogType = parameter.dialogType ?? DialogType.error;
+    final btnOkOnPress = parameter.offOkBtn
+        ? null
+        : (parameter.btnOkOnPress ??
+            () => Get.back<bool>(result: parameter.okResult));
+    final btnCancelOnPress = parameter.offCancelBtn
+        ? null
+        : (parameter.btnCancelOnPress ??
+            () => Get.back<bool>(result: parameter.cancelResult));
+
     DismissType? dismissType;
     var dialog = AwesomeDialog(
         context: Get.key.currentState!.context,
-        dialogType: parameter.dialogType!,
-        animType: parameter.animType!,
-        title: parameter.title!,
+        dialogType: dialogType,
+        animType: animType,
+        title: title,
         desc: parameter.desc,
-        btnOkText: parameter.btnOkText!,
-        btnCancelText: parameter.btnCancelText!,
+        btnOkText: btnOkText,
+        btnCancelText: btnCancelText,
         useRootNavigator: false,
         dismissOnTouchOutside: false,
         autoDismiss: false,
-        btnCancelOnPress: parameter.btnCancelOnPress,
-        btnOkOnPress: parameter.btnOkOnPress,
+        btnCancelOnPress: btnCancelOnPress,
+        btnOkOnPress: btnOkOnPress,
         onDismissCallback: (DismissType type) {
           dismissType = type;
         });
     await dialog.show();
-    bool result;
     switch (dismissType) {
       case DismissType.btnOk:
-        result = parameter.okResult;
-        break;
+        return parameter.okResult;
       case DismissType.btnCancel:
-        result = parameter.cancelResult;
-        break;
+        return parameter.cancelResult;
       default:
-        result = parameter.cancelResult;
+        return parameter.cancelResult;
     }
-    return result;
   }
 }

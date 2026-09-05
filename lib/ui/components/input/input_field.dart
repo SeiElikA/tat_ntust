@@ -2,20 +2,21 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 class InputField extends StatelessWidget {
-  const InputField(
-      {super.key,
-      required this.hint,
-      this.controller,
-      this.inputType,
-      this.textAlign = TextAlign.start,
-      this.maxLength,
-      this.isError = false,
-      this.errorMsg = "",
-      this.onChange,
-      this.readOnly = false,
-      this.label,
-      this.onTap,
-      this.maxLines,});
+  const InputField({
+    super.key,
+    required this.hint,
+    this.controller,
+    this.inputType,
+    this.textAlign = TextAlign.start,
+    this.maxLength,
+    this.isError = false,
+    this.errorMsg = "",
+    this.onChange,
+    this.readOnly = false,
+    this.label,
+    this.onTap,
+    this.maxLines,
+  });
 
   final String hint;
   final String? label;
@@ -56,7 +57,9 @@ class InputField extends StatelessWidget {
             readOnly: readOnly,
             onChanged: onChange,
             autofillHints: [
-              inputType == TextInputType.visiblePassword ? AutofillHints.password : ''
+              inputType == TextInputType.visiblePassword
+                  ? AutofillHints.password
+                  : ''
             ],
             onTap: onTap,
             maxLines: inputType == TextInputType.visiblePassword ? 1 : maxLines,
@@ -67,8 +70,8 @@ class InputField extends StatelessWidget {
                 hintText: hint.tr,
                 hintStyle: TextStyle(
                     color: isError
-                        ? Colors.redAccent.withOpacity(0.4)
-                        : Colors.grey.withOpacity(0.4)),
+                        ? Colors.redAccent.withValues(alpha: 0.4)
+                        : Colors.grey.withValues(alpha: 0.4)),
                 contentPadding: const EdgeInsets.only(
                     left: 12, right: 12, top: 12, bottom: 12),
                 border: InputBorder.none),

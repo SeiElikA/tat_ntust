@@ -1,10 +1,6 @@
 import 'dart:io';
 
 class AppLink {
-  static const androidAppPackageName = "club.ntust.tat";
-  static const _playStore =
-      "https://play.google.com/store/apps/details?id=$androidAppPackageName";
-  static const _appleStore = "https://apps.apple.com/tw/app/id1513875597";
   static const githubOwner = "morris13579";
   static const githubName = "tat_ntust";
   static const gitHub = "https://github.com/$githubOwner/$githubName";
@@ -22,9 +18,5 @@ class AppLink {
       "entry.991226144": log
     });
     return url.toString();
-  }
-
-  static String get storeLink {
-    return (Platform.isAndroid) ? _playStore : _appleStore;
   }
 }

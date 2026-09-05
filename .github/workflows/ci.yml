@@ -1,0 +1,139 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  analyze-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.38.5
+          channel: stable
+          cache: true
+
+      # google-services.json 不在版控，但 pub get / analyze / test 都不需要它。
+      - name: Install dependencies
+        run: flutter pub get --enforce-lockfile
+
+      # 0 error、0 warning、0 info，任何一條新的 lint 都會擋下 PR。
+      # 少數刻意保留的違規以 ignore_for_file 標註並寫明原因，例如
+      # SectionNumber 的列舉名是持久化的 JSON map key，改名會讓已存檔的
+      # 課表讀不回來。
+      - name: Analyze
+        run: dart analyze --fatal-infos
+
+      - name: Test
+        run: flutter test
+
+      # 分層棘輪。三道門檻都只能降不能升，寫在 tool/deps.py：
+      # MAX_SCC、MAX_NON_UI_IN_CYCLE、MAX_UPWARD_EDGES（含逐配對上限）。
+      # 上行邊是唯一直接指名「哪一條 import 違反分層」的指標，先前只印出來
+      # 不設限，等於沒有守門。
+      - name: Dependency layering ratchet
+        run: python3 tool/deps.py --check
+
+      # 用 machine 格式統計：dart analyze 的文字輸出會把某些 WARNING
+      # 等級的問題印成 "info -"，照字串抓會少算。
+      - name: Report analyzer issue counts
+        if: always()
+        run: |
+          dart analyze --format=machine > analyze.txt 2>&1 || true
+          cut -d'|' -f1 analyze.txt | sort | uniq -c
+
+  # 原生層先前完全沒有被 CI 碰過：Kotlin 與 Java 從不編譯，所以 MainActivity
+  # 或 CourseWidgetProvider 的編譯錯誤會一路合併進 master 而不被發現。
+  build-android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.38.5
+          channel: stable
+          cache: true
+
+      # 真正的 google-services.json 帶有專案金鑰，不在版控。
+      # com.google.gms.google-services 這個 plugin 在設定期就要求檔案存在並且
+      # package_name 相符，否則整個 Gradle 設定就失敗；但編譯本身不需要真的
+      # 金鑰。這裡放一份佔位檔，值全是假的，只有 package_name 是真的。
+      # 產出的 APK 不能用（Firebase 在執行期會失敗），CI 也不會發佈它。
+      - name: Write placeholder google-services.json
+        run: |
+          cat > android/app/google-services.json <<'JSON'
+          {
+            "project_info": {
+              "project_number": "000000000000",
+              "project_id": "ci-placeholder",
+              "storage_bucket": "ci-placeholder.appspot.com"
+            },
+            "client": [
+              {
+                "client_info": {
+                  "mobilesdk_app_id": "1:000000000000:android:0000000000000000000000",
+                  "android_client_info": { "package_name": "club.ntust.tat" }
+                },
+                "oauth_client": [],
+                "api_key": [ { "current_key": "AIzaSyCI00000000000000000000000000000000" } ],
+                "services": { "appinvite_service": { "other_platform_oauth_client": [] } }
+              }
+            ],
+            "configuration_version": "1"
+          }
+          JSON
+
+      - name: Install dependencies
+        run: flutter pub get --enforce-lockfile
+
+      # debug 而非 release：release 需要 android/key.properties 指向的 keystore，
+      # 那個檔案不在版控（而且它的密碼曾經外洩，見 docs/ARCHITECTURE.md
+      # 的〈已接受的風險〉）。
+      # 目的是「原生層編得過」，debug 就足夠。
+      - name: Build Android (compiles Kotlin + Java)
+        run: flutter build apk --debug
+
+      # Android lint 先前是 abortOnError false，等於完全靜音。改為以 baseline
+      # 當棘輪：既有問題記錄在 android/app/lint-baseline.xml，新問題會讓 CI 紅燈。
+      # baseline 不存在時 lint 會自己產生一份並通過，所以第一次跑不會擋人。
+      - name: Android lint
+        run: cd android && ./gradlew :app:lintDebug
+
+      - name: Upload lint report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-lint-report
+          path: android/app/build/reports/lint-results-debug.html
+          if-no-files-found: ignore
+
+  # iOS 的原生層同樣從未被 CI 編譯過。
+  build-ios:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.38.5
+          channel: stable
+          cache: true
+
+      # iOS 端的 Firebase 設定是執行期才讀的 plist，編譯不需要它，
+      # 所以這裡不必造佔位檔。
+      - name: Install dependencies
+        run: flutter pub get --enforce-lockfile
+
+      - name: Build iOS (no codesign)
+        run: flutter build ios --debug --no-codesign

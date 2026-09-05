@@ -6,16 +6,9 @@ import 'package:flutter_app/src/model/course/course_main_extra_json.dart';
 import 'package:flutter_app/src/model/course/course_search_json.dart';
 import 'package:flutter_app/src/model/course/course_semester.dart';
 import 'package:flutter_app/src/model/course_table/course_table_json.dart';
-import 'package:flutter_app/src/store/model.dart';
-import 'package:flutter_app/src/task/moodle_webapi/moodle_course_task.dart';
-import 'package:flutter_app/src/task/task_flow.dart';
 import 'package:flutter_app/src/util/language_utils.dart';
-import 'package:html/dom.dart';
-import 'package:html/parser.dart';
 
 import 'core/connector_parameter.dart';
-
-enum CourseConnectorStatus { loginSuccess, loginFail, unknownError }
 
 class CourseMainInfo {
   List<CourseMainInfoJson> json;
@@ -25,11 +18,9 @@ class CourseMainInfo {
 }
 
 class CourseConnector {
-  static const host = "https://courseselection.ntust.edu.tw";
-  static const _loginUrl = host;
-  static const _courseTableUrl = "$host/ChooseList/D01/D01";
-  static const _setTWUrl = "$host/Home/SetCulture?Culture=zh-TW";
-  static const _setENUrl = "$host/Home/SetCulture?Culture=en-US";
+  // 不要再走 courseselection.ntust.edu.tw：App 對那台主機的每一次請求都停在
+  // ssoam2 的登入表單，OIDC 交握不會完成，取不到任何資料。量測留在
+  // NtustRepository.getSemesterList 的註解裡。
   static const queryHost = "https://querycourse.ntust.edu.tw";
   static const _courseDetailUrl = "$queryHost/querycourse/api/coursedetials";
   static const _courseSearchUrl = "$queryHost/querycourse/api/courses";
@@ -64,173 +55,122 @@ class CourseConnector {
 
   static var dayString = ["M", "T", "W", "R", "F", "S", "U"];
 
-  static Future<CourseConnectorStatus> login() async {
-    String result;
-    try {
-      ConnectorParameter parameter;
-      parameter = ConnectorParameter(_loginUrl);
-      result = await Connector.getRedirects(parameter);
-      if (result.contains("DoLoginCB")) {
-        return CourseConnectorStatus.loginFail;
+  /// 把 querycourse API 的 node 欄位（例如 "M3,M4,W2"）填進 courseMain.time。
+  ///
+  /// **索引不合法一律跳過該 token、其餘照常。** 外層的 try 包住整個 courseIds
+  /// 迴圈、catch 直接 return null，所以一個節次爆掉就會讓整張課表（或整批搜尋
+  /// 結果）消失，使用者只看到「取得課表失敗」。會爆的有兩處：`dayString.indexOf`
+  /// 找不到時回 -1，以及中午節次 'N' 落在 timeEnum 之外。
+  ///
+  /// **數字分支的 `parsed - 1` 是對的，不要「順手修正」成節次代號。** Node 的
+  /// 節次是「第幾格」：querycourse 前端的節次表
+  /// `1 2 3 4 5 6 7 8 9 10 A B C D` 與 timeEnum 的
+  /// `1 2 3 4 N 5 6 7 8 9 A B C D` 都是 14 格、逐格對位，所以 API 的第 5 格
+  /// "5" 就是 timeEnum[4] 的午休 "N"。全量回應的統計也一致——同一天相鄰兩格
+  /// 一起開課，3→4 有 1459 次、6→7 有 1242 次，但 4→5 只有 142 次、5→6 只有
+  /// 161 次，第 5 格明顯是沒人排課的午休。
+  static void fillCourseTime(CourseMainJson courseMain, String node) {
+    for (var t in node.split(",")) {
+      // querycourse 真的回過小寫的 Node（課號 CS2028701 是 "w7,w8,w9"）。
+      // 大小寫敏感的 indexOf 會讓那三節整批被當成 unknown day 丟掉，
+      // 課表上那門課一格都不會出現，所以先正規化再查表。
+      final token = t.toUpperCase();
+      if (token.length < 2) {
+        continue;
       }
-      return CourseConnectorStatus.loginSuccess;
-    } catch (e, stack) {
-      Log.eWithStack(e.toString(), stack);
-      return CourseConnectorStatus.loginFail;
+      final dayIndex = dayString.indexOf(token.substring(0, 1));
+      if (dayIndex < 0 || dayIndex >= dayEnum.length) {
+        Log.e("unknown day token: $t");
+        continue;
+      }
+      int timeIndex;
+      final parsed = int.tryParse(token.substring(1));
+      if (parsed != null) {
+        timeIndex = parsed - 1;
+      } else {
+        // 查表而不是字元算術，'N' 才會正確對到 timeEnum[4]。
+        timeIndex = timeEnum.indexOf(token.substring(1));
+      }
+      if (timeIndex < 0 || timeIndex >= timeEnum.length) {
+        Log.e("unknown section token: $t");
+        continue;
+      }
+      final day = dayEnum[dayIndex];
+      courseMain.time[day] = "${courseMain.time[day]!}${timeEnum[timeIndex]} ";
     }
   }
 
-  static Future<List<SemesterJson>?> getCourseSemester() async {
-    try {
-      ConnectorParameter parameter;
-      Document tagNode;
-      Element? node;
-      List<Element> nodes;
-      List<SemesterJson> value = [];
-      String langUrl =
-          (LanguageUtils.getLangIndex() == LangEnum.zh) ? _setTWUrl : _setENUrl;
-
-      parameter = ConnectorParameter(host);
-      String result = await Connector.getRedirects(parameter); //sso login
-
-      parameter = ConnectorParameter(langUrl);
-      result = await Connector.getRedirects(parameter);
-
-      parameter = ConnectorParameter(host);
-      result = await Connector.getDataByGet(parameter);
-      tagNode = parse(result);
-      node = tagNode.getElementById("navigation");
-      if(node == null) {
-        throw Exception("navigation tag not found");
-      }
-      nodes = node
-          .getElementsByClassName("dropdown")[3]
-          .getElementsByClassName("dropdown-menu")[0]
-          .getElementsByTagName("a");
-      for (var i in nodes) {
-        if (i.text.split("(").length > 1) {
-          value.add(SemesterJson(
-            year: i.text.split("(")[1].substring(0, 3),
-            semester: i.text.split("(")[1].substring(3, 4),
-            urlPath: i.attributes["href"]!,
-          ));
-        } else {
-          value.add(SemesterJson(
-            year: i.text,
-            semester: "",
-            urlPath: i.attributes["href"]!,
-          ));
-        }
-      }
-      return value;
-    } catch (e, stack) {
-      Log.eWithStack(e.toString(), stack);
-      return null;
+  /// 把 querycourse `/api/courses` 的一筆結果轉成 CourseMainInfoJson。
+  ///
+  /// searchCourse 與 getCourseMainInfoListByCourseId 的唯一差別是課號要用
+  /// 回應裡的 CourseNo 還是呼叫端查詢用的那個，用 overrideId 參數化，其餘共用。
+  static CourseMainInfoJson parseCourseSearchItem(
+    Map<String, dynamic> item, {
+    String? overrideId,
+  }) {
+    final info = CourseSearchJson.fromJson(item);
+    final courseMain = CourseMainJson(
+      id: overrideId ?? info.courseNo,
+      href: "",
+      name: info.courseName,
+      credits: info.creditPoint,
+      category: "",
+      note: info.contents,
+      hours: "",
+      time: {},
+    );
+    for (int j = 0; j < 7; j++) {
+      courseMain.time[dayEnum[j]] = "";
     }
+    fillCourseTime(courseMain, info.node);
+    final courseMainInfo = CourseMainInfoJson();
+    courseMainInfo.classroom
+        .add(ClassroomJson(name: info.classRoomNo, href: ''));
+    courseMainInfo.teacher.add(TeacherJson(name: info.courseTeacher, href: ""));
+    courseMainInfo.course = courseMain;
+    return courseMainInfo;
   }
 
-  static String clearString(String v) {
-    return v.replaceAll("\n", "").replaceAll(" ", "");
+  /// `/api/courses` 整包回應的轉換。同一個課程代碼若開在不同教室會有多筆，
+  /// 這裡不合併，維持一筆一個 CourseMainInfoJson。
+  static List<CourseMainInfoJson> parseSearchResult(
+    List<dynamic> items, {
+    String? overrideId,
+  }) {
+    return items
+        .map((e) => parseCourseSearchItem(e as Map<String, dynamic>,
+            overrideId: overrideId))
+        .toList();
   }
 
-  static Future<CourseMainInfo?> getCourseMainInfoList(
-      String studentId, SemesterJson semester,
-      {String? courseUrlPath}) async {
-    if (courseUrlPath != null) {
-      courseUrlPath = "$host/$courseUrlPath";
-    }
-    String courseUrl = courseUrlPath ?? _courseTableUrl;
-    try {
-      ConnectorParameter parameter;
-      Document tagNode;
-      Element node, tableNode;
-      List<Element> nodes, tableNodes;
-      String langUrl =
-          (LanguageUtils.getLangIndex() == LangEnum.zh) ? _setTWUrl : _setENUrl;
-
-      parameter = ConnectorParameter(langUrl);
-      String result = await Connector.getRedirects(parameter);
-
-      parameter = ConnectorParameter(courseUrl);
-      result = await Connector.getDataByGet(parameter);
-      tagNode = parse(result);
-      List<CourseMainInfoJson> courseMainInfoList = [];
-      node = tagNode.getElementsByTagName("table")[2];
-      nodes = node.getElementsByTagName("tr");
-
-      tableNode = tagNode.getElementsByTagName("table")[3];
-      tableNodes = tableNode.getElementsByTagName("tr");
-      tableNodes = tableNodes.getRange(1, tableNodes.length).toList();
-
-      for (var i in nodes.getRange(1, nodes.length).toList()) {
-        var k = i.getElementsByTagName("td");
-        //課碼	課程名稱	學分數	必、選修	上課教師	備註
-        CourseMainInfoJson courseMainInfo = CourseMainInfoJson();
-        CourseMainJson courseMain = CourseMainJson(
-          id: clearString(k[0].text),
-          href: "",
-          name: k[1].text.replaceAll("  ", "").replaceAll("\n", ""),
-          credits: clearString(k[2].text),
-          category: clearString(k[3].text),
-          note: clearString(k[5].text),
-          hours: "",
-          time: {},
-        );
-        TeacherJson teacher =
-            TeacherJson(name: clearString(k[4].text), href: "");
-        for (int j = 0; j < 7; j++) {
-          Day day = dayEnum[j]; //初始化
-          courseMain.time[day] = "";
-        }
-        List<String> classRoomTemp = [];
-        for (int j = 0; j < 7; j++) {
-          Day day = dayEnum[j];
-          for (int k = 0; k < 14; k++) {
-            String timeString = timeEnum[k];
-            var ts = tableNodes[k].getElementsByTagName("td");
-            ts = ts.getRange(2, ts.length).toList();
-            if (ts[j].text.contains(courseMain.name)) {
-              courseMain.time[day] = "${courseMain.time[day]!}$timeString ";
-              ClassroomJson classroom = ClassroomJson(
-                  name: clearString(ts[j].innerHtml.split("<br>")[1]),
-                  href: '');
-              if (classRoomTemp.contains(classroom.name)) {
-                continue;
-              }
-              courseMainInfo.classroom.add(classroom);
-              classRoomTemp.add(classroom.name);
-            }
-          }
-        }
-        courseMainInfo.teacher.add(teacher);
-        courseMainInfo.course = courseMain;
-        courseMainInfoList.add(courseMainInfo);
-      }
-      var info = CourseMainInfo(
-        studentName: tagNode.getElementsByClassName("text-success")[7].text,
-        json: courseMainInfoList,
-      );
-      return info;
-    } catch (e, stack) {
-      Log.eWithStack(e.toString(), stack);
-      return null;
-    }
+  /// `/api/semestersinfo` 的回應轉成目前學期。
+  ///
+  /// 回應由新到舊排序，只取第一筆。學期字串固定四碼，前三碼是學年、
+  /// 第四碼是學期別，而且不一定是數字——暑期是 "114H"。
+  static List<SemesterJson> parseCourseSemesters(List<dynamic> items) {
+    final courseSemester = items
+        .map((e) => CourseSemesterJson.fromJson(e as Map<String, dynamic>))
+        .toList();
+    final semester = SemesterJson(
+      year: courseSemester[0].semester.substring(0, 3),
+      semester: courseSemester[0].semester.substring(3, 4),
+    );
+    return [semester];
   }
 
+  /// `/api/coursedetials` 固定回一個陣列，要的資料在第一筆。
+  static CourseExtraInfoJson parseCourseExtraInfo(List<dynamic> items) {
+    return CourseExtraInfoJson.fromJson(items[0] as Map<String, dynamic>);
+  }
+
+  /// 以課號逐一向課程查詢 API 取得課程資訊。
+  ///
+  /// courseIds 由呼叫端提供（見 `NtustRepository.getCourseTable`）。connector
+  /// 刻意不自己去拿：那會造成 connector 反向依賴上層的匯入環，並且讓網路層
+  /// 間接彈出進度框與錯誤對話框。
   static Future<CourseMainInfo?> getCourseMainInfoListByCourseId(
-      SemesterJson semester) async {
+      SemesterJson semester, List<String> courseIds) async {
     ConnectorParameter parameter;
-
-    var courseIds = await Model.instance.getScore().getCourseIdBySemester(semester);
-
-    if(courseIds.where((id) => id.toUpperCase() != "TC1010301").isEmpty) {
-      // 如果成績查詢系統抓不到資料，改用moodle查詢課程代碼
-      var taskFlow = TaskFlow();
-      var task = MoodleCourseTask(semester);
-      taskFlow.addTask(task);
-      await taskFlow.start();
-      courseIds = task.result;
-    }
 
     try {
       List<CourseMainInfoJson> courseMainInfoList = [];
@@ -242,7 +182,8 @@ class CourseConnector {
           "CourseTeacher": "",
           "Dimension": "",
           "ForeignLanguage": 0,
-          "language": (LanguageUtils.getLangIndex() == LangEnum.zh) ? "zh" : "en",
+          "language":
+              (LanguageUtils.getLangIndex() == LangEnum.zh) ? "zh" : "en",
           "OnleyNTUST": 0,
           "OnlyGeneral": 0,
           "OnlyMaster": 0,
@@ -253,47 +194,10 @@ class CourseConnector {
         parameter = ConnectorParameter(_courseSearchUrl, data: data);
         var json = await Connector.getDataByPostResponse(parameter);
         if (json.data.length == 0) continue;
-        // 同個課程代碼如果不同教室會有多筆資料
-        for(var data in json.data) {
-          CourseSearchJson info = CourseSearchJson.fromJson(data);
-          CourseMainInfoJson courseMainInfo = CourseMainInfoJson();
-          CourseMainJson courseMain = CourseMainJson(
-            id: courseId,
-            href: "",
-            name: info.courseName,
-            credits: info.creditPoint,
-            category: "",
-            note: info.contents,
-            hours: "",
-            time: {},
-          );
-          for (int j = 0; j < 7; j++) {
-            Day day = dayEnum[j]; //初始化
-            courseMain.time[day] = "";
-          }
-          for (var t in info.node.split(",")) {
-            if (t.isEmpty) {
-              continue;
-            }
-            int dayIndex = dayString.indexOf(t.substring(0, 1));
-            int timeIndex;
-            try {
-              timeIndex = int.parse(t.substring(1)) - 1;
-            } catch (e) {
-              timeIndex = t.codeUnitAt(1) - 'A'.codeUnitAt(0) + 10;
-            }
-            Day day = dayEnum[dayIndex];
-            courseMain.time[day] =
-            "${courseMain.time[day]!}${timeEnum[timeIndex]} ";
-          }
-          TeacherJson teacher = TeacherJson(name: info.courseTeacher, href: "");
-          ClassroomJson classroom =
-          ClassroomJson(name: info.classRoomNo, href: '');
-          courseMainInfo.classroom.add(classroom);
-          courseMainInfo.teacher.add(teacher);
-          courseMainInfo.course = courseMain;
-          courseMainInfoList.add(courseMainInfo);
-        }
+        // 同一個課號在不同教室／節次會回多筆，要整批收，不能只取第一筆。
+        // 課號用呼叫端查的那個而不是回應裡的 CourseNo：課表要對回 courseIds。
+        courseMainInfoList
+            .addAll(parseSearchResult(json.data, overrideId: courseId));
       }
       var info = CourseMainInfo(
         studentName: "",
@@ -318,27 +222,28 @@ class CourseConnector {
       parameter = ConnectorParameter(_courseDetailUrl);
       parameter.data = data;
       Response result = await Connector.getDataByGetResponse(parameter);
-      CourseExtraInfoJson courseExtraInfo =
-          CourseExtraInfoJson.fromJson(result.data[0]);
-      return courseExtraInfo;
+      return parseCourseExtraInfo(result.data);
     } catch (e, stack) {
       Log.eWithStack(e.toString(), stack);
       return null;
     }
   }
 
+  /// 系統層級的學期 metadata，**不是**使用者的學期清單。
+  ///
+  /// 這個端點免憑證，所以回的是「querycourse 知道哪些學期」（實測 61 筆），
+  /// 與呼叫者是誰無關。拿它當學期選單的來源會讓晚入學的學生選得到入學前的
+  /// 學年。使用者自己的歷年學期只能從成績記錄推得，當前學期問 Moodle，
+  /// 見 `NtustRepository.getSemesterList`。
+  ///
+  /// 目前無呼叫端。留著是因為它是唯一能回答「哪些學期還開放選課」
+  /// （`LoginEnable`）與「哪一個是當前學期」（`CurrentSemester`）的來源。
   static Future<List<SemesterJson>?> getCourseSemesters() async {
     try {
       ConnectorParameter parameter;
       parameter = ConnectorParameter(_courseSemestersUrl);
       Response result = await Connector.getDataByGetResponse(parameter);
-      List<CourseSemesterJson> courseSemester = (result.data as List)
-          .map((e) => CourseSemesterJson.fromJson(e))
-          .toList();
-      SemesterJson semester = SemesterJson(
-          year: courseSemester[0].semester.substring(0, 3),
-          semester: courseSemester[0].semester.substring(3, 4));
-      return [semester];
+      return parseCourseSemesters(result.data as List);
     } catch (e, stack) {
       Log.eWithStack(e.toString(), stack);
       return null;
@@ -388,48 +293,7 @@ class CourseConnector {
         parameter = ConnectorParameter(_courseSearchUrl, data: data);
         json = await Connector.getDataByPostResponse(parameter);
       }
-      for (var item in json.data) {
-        CourseSearchJson info = CourseSearchJson.fromJson(item);
-
-        CourseMainInfoJson courseMainInfo = CourseMainInfoJson();
-        CourseMainJson courseMain = CourseMainJson(
-          id: info.courseNo,
-          href: "",
-          name: info.courseName,
-          credits: info.creditPoint,
-          category: "",
-          note: info.contents,
-          hours: "",
-          time: {},
-        );
-        for (int j = 0; j < 7; j++) {
-          Day day = dayEnum[j]; //初始化
-          courseMain.time[day] = "";
-        }
-
-        for (var t in info.node.split(",")) {
-          if (t.isEmpty) {
-            continue;
-          }
-          int dayIndex = dayString.indexOf(t.substring(0, 1));
-          int timeIndex;
-          try {
-            timeIndex = int.parse(t.substring(1)) - 1;
-          } catch (e) {
-            timeIndex = t.codeUnitAt(1) - 'A'.codeUnitAt(0) + 10;
-          }
-          Day day = dayEnum[dayIndex];
-          courseMain.time[day] =
-              "${courseMain.time[day]!}${timeEnum[timeIndex]} ";
-        }
-        TeacherJson teacher = TeacherJson(name: info.courseTeacher, href: "");
-        ClassroomJson classroom =
-            ClassroomJson(name: info.classRoomNo, href: '');
-        courseMainInfo.classroom.add(classroom);
-        courseMainInfo.teacher.add(teacher);
-        courseMainInfo.course = courseMain;
-        courseMainInfoList.add(courseMainInfo);
-      }
+      courseMainInfoList.addAll(parseSearchResult(json.data));
       return courseMainInfoList;
     } catch (e, stack) {
       Log.eWithStack(e.toString(), stack);

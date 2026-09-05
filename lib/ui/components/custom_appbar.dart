@@ -1,4 +1,3 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
@@ -37,67 +36,34 @@ AppBar baseAppbar(
     PreferredSizeWidget? bottom,
     Color? backgroundColor}) {
   return AppBar(
-    systemOverlayStyle:
-        SystemUiOverlayStyle(
-          statusBarIconBrightness: Get.theme.brightness == Brightness.light
-              ? Brightness.dark
-              : Brightness.light,
+    systemOverlayStyle: SystemUiOverlayStyle(
+      statusBarIconBrightness: Get.theme.brightness == Brightness.light
+          ? Brightness.dark
+          : Brightness.light,
+    ),
+    // 這顆返回鍵出現在每一個用 baseAppbar 的子頁面上，沒有 tooltip 時螢幕閱讀器
+    // 只會唸「按鈕」。用 Builder 取得 AppBar 底下的 context：baseAppbar 只是一個
+    // 回傳 AppBar 的函式，沒有自己的 BuildContext，而它的 context 具名參數所有
+    // 呼叫端都沒有傳。backButtonTooltip 由 GlobalMaterialLocalizations 提供。
+    leading: Builder(
+      builder: (context) => IconButton(
+        tooltip: MaterialLocalizations.of(context).backButtonTooltip,
+        splashColor: Colors.transparent,
+        splashRadius: 18,
+        icon: Icon(
+          Icons.arrow_back_ios_new,
+          size: 18,
+          color: Get.theme.colorScheme.onSurface,
         ),
-    leading: IconButton(
-      splashColor: Colors.transparent,
-      splashRadius: 18,
-      icon: Icon(
-        Icons.arrow_back_ios_new,
-        size: 18,
-        color: Get.theme.colorScheme.onSurface,
+        onPressed: () {
+          Get.back();
+        },
       ),
-      onPressed: () {
-        Get.back();
-      },
     ),
     actions: action,
     centerTitle: false,
     elevation: 0,
     bottom: bottom,
     title: Text(title),
-  );
-}
-
-AppBar searchAppBar(
-    {String findHint = "",
-    List<Widget>? action,
-    Function(String)? onInputChange,
-    Function()? onClose}) {
-  return AppBar(
-    centerTitle: false,
-    backgroundColor: Get.theme.scaffoldBackgroundColor,
-    elevation: 0,
-    leading: const SizedBox(),
-    leadingWidth: 0,
-    title: TextField(
-      decoration: InputDecoration(
-        border: InputBorder.none,
-        hintText: findHint,
-      ),
-      style: const TextStyle(height: 1),
-      cursorRadius: const Radius.circular(999),
-      onChanged: onInputChange,
-    ),
-    actions: [
-      Container(
-        margin: const EdgeInsets.symmetric(vertical: 12, horizontal: 0),
-        height: kToolbarHeight,
-        width: 1.8,
-        decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(999),
-            color: Colors.grey.shade400),
-      ),
-      ...action ?? [],
-      IconButton(
-        onPressed: onClose,
-        icon: const Icon(CupertinoIcons.xmark_circle),
-        tooltip: "gameTool.findInWeb".tr,
-      )
-    ],
   );
 }

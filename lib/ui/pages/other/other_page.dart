@@ -1,33 +1,33 @@
+import 'dart:async';
+import 'dart:convert';
+
 import 'package:awesome_dialog/awesome_dialog.dart';
-import 'package:eva_icons_flutter/eva_icons_flutter.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_app/src/auth/auth_session.dart';
+import 'package:flutter_app/ui/other/svg_tint.dart';
 import 'package:flutter_app/debug/log/log.dart';
 import 'package:flutter_app/src/R.dart';
 import 'package:flutter_app/src/config/app_link.dart';
-import 'package:flutter_app/src/connector/moodle_webapi_connector.dart';
+import 'package:flutter_app/src/controller/course_table/course_controller.dart';
+import 'package:flutter_app/src/controller/score_page/score_page_controller.dart';
+import 'package:flutter_app/src/auth/session_cleaner.dart';
 import 'package:flutter_app/src/controller/main_page/main_controller.dart';
-import 'package:flutter_app/src/file/file_store.dart';
-import 'package:flutter_app/src/model/moodle_webapi/moodle_profile_entity.dart';
+import 'package:flutter_app/debug/log/console_output.dart';
 import 'package:flutter_app/src/store/model.dart';
-import 'package:flutter_app/src/task/task_flow.dart';
-import 'package:flutter_app/src/util/route_utils.dart';
+import 'package:flutter_app/ui/routes/route_utils.dart';
 import 'package:flutter_app/src/version/update/app_update.dart';
 import 'package:flutter_app/ui/components/custom_appbar.dart';
-import 'package:flutter_app/ui/components/page/loading_page.dart';
 import 'package:flutter_app/ui/components/shimmer/profile_loading.dart';
 import 'package:flutter_app/ui/other/error_dialog.dart';
-import 'package:flutter_app/ui/other/my_toast.dart';
-import 'package:flutter_app/ui/pages/log_console/log_console.dart';
 import 'package:flutter_app/ui/pages/other/components/user_profile.dart';
 import 'package:flutter_app/ui/pages/password/check_password_dialog.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get/get.dart';
 
-enum OnListViewPress {
+enum OtherMenuAction {
   setting,
-  fileViewer,
   logout,
   report,
   about,
@@ -49,74 +49,75 @@ class _OtherPageState extends State<OtherPage> {
     {
       "icon": "img_setting.svg",
       "title": R.current.setting,
-      "onPress": OnListViewPress.setting
-    },
-    {
-      "icon": "img_download.svg",
-      "title": R.current.fileViewer,
-      "onPress": OnListViewPress.fileViewer
+      "onPress": OtherMenuAction.setting
     },
     if (Model.instance.getPassword().isNotEmpty)
       {
         "icon": "img_refresh.svg",
         "title": R.current.changePassword,
-        "onPress": OnListViewPress.changePassword
+        "onPress": OtherMenuAction.changePassword
       },
     if (Model.instance.getPassword().isNotEmpty)
       {
         "icon": "img_logout.svg",
         "title": R.current.logout,
-        "onPress": OnListViewPress.logout
+        "onPress": OtherMenuAction.logout
       },
     if (Model.instance.getPassword().isEmpty)
       {
         "icon": "img_login.svg",
         "title": R.current.login,
-        "onPress": OnListViewPress.login
+        "onPress": OtherMenuAction.login
       },
     {
       "icon": "img_message.svg",
       "title": R.current.feedback,
-      "onPress": OnListViewPress.report
+      "onPress": OtherMenuAction.report
     },
     {
       "icon": "img_info.svg",
       "title": R.current.about,
-      "onPress": OnListViewPress.about
+      "onPress": OtherMenuAction.about
     }
   ];
 
-  void _onListViewPress(OnListViewPress value) async {
+  void _onListViewPress(OtherMenuAction value) async {
     switch (value) {
-      case OnListViewPress.logout:
+      case OtherMenuAction.logout:
         ErrorDialogParameter parameter = ErrorDialogParameter(
-            context: context,
             desc: R.current.logoutWarning,
             dialogType: DialogType.warning,
             title: R.current.warning,
             btnOkText: R.current.sure,
             btnOkOnPress: () async {
               Get.back();
-              TaskFlow.resetLoginStatus();
-              await Model.instance.logout();
-              Get.find<MainController>().pageController.jumpToPage(0);
+              await SessionCleaner.platform().logoutAll();
+              // 重設仍然存活的 controller。不要 Get.delete<MainController>()：
+              // MainScreen 以 State 欄位持有它，這一頁與設定頁登出後仍會
+              // Get.find 它。
+              final mainController = Get.find<MainController>();
+              mainController.profile.value = null;
+              if (Get.isRegistered<CourseController>()) {
+                Get.find<CourseController>().reset();
+              }
+              if (Get.isRegistered<ScorePageController>()) {
+                Get.find<ScorePageController>().reset();
+              }
+              mainController.pageController.jumpToPage(0);
+              setState(() {});
             });
-        ErrorDialog(parameter).show();
+        unawaited(ErrorDialog(parameter).show());
         break;
-      case OnListViewPress.login:
-        RouteUtils.toLoginScreen();
+      case OtherMenuAction.login:
+        unawaited(RouteUtils.toLoginScreen());
         break;
-      case OnListViewPress.fileViewer:
-        FileStore.findLocalPath(context).then((filePath) {
-          RouteUtils.toFileViewerPage(R.current.fileViewer, filePath);
-        });
-        break;
-      case OnListViewPress.changePassword:
-        if (await Get.dialog(const CheckPasswordDialog())) {
+      case OtherMenuAction.changePassword:
+        if (await Get.dialog<bool>(const CheckPasswordDialog()) ?? false) {
           bool first = true;
           String changePasswordUrl =
               "https://stuinfosys.ntust.edu.tw/NTUSTSSOServ/SSO/ChangePWD";
-          RouteUtils.toWebViewPage(R.current.changePassword, changePasswordUrl,
+          unawaited(RouteUtils.toWebViewPage(
+              R.current.changePassword, changePasswordUrl,
               loadDone: (webView) async {
             if (!first) {
               return;
@@ -124,31 +125,28 @@ class _OtherPageState extends State<OtherPage> {
             first = false;
             await webView.evaluateJavascript(
                 source:
-                    'document.getElementsByName("userName")[0].value = "${Model.instance.getAccount()}";');
+                    'document.getElementsByName("userName")[0].value = ${jsonEncode(Model.instance.getAccount())};');
             await webView.evaluateJavascript(
                 source:
-                    'document.getElementsByName("pwd")[0].value = "${Model.instance.getPassword()}";');
-          });
+                    'document.getElementsByName("pwd")[0].value = ${jsonEncode(Model.instance.getPassword())};');
+          }));
         }
         break;
-      case OnListViewPress.about:
-        RouteUtils.toAboutPage();
+      case OtherMenuAction.about:
+        unawaited(RouteUtils.toAboutPage());
         break;
-      case OnListViewPress.setting:
-        RouteUtils.toSettingPage();
+      case OtherMenuAction.setting:
+        unawaited(RouteUtils.toSettingPage());
         break;
-      case OnListViewPress.report:
+      case OtherMenuAction.report:
         String link = AppLink.feedbackBaseUrl;
         try {
           String mainVersion = await AppUpdate.getAppVersion();
-          link = AppLink.feedback(mainVersion, LogConsole.getLog());
+          link = AppLink.feedback(mainVersion, LogBuffer.getLog());
         } catch (e) {
           Log.d(e);
         }
-        RouteUtils.toWebViewPage(R.current.feedback, link);
-        break;
-      default:
-        MyToast.show(R.current.noFunction);
+        unawaited(RouteUtils.toWebViewPage(R.current.feedback, link));
         break;
     }
   }
@@ -213,13 +211,14 @@ class _OtherPageState extends State<OtherPage> {
                   borderRadius: BorderRadius.circular(999),
                   color: Get.theme.colorScheme.surface),
               padding: const EdgeInsets.all(8),
-              child: SvgPicture.asset("assets/image/${data['icon']}", color: Get.theme.colorScheme.onSurface),
+              child: SvgPicture.asset("assets/image/${data['icon']}",
+                  colorFilter: svgTint(Get.theme.colorScheme.onSurface)),
             ),
             const SizedBox(width: 12),
             Text(
               data['title'],
+              // 不指定 fontFamily：Text.style 預設 inherit，字型從主題來。
               style: TextStyle(
-                  fontFamily: 'MyFont',
                   color: Get.theme.colorScheme.onSurface, fontSize: 15),
             ),
           ],
@@ -229,19 +228,44 @@ class _OtherPageState extends State<OtherPage> {
   }
 
   Widget _buildAccountTile() {
-    if (Model.instance.getAccount().isEmpty) {
+    if (!AuthSession.instance.isSignedIn) {
       return Text(R.current.pleaseLogin);
     }
 
     var controller = Get.find<MainController>();
 
     return Obx(() {
-      if (controller.isProfileLoading.value ||
-          controller.profile.value == null) {
+      if (controller.isProfileLoading.value) {
         return const ProfileLoading();
       }
 
-      return UserProfile(data: controller.profile.value!);
+      final profile = controller.profile.value;
+      if (profile == null) {
+        // 載入結束但沒有資料：Moodle token 過期、斷網，或 site_info 少了欄位。
+        // 載入中與載入失敗必須分開判斷，否則失敗之後骨架動畫永遠不會結束——
+        // 畫面看起來像還在載入，既沒有錯誤訊息也沒有重試入口。
+        return InkWell(
+          onTap: controller.reloadProfile,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    R.current.somethingError,
+                    style: TextStyle(
+                        color: Get.theme.colorScheme.onSurfaceVariant),
+                  ),
+                ),
+                Icon(Icons.refresh,
+                    size: 20, color: Get.theme.colorScheme.onSurfaceVariant),
+              ],
+            ),
+          ),
+        );
+      }
+
+      return UserProfile(data: profile);
     });
   }
 }

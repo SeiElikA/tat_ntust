@@ -1,7 +1,6 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_app/src/R.dart';
-import 'package:flutter_app/src/config/app_colors.dart';
 import 'package:flutter_app/src/config/app_link.dart';
 import 'package:flutter_app/src/util/open_utils.dart';
 import 'package:flutter_app/ui/components/custom_appbar.dart';

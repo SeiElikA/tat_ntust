@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -23,7 +21,9 @@ class LoadingPage extends StatelessWidget {
         child: Stack(
           children: [
             Positioned.fill(
-                child: Container(color: Colors.black.withOpacity(isShowBackground ? 0.4 : 0))),
+                child: Container(
+                    color: Colors.black
+                        .withValues(alpha: isShowBackground ? 0.4 : 0))),
             Center(
                 child: Column(
               mainAxisSize: MainAxisSize.min,

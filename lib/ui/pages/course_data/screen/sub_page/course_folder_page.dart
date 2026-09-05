@@ -1,13 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
-import 'package:flutter_app/src/connector/core/connector.dart';
 import 'package:flutter_app/src/connector/moodle_webapi_connector.dart';
-import 'package:flutter_app/src/file/file_download.dart';
+import 'package:flutter_app/ui/service/file_download.dart';
 import 'package:flutter_app/src/model/course_table/course_table_json.dart';
 import 'package:flutter_app/src/model/moodle_webapi/moodle_core_course_get_contents.dart';
-import 'package:flutter_app/src/task/moodle_webapi/moodle_course_folder_detail_task.dart';
-import 'package:flutter_app/src/task/task_flow.dart';
 import 'package:flutter_app/src/util/ui_utils.dart';
-import 'package:flutter_app/ui/pages/error/error_page.dart';
+import 'package:flutter_app/ui/components/page/error_page.dart';
 
 class CourseFolderPage extends StatefulWidget {
   final CourseInfoJson courseInfo;
@@ -16,8 +15,8 @@ class CourseFolderPage extends StatefulWidget {
   const CourseFolderPage(
     this.courseInfo,
     this.modules, {
-    Key? key,
-  }) : super(key: key);
+    super.key,
+  });
 
   @override
   State<StatefulWidget> createState() => _CourseFolderPageState();
@@ -25,16 +24,13 @@ class CourseFolderPage extends StatefulWidget {
 
 class _CourseFolderPageState extends State<CourseFolderPage> {
   Future<Modules?> initTask() async {
-    if (widget.modules.folderIsNone) {
-      TaskFlow taskFlow = TaskFlow();
-      var task = MoodleCourseFolderDetailTask(widget.modules);
-      taskFlow.addTask(task);
-      await taskFlow.start();
-      return task.result;
-    } else {
-      return widget.modules;
-    }
+    return widget.modules;
   }
+
+  /// Future 只建一次。這一頁的 initTask 不打網路（只回傳 widget 欄位），但寫在
+  /// build() 裡每次重建都會產生新的 Future，FutureBuilder 因此重跑一輪 waiting，
+  /// 畫面會閃一下。
+  late final Future<Modules?> _task = initTask();
 
   @override
   Widget build(BuildContext context) {
@@ -45,7 +41,7 @@ class _CourseFolderPageState extends State<CourseFolderPage> {
       body: Container(
         padding: const EdgeInsets.only(top: 10),
         child: FutureBuilder<Modules?>(
-          future: initTask(),
+          future: _task,
           builder: (BuildContext context, AsyncSnapshot<Modules?> snapshot) {
             if (snapshot.connectionState == ConnectionState.done) {
               if (snapshot.data == null) {
@@ -87,14 +83,11 @@ class _CourseFolderPageState extends State<CourseFolderPage> {
           ),
           onTap: () async {
             String dirName = widget.courseInfo.main.course.name;
-            FileDownload.download(
-                context,
-                Connector.uriAddQuery(
-                  ap.fileurl,
-                  {"token": MoodleWebApiConnector.wsToken},
-                ),
-                dirName,
-                name: ap.filename);
+            // 下載自帶進度通知與錯誤提示，生命週期比這個頁面長，
+            // 等它結束只會卡住點擊處理，所以刻意不等。
+            unawaited(FileDownload.download(context,
+                MoodleWebApiConnector.fileUrlWithToken(ap.fileurl), dirName,
+                name: ap.filename));
           },
         );
       },

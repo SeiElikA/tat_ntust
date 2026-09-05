@@ -1,10 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_app/src/config/app_styles.dart';
+import 'package:google_fonts/google_fonts.dart';
 
+/// 兩套主題共用的字體設定。
+///
+/// 用 google_fonts 在執行期抓 Noto Sans TC，不內建字體檔（省 APK 體積）。
+/// 選 Noto Sans TC 是因為它是唯一字形完整、不會缺字的選項：M PLUS
+/// Rounded 1c 風格較近但是日文字體，繁中獨有的字會掉回系統字體，
+/// 同一行混兩種字型。
+///
+/// 抓不到字體時 google_fonts 會回退到系統字體，離線首啟照常可用，只是字型不同。
 class AppThemes {
   static ThemeData lightTheme(ColorScheme? lightDynamic) =>
-      ThemeData(
-          fontFamily: 'MyFont',
+      _withFont(ThemeData(
           useMaterial3: true,
           brightness: Brightness.light,
           dialogTheme: AppStyles.dialogTheme(),
@@ -12,11 +20,10 @@ class AppThemes {
           colorScheme: ColorScheme.fromSeed(
             seedColor: lightDynamic?.primary ?? Colors.blue,
             brightness: Brightness.light,
-          ));
+          )));
 
   static ThemeData darkTheme(ColorScheme? darkDynamic) =>
-      ThemeData(
-          fontFamily: 'MyFont',
+      _withFont(ThemeData(
           useMaterial3: true,
           brightness: Brightness.dark,
           dialogTheme: AppStyles.dialogTheme(),
@@ -24,85 +31,15 @@ class AppThemes {
           colorScheme: ColorScheme.fromSeed(
             seedColor: darkDynamic?.primary ?? Colors.blue,
             brightness: Brightness.dark,
-          )
+          )));
+
+  /// 套字體。
+  ///
+  /// 以 `base.textTheme` 當基底，亮暗兩套主題各自的文字顏色與 Material 3
+  /// 字級才會保留下來，只換字型。
+  static ThemeData _withFont(ThemeData base) => base.copyWith(
+        textTheme: GoogleFonts.notoSansTcTextTheme(base.textTheme),
+        primaryTextTheme:
+            GoogleFonts.notoSansTcTextTheme(base.primaryTextTheme),
       );
-
-// static final lightTheme = ThemeData(
-//   fontFamily: 'MyFont',
-//   brightness: Brightness.light,
-//   primaryColor: AppColors.mainColor,
-//   textSelectionTheme: const TextSelectionThemeData(
-//     cursorColor: AppColors.lightAccent,
-//   ),
-//   appBarTheme: const AppBarTheme(color: AppColors.mainColor),
-//   dividerColor: const Color(0xFFF8F8F8),
-//   primarySwatch: Colors.blue,
-//   scaffoldBackgroundColor: AppColors.lightBG,
-//   iconTheme: const IconThemeData(
-//       color: Colors.black
-//   ),
-//   indicatorColor: Colors.black,
-//   cupertinoOverrideTheme: const CupertinoThemeData(
-//     primaryColor: AppColors.mainColor,
-//   ),
-//   textButtonTheme: TextButtonThemeData(
-//     style: TextButton.styleFrom(
-//       foregroundColor: Colors.black,
-//     ),
-//   ),
-//   elevatedButtonTheme: ElevatedButtonThemeData(
-//     style: ElevatedButton.styleFrom(
-//       elevation: 0,
-//       backgroundColor: Colors.black12,
-//       foregroundColor: Colors.black,
-//     ),
-//   ),
-// ).copyWith(
-//   colorScheme:
-//       ThemeData().colorScheme.copyWith(secondary: AppColors.lightAccent),
-// );
-
-// static final darkTheme = ThemeData(
-//         fontFamily: "MyFont",
-//         useMaterial3: false,
-//         brightness: Brightness.dark,
-//         primaryColor: AppColors.darkPrimary,
-//         primarySwatch: AppColors.mainColor,
-//         scaffoldBackgroundColor: AppColors.darkBG,
-//         textSelectionTheme: const TextSelectionThemeData(
-//           cursorColor: AppColors.darkAccent,
-//         ),
-//         iconTheme: const IconThemeData(
-//           color: Colors.white
-//         ),
-//         colorScheme: ColorScheme.fromSwatch(
-//           brightness: Brightness.dark,
-//           accentColor: AppColors.mainColor
-//         ),
-//         appBarTheme: const AppBarTheme(color: AppColors.darkAccent),
-//         dividerColor: const Color(0xFF2F2F2F),
-//         buttonTheme: const ButtonThemeData(buttonColor: AppColors.darkAccent),
-//         textButtonTheme: TextButtonThemeData(
-//           style: TextButton.styleFrom(
-//             foregroundColor: Colors.white,
-//           ),
-//         ),
-//         elevatedButtonTheme: ElevatedButtonThemeData(
-//           style: ElevatedButton.styleFrom(
-//             elevation: 0,
-//             backgroundColor: Colors.white12,
-//             foregroundColor: Colors.white,
-//           ),
-//         ),
-//         progressIndicatorTheme: ProgressIndicatorThemeData(
-//           color: Get.theme.primaryColor
-//         ),
-//         indicatorColor: Colors.white,
-//         tabBarTheme: const TabBarTheme(
-//           indicatorColor: Colors.white
-//         ),
-//         bottomNavigationBarTheme: const BottomNavigationBarThemeData(
-//           unselectedItemColor: Colors.grey,
-//             selectedItemColor: Colors.blue)
-// );
 }

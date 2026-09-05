@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_app/src/R.dart';
 import 'package:flutter_app/src/store/model.dart';
 import 'package:flutter_app/ui/other/input_dialog.dart';
 import 'package:flutter_app/ui/other/listview_animator.dart';
@@ -9,13 +10,17 @@ import 'package:pretty_json/pretty_json.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class StoreEditPage extends StatefulWidget {
-  const StoreEditPage({Key? key}) : super(key: key);
+  const StoreEditPage({super.key});
 
   @override
   State<StatefulWidget> createState() => _StoreEditPageState();
 }
 
 class _StoreEditPageState extends State<StoreEditPage> {
+  /// 這幾個 key 的值是憑證，不在編輯框裡回顯原文。
+  static bool _isSensitive(String key) =>
+      key == 'user_data' || key == 'moodle_token';
+
   SharedPreferences? pref;
   List<String> keyList = [];
 
@@ -82,11 +87,14 @@ class _StoreEditPageState extends State<StoreEditPage> {
                             child: Text(key),
                           ),
                           IconButton(
+                              // 這兩顆按鈕在同一列、只差圖示，沒有 tooltip 時
+                              // 螢幕閱讀器會連唸兩次「按鈕」，分不出哪顆是刪除。
+                              tooltip: R.current.edit,
                               icon: const Icon(Icons.edit_outlined),
                               onPressed: () {
                                 Get.dialog(CustomInputDialog(
                                   title: key,
-                                  initText: value,
+                                  initText: _isSensitive(key) ? "" : value,
                                   maxLine: 20,
                                   onCancel: (String value) {},
                                   onOk: (String value) async {
@@ -102,6 +110,7 @@ class _StoreEditPageState extends State<StoreEditPage> {
                                 ));
                               }),
                           IconButton(
+                            tooltip: R.current.delete,
                             icon: const Icon(Icons.delete_outline),
                             onPressed: () {
                               keyList.removeAt(index);

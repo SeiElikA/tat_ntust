@@ -1,6 +1,6 @@
-import 'package:auto_size_text/auto_size_text.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_app/ui/components/custom_snackbar.dart';
+import 'package:flutter_app/ui/other/svg_tint.dart';
 import 'package:flutter_app/src/R.dart';
 import 'package:flutter_app/src/controller/course_table/course_controller.dart';
 import 'package:flutter_app/ui/components/card/course_search_card.dart';
@@ -24,7 +24,7 @@ class CustomCoursePage extends GetView<CourseController> {
       Padding(
         padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8),
         child: CourseSearchBar(
-          onSubmit: controller.onCustomCourseSearchSubmit,
+          onSubmit: _onSubmit,
         ),
       ),
       Expanded(
@@ -59,7 +59,8 @@ class CustomCoursePage extends GetView<CourseController> {
         mainAxisSize: MainAxisSize.min,
         children: [
           SvgPicture.asset("assets/image/img_search.svg",
-              color: Get.theme.colorScheme.onSurfaceVariant, height: 76),
+              colorFilter: svgTint(Get.theme.colorScheme.onSurfaceVariant),
+              height: 76),
           const SizedBox(height: 24),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24.0),
@@ -74,5 +75,15 @@ class CustomCoursePage extends GetView<CourseController> {
         ],
       ),
     );
+  }
+
+  /// 查無結果的提示屬於這一頁：controller 自己呼叫 `CustomSnackBar` 會讓
+  /// lib/src/controller 反向 import lib/ui。
+  Future<void> _onSubmit(String value) async {
+    await controller.onCustomCourseSearchSubmit(value);
+    if (controller.courseInfoList.isEmpty) {
+      CustomSnackBar.showCustomErrorSnackBar(
+          title: R.current.error, message: R.current.courseSearchNotFound);
+    }
   }
 }

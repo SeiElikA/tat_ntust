@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_app/src/R.dart';
 import 'package:flutter_app/src/model/announcement/announcement_json.dart';
 import 'package:flutter_app/src/util/remote_config_utils.dart';
-import 'package:flutter_app/src/util/route_utils.dart';
 import 'package:flutter_app/ui/components/page/base_page.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:get/get.dart';
@@ -26,8 +25,8 @@ class AnnouncementPage extends StatefulWidget {
 }
 
 class _AnnouncementPageState extends State<AnnouncementPage> {
-  late List<SwiperController> controllers;
   late SwiperController controller;
+  Timer? _countDownTimer;
   int index = 0;
   late int count;
 
@@ -35,15 +34,30 @@ class _AnnouncementPageState extends State<AnnouncementPage> {
   void initState() {
     controller = SwiperController();
     count = widget.countDown;
-    Timer.periodic(const Duration(seconds: 1), (timer) {
+    // Timer 必須存成欄位並在 dispose 取消，回呼裡也要先檢查 mounted：對已
+    // unmount 的 State setState 會拋例外，例外若在 timer.cancel() 之前逸出，
+    // Timer 就永遠不會自我取消，每秒丟一次直到 process 結束。結束條件用 <= 0，
+    // 避免 remote config 設成 0 或負數時永不結束。
+    _countDownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
       setState(() {
         count--;
       });
-      if (count == 0) {
+      if (count <= 0) {
         timer.cancel();
       }
     });
     super.initState();
+  }
+
+  @override
+  void dispose() {
+    _countDownTimer?.cancel();
+    controller.dispose();
+    super.dispose();
   }
 
   @override

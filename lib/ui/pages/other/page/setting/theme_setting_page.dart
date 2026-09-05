@@ -32,48 +32,50 @@ class _ThemeSettingPageState extends State<ThemeSettingPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: baseAppbar(title: R.current.theme_setting),
-      body: ListView.separated(
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          itemBuilder: (context, index) {
-            final item = ThemeMode.values[index];
-            final borderRadius = UIUtils.getBorderRadius(index, ThemeMode.values.length);
+      // Flutter 3.32 起 Radio 的 groupValue/onChanged 改由 RadioGroup
+      // 祖先統一管理，Radio 本身只留 value。
+      body: RadioGroup<ThemeMode>(
+        groupValue: groupValue,
+        onChanged: onRadioChanged,
+        child: ListView.separated(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            itemBuilder: (context, index) {
+              final item = ThemeMode.values[index];
+              final borderRadius =
+                  UIUtils.getBorderRadius(index, ThemeMode.values.length);
 
-            return CupertinoButton(
-              padding: EdgeInsets.zero,
-              onPressed: () => onRadioChanged(item),
-              child: Container(
-                  decoration: BoxDecoration(
-                      color: Get.theme.colorScheme.surfaceContainer,
-                      borderRadius: borderRadius),
-                  padding:
-                      const EdgeInsets.symmetric(vertical: 14, horizontal: 14),
-                  child: Row(
-                    children: [
-                      Text(
-                        themeText[item] ?? "-",
-                        style: TextStyle(
-                            fontFamily: 'MyFont',
-                            color: Get.theme.colorScheme.onSurfaceVariant
+              return CupertinoButton(
+                padding: EdgeInsets.zero,
+                onPressed: () => onRadioChanged(item),
+                child: Container(
+                    decoration: BoxDecoration(
+                        color: Get.theme.colorScheme.surfaceContainer,
+                        borderRadius: borderRadius),
+                    padding: const EdgeInsets.symmetric(
+                        vertical: 14, horizontal: 14),
+                    child: Row(
+                      children: [
+                        Text(
+                          themeText[item] ?? "-",
+                          style: TextStyle(
+                              color: Get.theme.colorScheme.onSurfaceVariant),
                         ),
-                      ),
-                      const Spacer(),
-                      Radio(
-                          value: item,
-                          groupValue: groupValue,
-                          onChanged: onRadioChanged)
-                    ],
-                  )),
-            );
-          },
-          separatorBuilder: (context, index) {
-            return const SizedBox(height: 2);
-          },
-          itemCount: ThemeMode.values.length),
+                        const Spacer(),
+                        Radio<ThemeMode>(value: item)
+                      ],
+                    )),
+              );
+            },
+            separatorBuilder: (context, index) {
+              return const SizedBox(height: 2);
+            },
+            itemCount: ThemeMode.values.length),
+      ),
     );
   }
 
   Future<void> onRadioChanged(ThemeMode? value) async {
-    if(value == null) {
+    if (value == null) {
       return;
     }
 
@@ -83,6 +85,6 @@ class _ThemeSettingPageState extends State<ThemeSettingPage> {
       groupValue = value;
     });
 
-    ThemeService.instance.changeThemeMode(value);
+    await ThemeService.instance.changeThemeMode(value);
   }
 }

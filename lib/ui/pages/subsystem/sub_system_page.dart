@@ -1,14 +1,15 @@
-import 'package:eva_icons_flutter/eva_icons_flutter.dart';
-import 'package:flutter/cupertino.dart';
+import 'dart:async';
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
-import 'package:flutter/widgets.dart';
+import 'package:flutter_app/ui/components/page/result_view.dart';
+import 'package:flutter_app/src/repository/result.dart';
+import 'package:flutter_app/src/repository/ntust_repository.dart';
+import 'package:flutter_app/ui/other/svg_tint.dart';
 import 'package:flutter_app/src/R.dart';
 import 'package:flutter_app/src/model/ntust/ap_tree_json.dart';
 import 'package:flutter_app/src/store/model.dart';
-import 'package:flutter_app/src/task/ntust/ntust_sub_system_task.dart';
-import 'package:flutter_app/src/task/task_flow.dart';
-import 'package:flutter_app/src/util/route_utils.dart';
-import 'package:flutter_app/src/util/ui_utils.dart';
+import 'package:flutter_app/ui/routes/route_utils.dart';
 import 'package:flutter_app/ui/components/custom_appbar.dart';
 import 'package:flutter_app/ui/components/page/error_page.dart';
 import 'package:flutter_app/ui/pages/password/webmail_password_dialog.dart';
@@ -26,39 +27,43 @@ class SubSystemPage extends StatefulWidget {
 }
 
 class _SubSystemPageState extends State<SubSystemPage> {
-  Future<List<APTreeJson>> initTask() async {
-    TaskFlow taskFlow = TaskFlow();
-    var task = NTUSTSubSystemTask();
-    taskFlow.addTask(task);
-    await taskFlow.start();
-    return task.result;
+  /// null 代表還在載入。請求在 [initState] 觸發一次，`build()` 只負責畫。
+  final _state = Rxn<Result<List<APTreeJson>>>();
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_load());
+  }
+
+  @override
+  void dispose() {
+    _state.close();
+    super.dispose();
+  }
+
+  Future<void> _load() async {
+    _state.value = null;
+    _state.value = await NtustRepository.instance.getSubSystemTree();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: mainAppbar(title: R.current.informationSystem),
-      body: FutureBuilder<List<APTreeJson>>(
-        future: initTask(),
-        builder:
-            (BuildContext context, AsyncSnapshot<List<APTreeJson>> snapshot) {
-          if (snapshot.connectionState == ConnectionState.done) {
-            if (snapshot.data == null) {
-              return const ErrorPage();
-            }
-            return Column(
-              children: [
-                buildMail(APListJson(
-                    name: R.current.webMail,
-                    type: 'webMail_link',
-                    url: "https://mail.ntust.edu.tw")),
-                Expanded(child: getAnimationList(snapshot.data!)),
-              ],
-            );
-          } else {
-            return const Text("");
-          }
-        },
+      body: ResultView<List<APTreeJson>>(
+        state: _state,
+        onRetry: _load,
+        errorBuilder: (message) => ErrorPage(errorMsg: message),
+        builder: (tree) => Column(
+          children: [
+            buildMail(APListJson(
+                name: R.current.webMail,
+                type: 'webMail_link',
+                url: "https://mail.ntust.edu.tw")),
+            Expanded(child: getAnimationList(tree)),
+          ],
+        ),
       ),
     );
   }
@@ -127,9 +132,8 @@ class _SubSystemPageState extends State<SubSystemPage> {
     return FilledButton(
       style: FilledButton.styleFrom(
           backgroundColor: Get.theme.colorScheme.surfaceContainer,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12)
-          ),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           minimumSize: const Size(0, 120)),
       onPressed: () {
         RouteUtils.toWebViewPage(ap.name, ap.url,
@@ -154,7 +158,7 @@ class _SubSystemPageState extends State<SubSystemPage> {
           }
 
           if (Model.instance.getWebMailPassword().isNotEmpty) {
-            RouteUtils.toWebViewPage(
+            unawaited(RouteUtils.toWebViewPage(
               ap.name,
               ap.url,
               openWithExternalWebView: false,
@@ -163,19 +167,19 @@ class _SubSystemPageState extends State<SubSystemPage> {
                 if (uri!.host == "login.ntust.edu.tw") {
                   await webView.evaluateJavascript(
                       source:
-                          'document.getElementById("loginForm").kendoBindingTarget.target.obsCtrl.obsData.username = "${Model.instance.getAccount()}"');
+                          'document.getElementById("loginForm").kendoBindingTarget.target.obsCtrl.obsData.username = ${jsonEncode(Model.instance.getAccount())}');
                   await webView.evaluateJavascript(
                       source:
-                          'document.getElementById("loginForm").kendoBindingTarget.target.obsCtrl.obsData.password = "${Model.instance.getWebMailPassword()}"');
+                          'document.getElementById("loginForm").kendoBindingTarget.target.obsCtrl.obsData.password = ${jsonEncode(Model.instance.getWebMailPassword())}');
                   await webView.evaluateJavascript(
                       source:
-                          'document.getElementsByName("username")[0].value = "${Model.instance.getAccount()}"');
+                          'document.getElementsByName("username")[0].value = ${jsonEncode(Model.instance.getAccount())}');
                   await webView.evaluateJavascript(
                       source:
-                          'document.getElementsByName("password")[0].value = "${Model.instance.getWebMailPassword()}"');
+                          'document.getElementsByName("password")[0].value = ${jsonEncode(Model.instance.getWebMailPassword())}');
                 }
               },
-            );
+            ));
           }
         },
         child: SizedBox(
@@ -185,13 +189,16 @@ class _SubSystemPageState extends State<SubSystemPage> {
               Text(ap.name),
               if (ap.type == "webMail_link")
                 IconButton(
+                    // 這顆按鈕是重新輸入 WebMail 密碼，但圖示是 img_refresh，
+                    // 沒有 tooltip 的話看圖示與螢幕閱讀器都猜不到用途。
+                    tooltip: R.current.changePassword,
                     onPressed: () {
                       Get.dialog(const WebMailPasswordDialog(),
                           barrierDismissible: false);
                     },
                     icon: SvgPicture.asset(
                       "assets/image/img_refresh.svg",
-                      color: Get.theme.colorScheme.onSurface,
+                      colorFilter: svgTint(Get.theme.colorScheme.onSurface),
                     ))
             ],
           ),

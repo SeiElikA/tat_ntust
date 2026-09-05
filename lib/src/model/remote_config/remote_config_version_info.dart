@@ -1,6 +1,5 @@
 import 'dart:io';
 
-import 'package:flutter_app/src/version/update/app_update.dart';
 import 'package:json_annotation/json_annotation.dart';
 import 'package:version/version.dart';
 
@@ -37,10 +36,13 @@ class RemoteConfigVersionInfo {
         : focusUpdateVersion.android;
   }
 
-  Future<bool> get isFocusUpdate async {
-    String appInfo = await AppUpdate.getAppVersion();
+  /// 這個版本是否對 [currentVersion] 而言是強制更新。
+  ///
+  /// 保持純函式、由呼叫端傳入版本：在這裡取版本會造成
+  /// model -> version -> util -> model 的環。
+  bool isFocusUpdateFor(String currentVersion) {
     return focusUpdate
-        ? Version.parse(focusVersion) >= Version.parse(appInfo)
+        ? Version.parse(focusVersion) >= Version.parse(currentVersion)
         : false;
   }
 

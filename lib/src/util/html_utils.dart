@@ -27,23 +27,25 @@ class HtmlUtils {
   ⊕		 				&oplus;		³	註解3符號、立方		&sup3;		ω	Omega符號				&omega;
   ∇		倒三角型符號	&nabla;		↵	ENTER符號			&crarr;		Ω	Omega符號、歐姆符號		&Omega;
    */
+
+  /// 把 HTML 實體還原成字元，輸出是**純文字**。
+  ///
+  /// 名字叫 clean，但它不是 sanitiser，方向剛好相反：它會把
+  /// `&lt;script&gt;` 這種本來惰性的字串還原成 `<script>` 這種活的標記。
+  /// 呼叫端有義務保證輸出只會流進純文字 sink（Text、AppBar 標題……）；
+  /// 一旦接到 HtmlWidget、WebView 或檔案路徑上，就等於開了注入的門。
+  ///
+  /// `test/util/html_utils_sink_inventory_test.dart` 把現有的 sink 盤點寫成
+  /// 可執行的清單：新增 `clean()` 的呼叫端、在 lib 底下新增 `HtmlWidget`，
+  /// 或把 `Modules.name` 餵進 `HtmlWidget`，那個測試就會變紅並要求重跑盤點。
+  ///
+  /// 刻意**不**加「還原後再把標籤剝掉」的防護：課名合法地可能含 `<`、`>`
+  /// （例如 `x&lt;y`、`C++ &lt;入門&gt;`），剝標籤會靜默吃掉真實課名。真的要
+  /// 防，該防在 sink 那端（HTML sink 自己 escape）。
   static String clean(String html) {
     String result;
     var unescape = HtmlUnescape();
     result = unescape.convert(html);
     return result;
-  }
-
-  static String addLink(String html) {
-    RegExp exp = RegExp(
-        r'\"?(https?|ftp|file)://[-A-Za-z0-9+&@#/%?=~_|!:,.;]+[-A-Za-z0-9+&@#/%=~_|]\"?');
-    List<RegExpMatch> matchList = exp.allMatches(html).toList();
-    for (RegExpMatch match in matchList) {
-      String url = match.group(0)!;
-      if (!url.contains("\"")) {
-        html = html.replaceAll(url, '<a href="$url" target="_blank">$url</a>');
-      }
-    }
-    return html;
   }
 }

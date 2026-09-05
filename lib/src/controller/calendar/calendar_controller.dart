@@ -1,11 +1,9 @@
+import 'package:flutter_app/debug/log/log.dart';
 import 'dart:async';
 import 'dart:io';
 
-import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_app/debug/log/log.dart';
-import 'package:flutter_app/src/task/ntust/ntust_calendar_task.dart';
-import 'package:flutter_app/src/task/task_flow.dart';
+import 'package:flutter_app/src/repository/calendar_repository.dart';
 import 'package:get/get.dart';
 import 'package:icalendar_parser/icalendar_parser.dart';
 import 'package:table_calendar/table_calendar.dart';
@@ -28,11 +26,11 @@ class CalendarController extends GetxController {
 
   Future<void> addEvent({bool forceUpdate = false}) async {
     events.clear();
-    TaskFlow taskFlow = TaskFlow();
-    NTUSTCalendarTask task = NTUSTCalendarTask(forceUpdate: forceUpdate);
-    taskFlow.addTask(task);
-    if (await taskFlow.start(checkNetwork: false)) {
-      String savePath = task.result;
+    // 檔案已經在磁碟上就直接回 Ok，不需要網路。
+    final result =
+        await CalendarRepository.instance.getCalendarFile(forceUpdate: forceUpdate);
+    final savePath = result.dataOrNull;
+    if (savePath != null) {
       final icsLines = await File(savePath).readAsLines();
       final iCalendar = ICalendar.fromLines(icsLines);
       for (var i in iCalendar.data) {
@@ -40,24 +38,25 @@ class CalendarController extends GetxController {
           continue;
         }
 
-        IcsDateTime timeStart = i["dtstart"];
-        DateTime dt = DateTime.parse(timeStart.dt);
-        var time = DateTime.utc(dt.year, dt.month, dt.day);
-        String event = i["summary"];
-        for (var i in event.split("  ")) {
-          i = i.replaceAll(" ", "");
-          if (i != "") {
-            final isInt = int.tryParse(i[0]) != null;
-            if (isInt) {
-              i = i.substring(2, i.length);
-            }
-
-            if (events.containsKey(time)) {
-              events[time]!.add(i);
-            } else {
-              events[time] = [i];
-            }
+        // 單筆解析失敗只跳過該筆：例外會從 GetX 不 await 的 onInit 逸出，
+        // 讓畫面停在被截斷的半份行事曆，使用者沒有任何線索。
+        try {
+          IcsDateTime timeStart = i["dtstart"];
+          DateTime dt = DateTime.parse(timeStart.dt);
+          var time = DateTime.utc(dt.year, dt.month, dt.day);
+          String event = i["summary"];
+          for (var raw in event.split("  ")) {
+            // 剝掉開頭的「數字加標點」編號前綴。不可以換成固定長度切割：
+            // 編號可能是兩位數（「10.開學」），短 token 也會 RangeError。
+            final item = raw
+                .replaceAll(" ", "")
+                .replaceFirst(RegExp(r'^\d+[.、,:]?'), '');
+            if (item.isEmpty) continue;
+            events.putIfAbsent(time, () => []).add(item);
           }
+        } catch (e, stack) {
+          Log.eWithStack(e.toString(), stack);
+          continue;
         }
       }
       var today = DateTime.now().toUtc();
@@ -104,8 +103,11 @@ class CalendarController extends GetxController {
           selectedDay.value.month == time.month &&
           selectedDay.value.day == time.day) {
         selectedEvents.value = events[time] ?? [];
-        break;
+        return;
       }
     }
+    // 找不到就要清空，否則換月後清單會繼續顯示上一天的事件，掛在錯誤的
+    // 日期底下。
+    selectedEvents.clear();
   }
 }

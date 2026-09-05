@@ -1,8 +1,5 @@
-import 'dart:ui';
 
-import 'package:flutter/material.dart';
 import 'package:flutter_app/src/model/course/course_class_json.dart';
-import 'package:get/get.dart';
 import 'package:json_annotation/json_annotation.dart';
 
 part 'score_json.g.dart';

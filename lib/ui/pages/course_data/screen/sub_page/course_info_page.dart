@@ -1,22 +1,24 @@
+import 'dart:async';
+
 import 'package:expansion_tile_card/expansion_tile_card.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_app/ui/other/svg_tint.dart';
 import 'package:flutter_app/src/R.dart';
 import 'package:flutter_app/src/connector/core/connector.dart';
 import 'package:flutter_app/src/connector/moodle_webapi_connector.dart';
-import 'package:flutter_app/src/file/file_download.dart';
+import 'package:flutter_app/ui/service/file_download.dart';
 import 'package:flutter_app/src/model/course_table/course_table_json.dart';
 import 'package:flutter_app/src/model/moodle_webapi/moodle_core_course_get_contents.dart';
 import 'package:flutter_app/src/util/language_utils.dart';
 import 'package:flutter_app/src/util/open_utils.dart';
-import 'package:flutter_app/src/util/route_utils.dart';
+import 'package:flutter_app/ui/routes/route_utils.dart';
 import 'package:flutter_app/src/util/ui_utils.dart';
 import 'package:flutter_app/ui/components/custom_appbar.dart';
-import 'package:flutter_app/ui/other/my_toast.dart';
+import 'package:flutter_app/src/util/my_toast.dart';
 import 'package:flutter_app/ui/pages/course_data/screen/sub_page/course_html_page.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_widget_from_html/flutter_widget_from_html.dart';
 import 'package:get/get.dart';
-import 'package:url_launcher/url_launcher_string.dart';
 
 class CourseInfoPage extends StatefulWidget {
   final CourseInfoJson courseInfo;
@@ -60,7 +62,7 @@ class _CourseInfoPageState extends State<CourseInfoPage> {
   }
 
   void openWebView(Modules ap, {openWithExternalWebView = false}) async {
-    RouteUtils.toWebViewPage(
+    unawaited(RouteUtils.toWebViewPage(
         ap.name,
         Connector.uriAddQuery(
           ap.url,
@@ -68,7 +70,7 @@ class _CourseInfoPageState extends State<CourseInfoPage> {
               ? {"lang": "zh_tw"}
               : {"lang": "en"},
         ),
-        openWithExternalWebView: openWithExternalWebView);
+        openWithExternalWebView: openWithExternalWebView));
   }
 
   void handleTap(Modules ap) async {
@@ -81,7 +83,7 @@ class _CourseInfoPageState extends State<CourseInfoPage> {
         break;
       case "folder":
         if (ap.contents.isNotEmpty || ap.folderIsNone) {
-          RouteUtils.toCourseFolderPage(widget.courseInfo, ap);
+          unawaited(RouteUtils.toCourseFolderPage(widget.courseInfo, ap));
         } else {
           MyToast.show(R.current.nothingHere);
         }
@@ -90,23 +92,22 @@ class _CourseInfoPageState extends State<CourseInfoPage> {
         break;
       case "url":
         if (ap.contents.isNotEmpty) {
-          OpenUtils.launchURL(ap.contents.first.fileurl);
+          unawaited(OpenUtils.launchURL(ap.contents.first.fileurl));
         }
         break;
       case "page":
-        Get.to(() => CourseHtmlPage(ap: ap));
+        unawaited(Get.to(() => CourseHtmlPage(ap: ap)));
         break;
       case "resource":
       default:
         String dirName = widget.courseInfo.main.course.name;
-        FileDownload.download(
+        // 下載自己有通知列進度與完成提示，這裡不等它結束——不然點一次檔案
+        // 就會卡住這個 handler 直到整份檔案下載完。
+        unawaited(FileDownload.download(
             context,
-            Connector.uriAddQuery(
-              ap.contents.first.fileurl,
-              {"token": MoodleWebApiConnector.wsToken},
-            ),
+            MoodleWebApiConnector.fileUrlWithToken(ap.contents.first.fileurl),
             dirName,
-            name: ap.contents.first.filename);
+            name: ap.contents.first.filename));
     }
   }
 
@@ -145,7 +146,7 @@ class _CourseInfoPageState extends State<CourseInfoPage> {
                     Expanded(
                       child: InkWell(
                         child: SvgPicture.asset("assets/image/img_download.svg",
-                            color: Get.iconColor),
+                            colorFilter: svgTint(Get.iconColor)),
                         onTap: () {
                           handleTap(ap);
                         },
@@ -192,7 +193,7 @@ class _CourseInfoPageState extends State<CourseInfoPage> {
                     padding: const EdgeInsets.symmetric(horizontal: 12.0),
                     child: SvgPicture.asset(
                       "assets/image/${getIcon(ap.modname)}.svg",
-                      color: Get.iconColor,
+                      colorFilter: svgTint(Get.iconColor),
                     )),
                 Expanded(
                   child: buildItem(ap, index),
