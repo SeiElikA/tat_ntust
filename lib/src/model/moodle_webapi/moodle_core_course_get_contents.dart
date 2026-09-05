@@ -117,6 +117,9 @@ class Contents extends Object {
   @JsonKey(name: 'fileurl')
   String fileurl;
 
+  @JsonKey(name: 'mimetype')
+  String mimetype;
+
   @JsonKey(name: 'timecreated')
   int timecreated;
 
@@ -141,6 +144,7 @@ class Contents extends Object {
     this.filepath = "",
     this.filesize = 0,
     this.fileurl = "",
+    this.mimetype = "",
     this.timecreated = 0,
     this.timemodified = 0,
     this.sortorder = 0,

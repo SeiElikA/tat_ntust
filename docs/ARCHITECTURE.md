@@ -11,9 +11,9 @@ TAT 把學校的單一登入、課程查詢、成績系統與 Moodle 包成一�
 | 項目 | 數值 |
 | --- | --- |
 | Flutter SDK | 3.38.5（鎖在 `.fvmrc`，fvm 與 Puro 都讀得到） |
-| `lib/` Dart 檔案 | 191（其中 17 個 `*.g.dart`），import 邊 662 |
+| `lib/` Dart 檔案 | 194（其中 17 個 `*.g.dart`），import 邊 667 |
 | GetxController | 7，另有 1 個 GetxService（`AppService`） |
-| 測試 | 526 個，67 個測試檔 |
+| 測試 | 562 個，71 個測試檔 |
 | analyzer | `dart analyze --fatal-infos` 零問題 |
 | 外部系統 | 校內 6 台主機，校外 Firebase、GitHub API、Google Forms、Google Fonts |
 | CI | GitHub Actions 三個 job：`analyze-and-test`、`build-android`、`build-ios` |
@@ -255,10 +255,10 @@ WebMail（`mail.ntust.edu.tw`）與舊版 SSO 頁（`ssoam.ntust.edu.tw/nidp/app
 | `lib/src/controller/` | `app_binding.dart` 加各頁 controller；課表另有 `course_model.dart` |
 | `lib/src/service/` | AppService、ThemeService、`TaskUiDelegate` / `InteractiveLoginGateway` 介面、ssoam2 登入、cookie 橋、小工具服務、連線探針 |
 | `lib/src/model/` | json_serializable 模型。`TablesEntity` 刻意手寫 `fromJson`：Moodle 的 `tabledata` 元素有時是空陣列（代表分隔線），產生器會拋型別錯誤 |
-| `lib/src/util/` · `version/` · `file/` | 靜態工具、版本檢查與更新、下載目錄 |
+| `lib/src/util/` · `version/` · `file/` | 靜態工具、版本檢查與更新、下載目錄。`file_icon_utils.dart` 依檔名 / MIME / modicon 挑 Moodle 檔案類型 icon，查的表 `file_icon_table.dart` 由 `tool/gen_file_icon_table.py` 從官方 App 的資料產生，不要手改 |
 | `lib/ui/screen/` | MainScreen、LoginScreen、PrivacyPolicyScreen |
 | `lib/ui/pages/` | 五個分頁與其子頁、通用 WebView、log 檢視頁 |
-| `lib/ui/components/` | BasePage、ErrorPage、LoadingPage、`ResultView`、AppBar、tile、shimmer |
+| `lib/ui/components/` | BasePage、ErrorPage、LoadingPage、`ResultView`、AppBar、tile、shimmer、`FileTypeIcon`（畫 `assets/image/files/*.svg`，那 29 個單色 SVG 來自 moodlehq/moodleapp，Apache-2.0） |
 | `lib/ui/auth/` | 兩個 WebView 登入頁與 `InteractiveLoginGateway` 實作 |
 | `lib/ui/routes/route_utils.dart` | 所有導頁集中在這裡 |
 | `lib/debug/log/` | Log 門面，必須是葉節點 |

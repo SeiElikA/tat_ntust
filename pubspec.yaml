@@ -163,6 +163,7 @@ flutter:
   assets:
     - assets/
     - assets/image/
+    - assets/image/files/
     - assets/launcher/
 
   # 沒有任何內建字體。

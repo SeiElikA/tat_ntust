@@ -6,6 +6,7 @@ import 'package:flutter_app/ui/service/file_download.dart';
 import 'package:flutter_app/src/model/course_table/course_table_json.dart';
 import 'package:flutter_app/src/model/moodle_webapi/moodle_core_course_get_contents.dart';
 import 'package:flutter_app/src/util/ui_utils.dart';
+import 'package:flutter_app/ui/components/file_type_icon.dart';
 import 'package:flutter_app/ui/components/page/error_page.dart';
 
 class CourseFolderPage extends StatefulWidget {
@@ -70,13 +71,19 @@ class _CourseFolderPageState extends State<CourseFolderPage> {
             height: 50,
             child: Row(
               children: [
-                const Expanded(
-                  flex: 1,
-                  child: Icon(Icons.file_copy),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12.0),
+                  child: FileTypeIcon(
+                    filename: ap.filename,
+                    mimetype: ap.mimetype,
+                  ),
                 ),
                 Expanded(
-                  flex: 8,
-                  child: Text(ap.filename),
+                  child: Text(
+                    ap.filename,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
               ],
             ),

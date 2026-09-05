@@ -14,6 +14,7 @@ import 'package:flutter_app/src/util/open_utils.dart';
 import 'package:flutter_app/ui/routes/route_utils.dart';
 import 'package:flutter_app/src/util/ui_utils.dart';
 import 'package:flutter_app/ui/components/custom_appbar.dart';
+import 'package:flutter_app/ui/components/file_type_icon.dart';
 import 'package:flutter_app/src/util/my_toast.dart';
 import 'package:flutter_app/ui/pages/course_data/screen/sub_page/course_html_page.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -42,6 +43,22 @@ class _CourseInfoPageState extends State<CourseInfoPage> {
           title: widget.contents.name,
         ),
         body: buildTree());
+  }
+
+  /// resource 模組跟官方 App 一樣畫檔案類型 icon，其他模組依 modname 挑圖。
+  Widget buildIcon(Modules ap) {
+    if (ap.modname == "resource") {
+      final file = ap.contents.isEmpty ? null : ap.contents.first;
+      return FileTypeIcon(
+        filename: file?.filename ?? "",
+        mimetype: file?.mimetype ?? "",
+        modicon: ap.modicon,
+      );
+    }
+    return SvgPicture.asset(
+      "assets/image/${getIcon(ap.modname)}.svg",
+      colorFilter: svgTint(Get.iconColor),
+    );
   }
 
   String getIcon(String type) {
@@ -190,11 +207,9 @@ class _CourseInfoPageState extends State<CourseInfoPage> {
             child: Row(
               children: [
                 Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 12.0),
-                    child: SvgPicture.asset(
-                      "assets/image/${getIcon(ap.modname)}.svg",
-                      colorFilter: svgTint(Get.iconColor),
-                    )),
+                  padding: const EdgeInsets.symmetric(horizontal: 12.0),
+                  child: buildIcon(ap),
+                ),
                 Expanded(
                   child: buildItem(ap, index),
                 ),
