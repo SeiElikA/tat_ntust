@@ -92,7 +92,6 @@ void main() {
         course: CourseSettingJson(info: sampleCourseTable()),
         other: OtherSettingJson(
           lang: 'zh',
-          autoCheckAppUpdate: false,
           useExternalVideoPlayer: true,
           useMoodleWebApi: false,
         ),
@@ -101,7 +100,6 @@ void main() {
       final decoded = SettingJson.fromJson(encodeDecode(origin));
 
       expect(decoded.other.lang, 'zh');
-      expect(decoded.other.autoCheckAppUpdate, isFalse);
       expect(decoded.other.useExternalVideoPlayer, isTrue);
       expect(decoded.other.useMoodleWebApi, isFalse);
 
@@ -121,14 +119,13 @@ void main() {
       expect(course.main.openClass.single.name, '資工一');
     });
 
-    test('最上層 key 是 course / other，巢狀 key 是 info 與四個 other 欄位', () {
+    test('最上層 key 是 course / other，巢狀 key 是 info 與三個 other 欄位', () {
       final encoded = encodeDecode(SettingJson());
 
       expect(encoded.keys.toSet(), {'course', 'other'});
       expect((encoded['course'] as Map).keys.toSet(), {'info'});
       expect((encoded['other'] as Map).keys.toSet(), {
         'lang',
-        'autoCheckAppUpdate',
         'useExternalVideoPlayer',
         'useMoodleWebApi',
       });
@@ -140,11 +137,9 @@ void main() {
       // 這個測試釘住「缺少時的預設值」。
       final decoded = OtherSettingJson.fromJson(<String, dynamic>{
         'lang': 'en',
-        'autoCheckAppUpdate': false,
       });
 
       expect(decoded.lang, 'en');
-      expect(decoded.autoCheckAppUpdate, isFalse);
       expect(decoded.useMoodleWebApi, isTrue);
       expect(decoded.useExternalVideoPlayer, isFalse);
     });
@@ -373,14 +368,16 @@ void main() {
   /// 所以這裡補上升版與降版兩個方向的斷言。
   group('SemesterJson 拿掉 urlPath 之後的相容性', () {
     test('編碼出來只有 year 與 semester', () {
-      expect(encodeDecode(SemesterJson(year: '113', semester: '1')).keys.toSet(),
+      expect(
+          encodeDecode(SemesterJson(year: '113', semester: '1')).keys.toSet(),
           {'year', 'semester'});
     });
 
     test('升版：舊版寫的 urlPath 會被安靜忽略，其餘欄位照常還原', () {
       // 舊版實際寫進 SharedPreferences 的形狀。
-      final legacy = jsonDecode('{"year":"113","semester":"1","urlPath":"/113/1"}')
-          as Map<String, dynamic>;
+      final legacy =
+          jsonDecode('{"year":"113","semester":"1","urlPath":"/113/1"}')
+              as Map<String, dynamic>;
 
       final restored = SemesterJson.fromJson(legacy);
 

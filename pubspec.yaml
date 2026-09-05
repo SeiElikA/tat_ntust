@@ -78,6 +78,10 @@ dependencies:
   #DateTime to String
   package_info_plus: ^8.3.0
   #檢測app版本用於檢查更新
+  upgrader: ^13.7.0
+  #iOS 查 App Store 有沒有新版
+  in_app_update: ^4.2.5
+  #Android 走 Play 的 in-app update
   #----------html viewer----------#
   #flutter_html: ^2.2.1
   flutter_widget_from_html: ^0.17.1
@@ -85,7 +89,6 @@ dependencies:
   flutter_staggered_animations: ^1.1.1
   #listView or gridView動畫
   #----------download----------#
-  #下載app更新
   open_filex: ^4.7.0
   permission_handler: ^12.0.1
   mime_type: ^1.0.0

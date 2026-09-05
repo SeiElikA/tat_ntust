@@ -40,8 +40,7 @@ void main() {
       CourseTableJson(
         studentId: studentId,
         studentName: 'name_$studentId',
-        courseSemester:
-            SemesterJson(year: year, semester: semester),
+        courseSemester: SemesterJson(year: year, semester: semester),
       );
 
   group('user_data：帳號密碼的讀寫', () {
@@ -73,8 +72,8 @@ void main() {
       expect((await pref()).getString(Model.userDataJsonKey), isNull);
 
       // 它在 secure storage（Android Keystore / iOS Keychain）。
-      expect(stores.secure.data[CredentialsStore.secureKey],
-          contains('p@ssw0rd'));
+      expect(
+          stores.secure.data[CredentialsStore.secureKey], contains('p@ssw0rd'));
 
       // 帳號另外鏡像一份非機密副本，供 UI 的「已登入」謂詞使用。
       expect((await pref()).getString(CredentialsStore.accountMirrorKey),
@@ -174,7 +173,6 @@ void main() {
       await Model.instance.loadSetting();
       Model.instance.setOtherSetting(OtherSettingJson(
         lang: 'zh',
-        autoCheckAppUpdate: false,
         useExternalVideoPlayer: true,
         useMoodleWebApi: false,
       ));
@@ -190,7 +188,7 @@ void main() {
       await Model.instance.loadSetting();
       expect(Model.instance.getOtherSetting().lang, 'zh');
       expect(Model.instance.getOtherSetting().useExternalVideoPlayer, isTrue);
-      expect(Model.instance.autoCheckAppUpdate, isFalse);
+      expect(Model.instance.getOtherSetting().useMoodleWebApi, isFalse);
     });
   });
 
@@ -252,8 +250,7 @@ void main() {
       expect(await Model.instance.getMoodleToken(), isNull);
     });
 
-    test('Model 讀寫 token 不再有副作用（store 不再反向相依 connector）',
-        () async {
+    test('Model 讀寫 token 不再有副作用（store 不再反向相依 connector）', () async {
       expect(MoodleWebApiConnector.wsToken, isNull);
 
       await Model.instance

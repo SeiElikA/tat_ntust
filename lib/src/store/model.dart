@@ -33,12 +33,7 @@ class Model {
   static String agreeContributorKey = "agree_privacy_policy";
   SettingJson _setting = SettingJson();
   final Map<String, bool> _firstRun = {};
-  static String appCheckUpdate = "app_check_update";
   late final DefaultCacheManager cacheManager = DefaultCacheManager();
-
-  bool get autoCheckAppUpdate {
-    return _setting.other.autoCheckAppUpdate;
-  }
 
   Future<bool> getAgreeContributor() async =>
       await store.readBool(agreeContributorKey) ?? false;
@@ -143,7 +138,7 @@ class Model {
   ///
   /// setting 是唯一沒有伺服器副本的純本地資料。[SettingJson.fromJson] 是
   /// 全有全無的——`course` 裡任何一個欄位型別不對，`other` 的 `lang` 與
-  /// `autoCheckAppUpdate` 就一起陪葬，所以整包失敗時逐段解，只讓壞掉的
+  /// `useMoodleWebApi` 就一起陪葬，所以整包失敗時逐段解，只讓壞掉的
   /// 那一段退回預設。
   ///
   /// 只有連 json.decode 都過不了才會拋出去，由 [_loadOrLog] 記錄；
@@ -260,8 +255,7 @@ class Model {
     if (MoodleSessionStore.instance.token == null) {
       try {
         if (await MoodleSessionStore.instance.load() == null) {
-          final legacy =
-              await store.readString(MoodleSessionStore.legacyKey);
+          final legacy = await store.readString(MoodleSessionStore.legacyKey);
           await MoodleSessionStore.instance.migrateFrom(legacy);
         }
       } catch (e, stack) {

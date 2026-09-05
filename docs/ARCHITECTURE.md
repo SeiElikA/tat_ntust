@@ -11,11 +11,11 @@ TAT 把學校的單一登入、課程查詢、成績系統與 Moodle 包成一�
 | 項目 | 數值 |
 | --- | --- |
 | Flutter SDK | 3.38.5（鎖在 `.fvmrc`，fvm 與 Puro 都讀得到） |
-| `lib/` Dart 檔案 | 194（其中 17 個 `*.g.dart`），import 邊 667 |
+| `lib/` Dart 檔案 | 193（其中 16 個 `*.g.dart`），import 邊 660 |
 | GetxController | 7，另有 1 個 GetxService（`AppService`） |
-| 測試 | 562 個，71 個測試檔 |
+| 測試 | 566 個，73 個測試檔 |
 | analyzer | `dart analyze --fatal-infos` 零問題 |
-| 外部系統 | 校內 6 台主機，校外 Firebase、GitHub API、Google Forms、Google Fonts |
+| 外部系統 | 校內 6 台主機，校外 Firebase、GitHub API、Google Forms、Google Fonts、App Store / Google Play |
 | CI | GitHub Actions 三個 job：`analyze-and-test`、`build-android`、`build-ios` |
 
 ## 分層
@@ -31,7 +31,7 @@ TAT 把學校的單一登入、課程查詢、成績系統與 Moodle 包成一�
 | 2.5 | repository | `lib/src/repository/` | 6 | 取資料的唯一入口，對外只回 `Result<T>` |
 | 3.5 | auth | `lib/src/auth/` | 3 | 登入狀態的唯一所有者 |
 | 4 | connector | `lib/src/connector/` | 10 | 唯一的 HTTP 出口：單一 Dio 加持久化 cookie jar |
-| 5 | util | `lib/src/util/`、`service/`、`file/`、`version/` | 28 | 靜態工具、GetxService、平台服務、下載、版本 |
+| 5 | util | `lib/src/util/`、`service/`、`file/`、`version/` | 28 | 靜態工具、GetxService、平台服務、下載、版本遷移與商店更新 |
 | 6 | store | `lib/src/store/` | 9 | 本機持久化，不碰網路 |
 | 7 | config | `lib/src/config/`、`R.dart`、`firebase_options.dart` | 9 | 純常數與多語系門面 |
 | 8 | model | `lib/src/model/`、`lib/src/enum/` | 38 | json_serializable 模型 |
@@ -202,8 +202,9 @@ nullable：**「讀不到」不等於「沒登入」**。Android 從備份還原
 | 課程查詢 API<br>`querycourse.ntust.edu.tw` | 公開 JSON API，**不需登入**：關鍵字搜尋、課程詳細、用課號反查課表 | `course_connector.dart` |
 | 成績查詢系統<br>`stuinfosys.ntust.edu.tw` | 不走 Dio。HeadlessInAppWebView 載入頁面取 HTML 再解析 | `score_connector.dart` |
 | Moodle<br>`moodle2.ntust.edu.tw` | WebView 走 `admin/tool/mobile/launch.php` 取 wstoken，之後 POST wsfunction：`core_webservice_get_site_info`、`core_enrol_get_users_courses`、`core_course_get_contents`、`core_enrol_get_enrolled_users`、`mod_forum_get_forum_discussions`、`gradereport_user_get_grade_items`、通知偏好兩支 | `moodle_webapi_connector.dart`<br>`moodle_login_page.dart` |
-| Firebase<br>`projectId ntust-tat` | Crashlytics 接 `FlutterError` 與 `runZonedGuarded`；Analytics 掛 navigatorObservers；Remote Config 讀版本設定與公告；FCM 轉本地通知 | `lib/src/util/*_utils.dart` |
+| Firebase<br>`projectId ntust-tat` | Crashlytics 接 `FlutterError` 與 `runZonedGuarded`；Analytics 掛 navigatorObservers；Remote Config 讀公告；FCM 轉本地通知 | `lib/src/util/*_utils.dart` |
 | GitHub API | 貢獻者頁，`github` 套件 | `contributors_page.dart` |
+| App Store / Google Play | 啟動時問商店有沒有新版：Android 走 Play 的 in-app update（Play 自己的下載提示），iOS 用 `upgrader` 查 App Store 後跳對話框。兩邊都可以按「稍後」，沒有強制更新 | `store_update.dart`<br>`update_prompt.dart` |
 | Google Forms | 意見回饋的預填網址 | `AppLink.feedback` |
 | Google Fonts | 執行期抓 Noto Sans TC | `app_themes.dart` |
 
@@ -255,7 +256,7 @@ WebMail（`mail.ntust.edu.tw`）與舊版 SSO 頁（`ssoam.ntust.edu.tw/nidp/app
 | `lib/src/controller/` | `app_binding.dart` 加各頁 controller；課表另有 `course_model.dart` |
 | `lib/src/service/` | AppService、ThemeService、`TaskUiDelegate` / `InteractiveLoginGateway` 介面、ssoam2 登入、cookie 橋、小工具服務、連線探針 |
 | `lib/src/model/` | json_serializable 模型。`TablesEntity` 刻意手寫 `fromJson`：Moodle 的 `tabledata` 元素有時是空陣列（代表分隔線），產生器會拋型別錯誤 |
-| `lib/src/util/` · `version/` · `file/` | 靜態工具、版本檢查與更新、下載目錄。`file_icon_utils.dart` 依檔名 / MIME / modicon 挑 Moodle 檔案類型 icon，查的表 `file_icon_table.dart` 由 `tool/gen_file_icon_table.py` 從官方 App 的資料產生，不要手改 |
+| `lib/src/util/` · `version/` · `file/` | 靜態工具、版本遷移（`app_version.dart`）與商店更新（`store_update.dart`）、下載目錄。`file_icon_utils.dart` 依檔名 / MIME / modicon 挑 Moodle 檔案類型 icon，查的表 `file_icon_table.dart` 由 `tool/gen_file_icon_table.py` 從官方 App 的資料產生，不要手改 |
 | `lib/ui/screen/` | MainScreen、LoginScreen、PrivacyPolicyScreen |
 | `lib/ui/pages/` | 五個分頁與其子頁、通用 WebView、log 檢視頁 |
 | `lib/ui/components/` | BasePage、ErrorPage、LoadingPage、`ResultView`、AppBar、tile、shimmer、`FileTypeIcon`（畫 `assets/image/files/*.svg`，那 29 個單色 SVG 來自 moodlehq/moodleapp，Apache-2.0） |

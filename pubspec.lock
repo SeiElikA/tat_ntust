@@ -1006,6 +1006,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "4.8.0"
+  in_app_update:
+    dependency: "direct main"
+    description:
+      name: in_app_update
+      sha256: "9924a3efe592e1c0ec89dda3683b3cfec3d4cd02d908e6de00c24b759038ddb1"
+      url: "https://pub.dev"
+    source: hosted
+    version: "4.2.5"
   infinite_listview:
     dependency: transitive
     description:
@@ -1270,6 +1278,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "4.7.0"
+  os_detect:
+    dependency: transitive
+    description:
+      name: os_detect
+      sha256: "7d87c0dd98c6faf110d5aa498e9a6df02ffce4bb78cc9cfc8ad02929be9bb71f"
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.0.3"
   package_config:
     dependency: transitive
     description:
@@ -1787,6 +1803,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.3.1"
+  upgrader:
+    dependency: "direct main"
+    description:
+      name: upgrader
+      sha256: "5a117075c5d22844136a89a60cc0272602cb8a5d0ce371b15379ddf68a415588"
+      url: "https://pub.dev"
+    source: hosted
+    version: "13.7.0"
   url_launcher:
     dependency: "direct main"
     description:

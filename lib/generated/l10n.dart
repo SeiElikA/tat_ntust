@@ -239,26 +239,6 @@ class S {
     );
   }
 
-  /// `APP will close`
-  String get appWillClose {
-    return Intl.message(
-      'APP will close',
-      name: 'appWillClose',
-      desc: '',
-      args: [],
-    );
-  }
-
-  /// `isFocusUpdate`
-  String get isFocusUpdate {
-    return Intl.message(
-      'isFocusUpdate',
-      name: 'isFocusUpdate',
-      desc: '',
-      args: [],
-    );
-  }
-
   /// `login NTUST`
   String get loginNTUST {
     return Intl.message('login NTUST', name: 'loginNTUST', desc: '', args: []);
@@ -969,16 +949,6 @@ class S {
     );
   }
 
-  /// `Find new version`
-  String get findNewVersion {
-    return Intl.message(
-      'Find new version',
-      name: 'findNewVersion',
-      desc: '',
-      args: [],
-    );
-  }
-
   /// `Check version`
   String get checkVersion {
     return Intl.message(
@@ -1027,6 +997,56 @@ class S {
       desc: '',
       args: [],
     );
+  }
+
+  /// `Update available`
+  String get updateTitle {
+    return Intl.message(
+      'Update available',
+      name: 'updateTitle',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `A new version of TAT is out. You have %s; %s is available.`
+  String get updateBody {
+    return Intl.message(
+      'A new version of TAT is out. You have %s; %s is available.',
+      name: 'updateBody',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Would you like to update now?`
+  String get updatePrompt {
+    return Intl.message(
+      'Would you like to update now?',
+      name: 'updatePrompt',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `What's new`
+  String get updateReleaseNotes {
+    return Intl.message(
+      'What\'s new',
+      name: 'updateReleaseNotes',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Later`
+  String get updateLater {
+    return Intl.message('Later', name: 'updateLater', desc: '', args: []);
+  }
+
+  /// `Ignore`
+  String get updateIgnore {
+    return Intl.message('Ignore', name: 'updateIgnore', desc: '', args: []);
   }
 
   /// `Are you sure you want to log out? \nAll data will be cleared`

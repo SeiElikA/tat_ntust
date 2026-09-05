@@ -50,7 +50,6 @@ class MessageLookup extends MessageLookupByLibrary {
     "announcementEmpty": MessageLookupByLibrary.simpleMessage(
       "No Announcement",
     ),
-    "appWillClose": MessageLookupByLibrary.simpleMessage("APP will close"),
     "calendar": MessageLookupByLibrary.simpleMessage("Calendar"),
     "campus_life": MessageLookupByLibrary.simpleMessage("Campus Life"),
     "cancel": MessageLookupByLibrary.simpleMessage("Cancel"),
@@ -121,7 +120,6 @@ class MessageLookup extends MessageLookupByLibrary {
     "financial_support": MessageLookupByLibrary.simpleMessage(
       "Financial Support",
     ),
-    "findNewVersion": MessageLookupByLibrary.simpleMessage("Find new version"),
     "fullRange": MessageLookupByLibrary.simpleMessage("fullRange"),
     "general_dimension": MessageLookupByLibrary.simpleMessage("Dimension"),
     "getCourse": MessageLookupByLibrary.simpleMessage("Get schedule..."),
@@ -155,7 +153,6 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "informationSystem": MessageLookupByLibrary.simpleMessage("Info"),
     "instructor": MessageLookupByLibrary.simpleMessage("Instructor"),
-    "isFocusUpdate": MessageLookupByLibrary.simpleMessage("isFocusUpdate"),
     "isNewVersion": MessageLookupByLibrary.simpleMessage(
       "Already the latest version",
     ),
@@ -285,6 +282,16 @@ class MessageLookup extends MessageLookupByLibrary {
       "An unknown error occurred",
     ),
     "update": MessageLookupByLibrary.simpleMessage("Update"),
+    "updateBody": MessageLookupByLibrary.simpleMessage(
+      "A new version of TAT is out. You have %s; %s is available.",
+    ),
+    "updateIgnore": MessageLookupByLibrary.simpleMessage("Ignore"),
+    "updateLater": MessageLookupByLibrary.simpleMessage("Later"),
+    "updatePrompt": MessageLookupByLibrary.simpleMessage(
+      "Would you like to update now?",
+    ),
+    "updateReleaseNotes": MessageLookupByLibrary.simpleMessage("What\'s new"),
+    "updateTitle": MessageLookupByLibrary.simpleMessage("Update available"),
     "versionInfo": MessageLookupByLibrary.simpleMessage("Version info"),
     "wait": MessageLookupByLibrary.simpleMessage("Wait"),
     "warning": MessageLookupByLibrary.simpleMessage("Warning"),

@@ -6,7 +6,6 @@ import 'package:firebase_remote_config/firebase_remote_config.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_app/debug/log/log.dart';
 import 'package:flutter_app/src/model/announcement/announcement_json.dart';
-import 'package:flutter_app/src/model/remote_config/remote_config_version_info.dart';
 
 /// resolveAnnouncement 的結果：要顯示的公告內容與倒數秒數。
 class AnnouncementRequest {
@@ -19,7 +18,6 @@ class AnnouncementRequest {
 class RemoteConfigUtils {
   static late FirebaseRemoteConfig _remoteConfig;
 
-  static String versionConfigKey = "version_config";
   static String announcementKey = "announcement";
 
   static Future<void> init({focusUpdate = false}) async {
@@ -41,18 +39,11 @@ class RemoteConfigUtils {
     }
   }
 
-  static Future<RemoteConfigVersionInfo> getVersionConfig() async {
-    await _remoteConfig.fetchAndActivate();
-    String result = _remoteConfig.getString(versionConfigKey);
-    return RemoteConfigVersionInfo.fromJson(json.decode(result));
-  }
-
   static Future<List<AnnouncementInfoJson>> getAnnouncement(
       bool test, bool allTime) async {
     await _remoteConfig.fetchAndActivate();
     String result = _remoteConfig.getString(announcementKey);
-    final DateTime lastRead =
-        await SettingsStore.instance.announcementLastRead;
+    final DateTime lastRead = await SettingsStore.instance.announcementLastRead;
     DateTime now = DateTime.now();
     now = now.toUtc().add(const Duration(hours: 8));
     List<AnnouncementInfoJson> info = [];

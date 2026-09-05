@@ -19,6 +19,7 @@ import 'package:flutter_app/src/store/credentials_store.dart';
 import 'package:flutter_app/src/auth/auth_session.dart';
 import 'package:flutter_app/src/service/interactive_login_gateway.dart';
 import 'package:flutter_app/ui/auth/get_interactive_login_gateway.dart';
+import 'package:flutter_app/ui/components/update_prompt.dart';
 import 'package:flutter_app/src/auth/app_auth_session.dart';
 import 'package:flutter_app/src/service/task_ui_delegate.dart';
 import 'package:flutter_app/ui/service/get_task_ui_delegate.dart';
@@ -100,9 +101,8 @@ class MyApp extends StatelessWidget {
           if (await appService.needsPrivacyAgreement) {
             await RouteUtils.toAgreePrivacyPolicyScreen();
           }
-          if (await appService.init()) {
-            await RouteUtils.showAnnouncement();
-          }
+          await appService.init();
+          await RouteUtils.showAnnouncement();
         },
         themeMode: ThemeService.instance.theme,
         theme: AppThemes.lightTheme(lightDynamic),
@@ -113,7 +113,10 @@ class MyApp extends StatelessWidget {
           GlobalCupertinoLocalizations.delegate,
           GlobalMaterialLocalizations.delegate
         ],
-        builder: BotToastInit(),
+        builder: (context, child) => UpdatePrompt(
+          navigatorKey: Get.key,
+          child: BotToastInit()(context, child),
+        ),
         navigatorObservers: [
           BotToastNavigatorObserver(),
           AnalyticsUtils.observer

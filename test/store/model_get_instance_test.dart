@@ -61,7 +61,7 @@ void main() {
       await Model.instance.getInstance();
 
       expect(Model.instance.getOtherSetting().lang, '');
-      expect(Model.instance.autoCheckAppUpdate, isTrue);
+      expect(Model.instance.getOtherSetting().useMoodleWebApi, isTrue);
       expect(Model.instance.getCourseSetting().info.studentId, '');
     });
 
@@ -112,22 +112,25 @@ void main() {
   });
 
   group('setting 逐段搶救：一段壞掉不拖累另一段', () {
-    test('course 段型別錯時，語言與自動更新偏好仍然救得回來', () async {
+    test('course 段型別錯時，語言與影片播放器偏好仍然救得回來', () async {
       // studentId 宣告是 String，這裡放 int：整包 SettingJson.fromJson 會拋。
       final blob = json.encode(<String, dynamic>{
         'course': <String, dynamic>{
           'info': <String, dynamic>{'studentId': 12345},
         },
-        'other': <String, dynamic>{'lang': 'zh', 'autoCheckAppUpdate': false},
+        'other': <String, dynamic>{
+          'lang': 'zh',
+          'useExternalVideoPlayer': true
+        },
       });
       SharedPreferences.setMockInitialValues({Model.settingJsonKey: blob});
 
       // 沒有逐段搶救的話整包會退回 SettingJson()：lang 變回 ""、
-      // autoCheckAppUpdate 變回 true。
+      // useExternalVideoPlayer 變回 false。
       expect(await Model.instance.getInstance(), isFalse);
 
       expect(Model.instance.getOtherSetting().lang, 'zh');
-      expect(Model.instance.autoCheckAppUpdate, isFalse);
+      expect(Model.instance.getOtherSetting().useExternalVideoPlayer, isTrue);
       // 壞掉的那一段各自退回預設。
       expect(Model.instance.getCourseSetting().info.studentId, '');
       // 搶救成功不代表可以回寫，原始 blob 一樣要留著。
@@ -147,7 +150,7 @@ void main() {
       expect(Model.instance.getCourseSetting().info.studentId, 'B10902000');
       expect(Model.instance.getCourseSetting().info.studentName, '王小明');
       expect(Model.instance.getOtherSetting().lang, '');
-      expect(Model.instance.autoCheckAppUpdate, isTrue);
+      expect(Model.instance.getOtherSetting().useMoodleWebApi, isTrue);
     });
 
     test('整段不是物件（例如被寫成陣列）也只讓那一段退回預設', () async {
@@ -179,7 +182,7 @@ void main() {
       final table = makeTable();
       final settingBlob = json.encode(SettingJson(
         course: CourseSettingJson(info: table),
-        other: OtherSettingJson(lang: 'zh', autoCheckAppUpdate: false),
+        other: OtherSettingJson(lang: 'zh', useExternalVideoPlayer: true),
       ));
       final courseLine = json.encode(table);
       final scoreBlob = json.encode(ScoreRankJson());
@@ -192,7 +195,7 @@ void main() {
       expect(await Model.instance.getInstance(), isFalse);
 
       expect(Model.instance.getOtherSetting().lang, 'zh');
-      expect(Model.instance.autoCheckAppUpdate, isFalse);
+      expect(Model.instance.getOtherSetting().useExternalVideoPlayer, isTrue);
       expect(Model.instance.getCourseSetting().info.studentId, 'B10902000');
       expect(Model.instance.getCourseTableList(), hasLength(1));
 

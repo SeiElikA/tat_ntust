@@ -16,7 +16,7 @@ import 'package:flutter_app/src/controller/main_page/main_controller.dart';
 import 'package:flutter_app/debug/log/console_output.dart';
 import 'package:flutter_app/src/store/model.dart';
 import 'package:flutter_app/ui/routes/route_utils.dart';
-import 'package:flutter_app/src/version/update/app_update.dart';
+import 'package:flutter_app/src/version/app_version.dart';
 import 'package:flutter_app/ui/components/custom_appbar.dart';
 import 'package:flutter_app/ui/components/shimmer/profile_loading.dart';
 import 'package:flutter_app/ui/other/error_dialog.dart';
@@ -26,14 +26,7 @@ import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get/get.dart';
 
-enum OtherMenuAction {
-  setting,
-  logout,
-  report,
-  about,
-  login,
-  changePassword
-}
+enum OtherMenuAction { setting, logout, report, about, login, changePassword }
 
 class OtherPage extends StatefulWidget {
   const OtherPage({
@@ -141,7 +134,7 @@ class _OtherPageState extends State<OtherPage> {
       case OtherMenuAction.report:
         String link = AppLink.feedbackBaseUrl;
         try {
-          String mainVersion = await AppUpdate.getAppVersion();
+          String mainVersion = await APPVersion.getAppVersion();
           link = AppLink.feedback(mainVersion, LogBuffer.getLog());
         } catch (e) {
           Log.d(e);

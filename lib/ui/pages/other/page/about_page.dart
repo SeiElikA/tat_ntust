@@ -7,7 +7,7 @@ import 'package:flutter_app/ui/other/svg_tint.dart';
 import 'package:flutter_app/src/R.dart';
 import 'package:flutter_app/ui/routes/route_utils.dart';
 import 'package:flutter_app/src/version/app_version.dart';
-import 'package:flutter_app/src/version/update/app_update.dart';
+import 'package:flutter_app/src/version/store_update.dart';
 import 'package:flutter_app/ui/components/custom_appbar.dart';
 import 'package:flutter_app/ui/other/listview_animator.dart';
 import 'package:flutter_app/src/util/my_toast.dart';
@@ -79,8 +79,7 @@ class _AboutPageState extends State<AboutPage> {
     switch (value) {
       case AboutMenuAction.appUpdate:
         MyToast.show(R.current.checkingVersion);
-        bool result = await APPVersion.check(focusCheck: true);
-        if (!result) {
+        if (!await StoreUpdate.offer()) {
           MyToast.show(R.current.isNewVersion);
         }
         break;
@@ -88,7 +87,7 @@ class _AboutPageState extends State<AboutPage> {
         unawaited(RouteUtils.toContributorsPage());
         break;
       case AboutMenuAction.version:
-        String mainVersion = await AppUpdate.getAppVersion();
+        String mainVersion = await APPVersion.getAppVersion();
         if (pressTime == 0) {
           MyToast.show(mainVersion);
         }

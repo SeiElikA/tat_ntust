@@ -14,10 +14,13 @@ class AppService extends GetxService {
   Future<bool> get needsPrivacyAgreement async =>
       !(await Model.instance.getAgreeContributor());
 
-  /// 回傳是否該顯示公告。導航交給呼叫端（main.dart）。
-  Future<bool> init() async {
+  Future<void> init() async {
     await _appInit();
-    return await _shouldShowAnnouncement();
+    try {
+      await APPVersion.migrateIfUpdated();
+    } catch (e, stack) {
+      Log.eWithStack(e.toString(), stack);
+    }
   }
 
   Future<void> _appInit() async {
@@ -35,10 +38,5 @@ class AppService extends GetxService {
     } catch (e, stack) {
       Log.eWithStack(e.toString(), stack);
     }
-  }
-
-  Future<bool> _shouldShowAnnouncement() async {
-    final isNeedUpdate = await APPVersion.initAndCheck();
-    return !isNeedUpdate;
   }
 }
