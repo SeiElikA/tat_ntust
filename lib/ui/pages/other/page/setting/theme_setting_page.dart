@@ -16,11 +16,13 @@ class ThemeSettingPage extends StatefulWidget {
 
 class _ThemeSettingPageState extends State<ThemeSettingPage> {
   var groupValue = ThemeMode.system;
-  final themeText = {
-    ThemeMode.dark: R.current.theme_dark,
-    ThemeMode.light: R.current.theme_light,
-    ThemeMode.system: R.current.theme_system,
-  };
+  /// getter 而不是欄位：欄位只在 State 建立時初始化，切換語言後文字會停在
+  /// 舊語言。
+  Map<ThemeMode, String> get themeText => {
+        ThemeMode.dark: R.current.theme_dark,
+        ThemeMode.light: R.current.theme_light,
+        ThemeMode.system: R.current.theme_system,
+      };
 
   @override
   void initState() {

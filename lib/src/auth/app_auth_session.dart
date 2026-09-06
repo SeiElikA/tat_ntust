@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
+
 import 'package:flutter_app/src/auth/auth_session.dart';
 import 'package:flutter_app/src/service/task_ui_delegate.dart';
 import 'package:flutter_app/src/service/interactive_login_gateway.dart';
@@ -27,6 +29,34 @@ class AppAuthSession implements AuthSession {
   /// 公開是刻意的：測試要能設定「已經登入」這個前提，唯一的另一條路是真的
   /// 跑一次網路登入。
   bool ssoReady = false;
+
+  /// 站台**明確拒絕**過的那一組帳密的指紋。
+  ///
+  /// 登入失敗時 [ssoReady] 仍是 false，而每一條 `run()` 都會各自再 `ensure`
+  /// 一次（[inFlight] 只擋得住同時發生的），實測一次打錯密碼會送出 6 次登入，
+  /// 而站台是「密碼錯誤 10 次鎖 15 分鐘」。
+  ///
+  /// 只在站台明確拒絕時記；網路失敗、Turnstile 逾時照常重試。刻意不由
+  /// [invalidate] 清除，逃生口是改帳密或重開 App。
+  @visibleForTesting
+  int? rejectedCredentials;
+
+  String? _rejectedMessage;
+
+  /// 帳密的指紋，只用來偵測「有沒有改過帳密」，不是安全機制。
+  static int credentialsFingerprint(String account, String password) =>
+      Object.hash(account, password);
+
+  @visibleForTesting
+  void rejectCredentials(int fingerprint, String? message) {
+    rejectedCredentials = fingerprint;
+    _rejectedMessage = message;
+  }
+
+  void _clearRejection() {
+    rejectedCredentials = null;
+    _rejectedMessage = null;
+  }
 
   /// 有沒有可用的憑證：帳號**與**密碼都非空。
   ///
@@ -93,9 +123,9 @@ class AppAuthSession implements AuthSession {
   ///
   /// 給「多個來源各自 try、誰掛了都不拖累別人」的情境用。
   @override
-  Future<void> tryEnsure(SystemId id) async {
+  Future<void> tryEnsure(SystemId id, {bool interactive = true}) async {
     try {
-      await ensure({id});
+      await ensure({id}, interactive: interactive);
     } catch (e, stack) {
       Log.eWithStack(e.toString(), stack);
     }
@@ -142,6 +172,13 @@ class AppAuthSession implements AuthSession {
       return const AuthError(AuthFailure.notSignedIn);
     }
 
+    // 已被站台拒絕過的帳密不再送出，見 [rejectedCredentials]。
+    final fingerprint = credentialsFingerprint(repo.account, repo.password);
+    if (rejectedCredentials == fingerprint) {
+      Log.d('[sso] 這組帳密站台已明確拒絕，直接回報，不再燒登入嘗試');
+      return AuthError(AuthFailure.loginFailed, message: _rejectedMessage);
+    }
+
     // 進度框只包住非互動的那一段。互動式登入本身就是一個畫面，
     // 在它上面再蓋一層遮罩會讓使用者按不到 Turnstile。
     final handle = interactive
@@ -155,12 +192,14 @@ class AppAuthSession implements AuthSession {
     }
     if (value["status"] == NTUSTLoginStatus.success) {
       ssoReady = true;
+      _clearRejection();
       return null;
     }
-    // 有 message 代表站台明確拒絕了憑證，開可見登入頁也是同樣結果，
-    // 而且會多燒一次登入嘗試。
+    // 有 message 代表站台明確拒絕，開可見登入頁也是同樣結果。記下來，
+    // 後面每一條 run() 就不必再問一次。
     final message = value["message"] as String?;
     if (message != null) {
+      rejectCredentials(fingerprint, message);
       return AuthError(AuthFailure.loginFailed, message: message);
     }
 
@@ -172,7 +211,13 @@ class AppAuthSession implements AuthSession {
         .signInNtust(account: repo.account, password: repo.password);
     if (result?.status == NTUSTLoginStatus.success) {
       ssoReady = true;
+      _clearRejection();
       return null;
+    }
+    // headless 那段可能是認不得頁面才升級上來的（沒有 message），真正讀到
+    // 錯誤的是這一頁，同樣要記。
+    if (result?.message != null) {
+      rejectCredentials(fingerprint, result!.message);
     }
     return AuthError(AuthFailure.loginFailed, message: result?.message);
   }
@@ -183,16 +228,31 @@ class AppAuthSession implements AuthSession {
     if (!repo.hasCredentials) {
       return const AuthError(AuthFailure.notSignedIn);
     }
-    final handle = interactive
-        ? TaskUiDelegate.instance.beginProgress(R.current.loginMoodleWebApi)
-        : null;
+
+    // 共用同一份拒絕記錄：wsToken 也是走 ssoam2 換來的。只讀不寫——
+    // MoodleWebApiConnectorStatus 分不出「帳密錯」與「使用者按了返回」。
+    final fingerprint = credentialsFingerprint(repo.account, repo.password);
+    if (rejectedCredentials == fingerprint) {
+      Log.d('[moodle] 這組帳密站台已明確拒絕，不開登入頁');
+      return AuthError(AuthFailure.loginFailed, message: _rejectedMessage);
+    }
+
+    // 安靜模式到此為止：Moodle 沒有 headless 路徑，拿 wsToken 唯一的方法就是
+    // 開 LoginMoodlePage。少了這一行，背景預載會把登入頁蓋在課表上。
+    if (!interactive) return const AuthError(AuthFailure.loginFailed);
+
+    final handle =
+        TaskUiDelegate.instance.beginProgress(R.current.loginMoodleWebApi);
     MoodleWebApiConnectorStatus value;
     try {
       value = await MoodleWebApiConnector.login(repo.account, repo.password);
     } finally {
-      handle?.dismiss();
+      handle.dismiss();
     }
-    if (value == MoodleWebApiConnectorStatus.loginSuccess) return null;
+    if (value == MoodleWebApiConnectorStatus.loginSuccess) {
+      _clearRejection();
+      return null;
+    }
     return const AuthError(AuthFailure.loginFailed);
   }
 

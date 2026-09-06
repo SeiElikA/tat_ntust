@@ -32,7 +32,13 @@ class _CourseDataPageState extends State<CourseDataPage>
   final PageController _pageController = PageController();
   int _currentIndex = 0;
   List<Widget> _pages = [];
-  List<Map<String, dynamic>> _tabItems = [];
+  /// getter 而不是 initState 裡指派的欄位：initState 只跑一次，切換語言後
+  /// 分頁標籤會停在舊語言。長度固定，TabController 照樣讀得到。
+  List<Map<String, dynamic>> get _tabItems => [
+        {"name": R.current.file, "icon": "img_file.svg"},
+        {"name": R.current.announcement, "icon": "img_message.svg"},
+        {"name": R.current.score, "icon": "img_education.svg"}
+      ];
 
   late final CourseDataController _controller;
 
@@ -48,11 +54,6 @@ class _CourseDataPageState extends State<CourseDataPage>
       CourseDirectoryPage(widget.courseInfo, controller: _controller),
       CourseAnnouncementPage(widget.courseInfo, controller: _controller),
       CourseScorePage(widget.courseInfo, controller: _controller)
-    ];
-    _tabItems = [
-      {"name": R.current.file, "icon": "img_file.svg"},
-      {"name": R.current.announcement, "icon": "img_message.svg"},
-      {"name": R.current.score, "icon": "img_education.svg"}
     ];
     _tabController = TabController(vsync: this, length: _tabItems.length);
   }

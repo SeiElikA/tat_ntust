@@ -4,6 +4,7 @@ import 'package:flutter_app/generated/l10n.dart';
 import 'package:flutter_app/src/R.dart';
 import 'package:flutter_app/src/model/setting/setting_json.dart';
 import 'package:flutter_app/src/store/model.dart';
+import 'package:get/get.dart';
 
 enum LangEnum { en, zh }
 
@@ -24,9 +25,15 @@ class LanguageUtils {
     return S.delegate.supportedLocales;
   }
 
+  /// 切換語言的唯一入口：換掉 intl 訊息表、換掉 Flutter 的 Localizations、
+  /// 寫回設定。三件事少一件就會有地方沒被切換。
   static Future<void> load(Locale locale) async {
     if (getSupportLocale.contains(locale)) {
       await R.load(locale);
+      // 不要拿掉。GetMaterialApp 沒傳 locale 時 Localizations 跟的是手機語系，
+      // 會把上一行設好的 Intl.defaultLocale 蓋回去；而且已經建好的畫面不會重畫。
+      // Get.updateLocale 同時設定 Get.locale 並 forceAppUpdate。
+      await Get.updateLocale(locale);
       String lang = locale2String(locale);
       OtherSettingJson otherSetting = Model.instance.getOtherSetting();
       if (otherSetting.lang != lang) {

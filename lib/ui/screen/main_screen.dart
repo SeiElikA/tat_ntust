@@ -21,13 +21,15 @@ class MainScreen extends StatefulWidget {
 class _MainScreenState extends State<MainScreen> with RouteAware {
   // 註冊在 AppBindings（lazyPut + fenix），這裡只取用。
   final controller = Get.find<MainController>();
-  final items = [
-    {"icon": "img_clock.svg", "name": R.current.titleCourse},
-    {"icon": "img_info.svg", "name": R.current.informationSystem},
-    {"icon": "img_calendar.svg", "name": R.current.calendar},
-    {"icon": "img_book.svg", "name": R.current.titleScore},
-    {"icon": "img_menu.svg", "name": R.current.titleOther}
-  ];
+  /// 一定要是 getter：欄位只在 State 建立時初始化，而 forceAppUpdate 只重跑
+  /// build()、不重建 State，導覽列標籤會永遠停在啟動時的語言。
+  List<Map<String, String>> get items => [
+        {"icon": "img_clock.svg", "name": R.current.titleCourse},
+        {"icon": "img_info.svg", "name": R.current.informationSystem},
+        {"icon": "img_calendar.svg", "name": R.current.calendar},
+        {"icon": "img_book.svg", "name": R.current.titleScore},
+        {"icon": "img_menu.svg", "name": R.current.titleOther}
+      ];
 
   @override
   void didChangeDependencies() {
@@ -76,18 +78,20 @@ class _MainScreenState extends State<MainScreen> with RouteAware {
       return NavigationBar(
         selectedIndex: currentIndex,
         onDestinationSelected: controller.onBottomNavigationTap,
-        destinations: items.map((item) {
-          final index = items.indexOf(item);
-          return NavigationDestination(
-            icon: SvgPicture.asset(
-              "assets/image/${item["icon"]}",
-              colorFilter: svgTint(currentIndex == index
-                  ? Get.theme.colorScheme.onSecondaryContainer
-                  : Get.theme.colorScheme.onSurfaceVariant),
+        // 索引用 indexed：items 是 getter，每次讀都是新的 Map，而 Map 沒有
+        // 覆寫 ==，跨兩次讀取的 indexOf 一律回 -1。
+        destinations: [
+          for (final (index, item) in items.indexed)
+            NavigationDestination(
+              icon: SvgPicture.asset(
+                "assets/image/${item["icon"]}",
+                colorFilter: svgTint(currentIndex == index
+                    ? Get.theme.colorScheme.onSecondaryContainer
+                    : Get.theme.colorScheme.onSurfaceVariant),
+              ),
+              label: item["name"]!,
             ),
-            label: item["name"]!,
-          );
-        }).toList(),
+        ],
       );
     });
   }

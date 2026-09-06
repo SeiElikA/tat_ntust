@@ -168,6 +168,9 @@ flutter:
     - assets/image/
     - assets/image/files/
     - assets/launcher/
+    # 隱私政策的離線備援。宣告 repo 根目錄那一份而不是複本：GitHub raw 服務
+    # 的就是同一個檔案。見 PrivacyPolicyController.load。
+    - privacy-policy.md
 
   # 沒有任何內建字體。
   #

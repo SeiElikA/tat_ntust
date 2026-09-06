@@ -26,6 +26,25 @@ class CookieBridge {
   /// `ScoreConnector` 拿不到 cookie 只會回 null，使用者看到的是通用錯誤。
   static const String _domain = ".ntust.edu.tw";
 
+  /// 平台 WebView store 在 [url] 上有沒有 cookie，用來否決 Dio 探針。
+  ///
+  /// 不同步是雙向的，而反向（Dio jar 說已登入、平台 store 空的）會讓
+  /// [NTUSTConnector.login] 跳過唯一會種平台 store 的登入。問不到時回 true，
+  /// 「不否決」是保守的那一邊。
+  static Future<bool> hasPlatformCookies({
+    required WebUri url,
+    CookieManager? manager,
+  }) async {
+    try {
+      final cookies =
+          await (manager ?? CookieManager.instance()).getCookies(url: url);
+      return cookies.isNotEmpty;
+    } catch (e, stack) {
+      Log.eWithStack(e.toString(), stack);
+      return true;
+    }
+  }
+
   /// 把平台 WebView 上某個 URL 的 cookie 鏡射進 Dio jar。
   ///
   /// 回傳搬了幾顆。零代表 WebView 那邊也沒有，通常表示登入其實沒成功。

@@ -38,7 +38,9 @@ class OtherPage extends StatefulWidget {
 }
 
 class _OtherPageState extends State<OtherPage> {
-  List<Map> optionList = [
+  /// 一定要是 getter：欄位初始化式只在 State 建立時跑一次，會同時凍住標題的
+  /// 語言與那幾個依 `getPassword()` 決定出現與否的項目。
+  List<Map> get optionList => [
     {
       "icon": "img_setting.svg",
       "title": R.current.setting,

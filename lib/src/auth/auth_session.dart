@@ -67,7 +67,10 @@ abstract class AuthSession {
   Future<AuthError?> ensure(Set<SystemId> requires, {bool interactive = true});
 
   /// 盡力而為的登入，失敗不回報。給 `run()` 的 `optional` 使用。
-  Future<void> tryEnsure(SystemId id);
+  ///
+  /// [interactive] 同 [ensure]。**背景路徑一定要傳 false**：`run()` 的
+  /// `background` 只管它自己那一次 ensure，擋不到這裡。
+  Future<void> tryEnsure(SystemId id, {bool interactive = true});
 
   /// 讓 [requires] 的登入狀態失效，下次 [ensure] 會重登。
   ///
@@ -95,7 +98,7 @@ class UninstalledAuthSession implements AuthSession {
       _fail();
 
   @override
-  Future<void> tryEnsure(SystemId id) => _fail();
+  Future<void> tryEnsure(SystemId id, {bool interactive = true}) => _fail();
 
   @override
   Future<void> invalidate(Set<SystemId> requires) => _fail();

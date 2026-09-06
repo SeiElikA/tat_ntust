@@ -128,15 +128,69 @@ class Ssoam2Login {
     return result?.toString() ?? "null";
   }
 
-  /// 站台是不是在頁面上回報了登入錯誤（多半是帳號密碼錯）。
+  /// 登入錯誤訊息的兩層判準，回傳的 JSON 會說是哪一層命中。
   ///
-  /// 判準與可見登入頁一致：`ntust_login_page.dart` 找的就是這個 class。
+  /// 1. `validation-summary-errors`——實測 `/account/login` 上這個 class 與
+  ///    `validation-summary-valid` 都不存在，很可能已經失效，留著零成本。
+  /// 2. 掃可見文字找已知句子。**現在實際負責攔截的是這一層。**
+  ///
+  /// 第二層不能省：呼叫端都把「沒有錯誤」當成「可以再送一次」，判準失效等於
+  /// 無限重送同一組錯密碼，而站台是「密碼錯誤 10 次鎖 15 分鐘」。乾淨的登入頁
+  /// 不含這兩句話，所以不會把成功的登入判成失敗。
+  static const String _credentialErrorJs = r'''
+    (function () {
+      var box = document.getElementsByClassName(
+          "validation-summary-errors")[0];
+      if (box) {
+        var t = (box.innerText || box.textContent || "").trim();
+        if (t) return JSON.stringify({source: "class", message: t});
+      }
+      // innerText 依賴排版，headless WebView 可能回空字串，留 textContent 後路。
+      var body = document.body
+          ? (document.body.innerText || document.body.textContent || "")
+          : "";
+      var low = body.toLowerCase();
+      var marks = ["帳號或密碼輸入錯誤", "username or password is incorrect"];
+      for (var i = 0; i < marks.length; i++) {
+        var k = low.indexOf(marks[i].toLowerCase());
+        if (k >= 0) {
+          var line = body.substring(k, k + 160).split("\n")[0].trim();
+          return JSON.stringify({source: "text", message: line});
+        }
+      }
+      return JSON.stringify({source: "none", message: ""});
+    })()
+  ''';
+
+  /// 站台回報的登入錯誤訊息，沒有就是 null。
+  ///
+  /// **呼叫端一定要在再送出表單之前先問這個。** 登入失敗後站台是把登入頁
+  /// 連同錯誤訊息重新吐回來，網址仍是登入頁，先送出再檢查等於永遠檢查不到。
+  static Future<String?> credentialError(
+      InAppWebViewController controller) async {
+    try {
+      final raw = await controller.evaluateJavascript(source: _credentialErrorJs);
+      if (raw == null) return null;
+      final decoded = jsonDecode(raw.toString());
+      if (decoded is! Map) return null;
+      final message = (decoded["message"] as String? ?? "").trim();
+      if (message.isEmpty) return null;
+      if (decoded["source"] == "text") {
+        Log.e("[ssoam2] validation-summary-errors 不見了，"
+            "靠文字比對才認出登入錯誤——站台改版了，該更新判準");
+      }
+      return message;
+    } catch (e, stack) {
+      // 讀不到就當作沒有錯誤，下一輪還會再問。
+      Log.eWithStack(e.toString(), stack);
+      return null;
+    }
+  }
+
+  /// 站台是不是在頁面上回報了登入錯誤。判準與 [credentialError] 同一份。
   static Future<bool> hasValidationError(
           InAppWebViewController controller) async =>
-      await controller.evaluateJavascript(
-          source: 'document.getElementsByClassName('
-              '"validation-summary-errors").length > 0') ==
-      true;
+      await credentialError(controller) != null;
 
   /// 這份 HTML 是不是「已經登入」的帳號資訊頁。
   ///

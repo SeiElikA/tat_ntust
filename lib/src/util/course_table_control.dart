@@ -44,7 +44,9 @@ class CourseTableControl {
   bool isHideC = false;
   bool isHideD = false;
   CourseTableJson? courseTable;
-  List<String> dayStringList = courseDayNames();
+  /// getter 而不是欄位：這個物件是 CourseController 的欄位，而 GetX 的
+  /// controller 不會被 forceAppUpdate 重建，存成欄位會凍在建立時的語言。
+  List<String> get dayStringList => courseDayNames();
   List<String> timeList = [
     "08:10 - 09:00",
     "09:10 - 10:00",

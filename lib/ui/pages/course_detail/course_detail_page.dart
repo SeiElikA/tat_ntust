@@ -34,7 +34,12 @@ class _CourseDetailPageState extends State<CourseDetailPage>
   final PageController _pageController = PageController();
   int _currentIndex = 0;
   List<Widget> _pages = [];
-  List<Map<String, dynamic>> _tabItems = [];
+  /// getter 而不是 initState 裡指派的欄位，理由同 CourseDataPage：
+  /// initState 只跑一次，分頁標籤會停在 State 建立時的語言。
+  List<Map<String, dynamic>> get _tabItems => [
+        {"name": R.current.course, "icon": "img_info.svg"},
+        {"name": R.current.member, "icon": "img_group.svg"}
+      ];
 
   late final CourseDetailController _controller;
 
@@ -57,10 +62,6 @@ class _CourseDetailPageState extends State<CourseDetailPage>
         widget.courseInfo.main.course.id,
         controller: _controller,
       ),
-    ];
-    _tabItems = [
-      {"name": R.current.course, "icon": "img_info.svg"},
-      {"name": R.current.member, "icon": "img_group.svg"}
     ];
     _tabController = TabController(vsync: this, length: _tabItems.length);
   }
