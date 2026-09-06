@@ -16,6 +16,7 @@ import 'package:flutter_app/src/model/moodle_webapi/moodle_core_calendar_action_
 import 'package:flutter_app/src/model/moodle_webapi/moodle_core_course_get_contents.dart';
 import 'package:flutter_app/src/model/moodle_webapi/moodle_core_enrol_get_users.dart';
 import 'package:flutter_app/src/model/moodle_webapi/moodle_gradereport_get_grade_items.dart';
+import 'package:flutter_app/src/model/moodle_webapi/moodle_message_popup_notifications.dart';
 import 'package:flutter_app/src/model/moodle_webapi/moodle_mod_assign_get_assignments.dart';
 import 'package:flutter_app/src/model/moodle_webapi/moodle_mod_assign_get_submission_status.dart';
 import 'package:flutter_app/src/model/moodle_webapi/moodle_mod_forum_get_discussion_posts.dart';
@@ -121,6 +122,29 @@ class MoodleWebApiConnector {
 
   static const String submissionStatusFunction =
       "mod_assign_get_submission_status";
+
+  static const String popupNotificationsFunction =
+      "message_popup_get_popup_notifications";
+
+  static const String popupUnreadCountFunction =
+      "message_popup_get_unread_popup_notification_count";
+
+  /// @since Moodle 4.0，算的是全部 notifications 而不只 popup。
+  static const String unreadNotificationCountFunction =
+      "core_message_get_unread_notification_count";
+
+  static const String markNotificationReadFunction =
+      "core_message_mark_notification_read";
+
+  static const String markAllNotificationsReadFunction =
+      "core_message_mark_all_notifications_as_read";
+
+  /// 伺服器的 limit 預設 0 ＝不限筆數，一定要自己給上限。
+  static const int notificationsLimit = 50;
+
+  /// 站內通知一次最多翻幾頁，同 [actionEventsMaxPages] 的態度：收件匣再大也
+  /// 不該把開頁變成四趟以上的請求。
+  static const int notificationsMaxPages = 4;
 
   /// passport 必須跟著回傳：signature 是 `md5(wwwroot + passport)`，驗它才能
   /// 確定 token 來自我們發出的那次請求。亂數必須維持密碼學等級。
@@ -330,6 +354,10 @@ class MoodleWebApiConnector {
   }
 
   static final String _moodleHost = Uri.parse(host).host;
+
+  /// 自家站台的 host。給 util 層的純函式當比對基準：util 排在 connector 下面，
+  /// 不可以反過來 import 這個檔案。
+  static String get siteHost => _moodleHost;
 
   /// 取鑰匙的請求 User-Agent 必須含 MoodleMobile；只附記號，不假冒版本。
   static String moodleAppUserAgent(String base) =>
@@ -1226,6 +1254,160 @@ class MoodleWebApiConnector {
 
   /// 作業的網頁位址。[cmid] 是 course module id，不是 assign id。
   static String assignViewUrl(int cmid) => "$host/mod/assign/view.php?id=$cmid";
+
+  /// 站內通知（popup）清單，抓不到回 null。回應本身就帶 `unreadcount`，
+  /// 開頁時不必再打一趟未讀數。
+  ///
+  /// 不送 `moodlewssettingfilter` / `moodlewssettingfileurl`：這支 WS 是直接
+  /// 讀資料表，沒有呼叫 external 的 format_text，送了無效。
+  ///
+  /// `newestfirst` 拿回來的是「最新的 N 則」，**不分已讀未讀**，而外層的
+  /// `unreadcount` 算的是收件匣全部的未讀。視窗外還有未讀時要用 `offset`
+  /// 往下翻，否則會出現「紅點寫 5、清單裡一顆未讀圓點都沒有」，而使用者
+  /// 除了那顆有破壞性的「全部標為已讀」之外找不到它們。
+  static Future<MoodleNotificationList?> getNotifications({
+    int limit = notificationsLimit,
+  }) async {
+    final String? uid;
+    try {
+      uid = await _ensureUserId();
+    } catch (e, stack) {
+      _reportFailure(popupNotificationsFunction, e, stack);
+      return null;
+    }
+    if (uid == null) return null;
+
+    final all = <MoodleNotification>[];
+    var unreadcount = 0;
+    for (var page = 0; page < notificationsMaxPages; page++) {
+      final MoodleNotificationList? parsed;
+      try {
+        final result = await _callWs(popupNotificationsFunction, {
+          "useridto": uid,
+          "newestfirst": "1",
+          "limit": limit.toString(),
+          "offset": (page * limit).toString(),
+        });
+        parsed = notificationsOf(result);
+        if (parsed == null) {
+          throw MoodleApiException(
+            wsFunction: popupNotificationsFunction,
+            message: '回應裡沒有 notifications',
+          );
+        }
+      } catch (e, stack) {
+        _reportFailure(popupNotificationsFunction, e, stack);
+        // 第一頁就失敗才算整趟失敗；已經拿到的頁數照樣給畫面。
+        if (page == 0) return null;
+        break;
+      }
+      all.addAll(parsed.notifications);
+      unreadcount = parsed.unreadcount;
+      // 回不滿一頁就是到底了；未讀已經全部在手上也不必再翻。
+      if (parsed.notifications.length < limit) break;
+      if (all.where((n) => !n.read).length >= unreadcount) break;
+    }
+    return MoodleNotificationList(notifications: all, unreadcount: unreadcount);
+  }
+
+  /// 形狀不對回 null。`subject` 與 `contexturlname` 服務端只做過 PARAM_TEXT
+  /// （標籤剝掉、實體留著），在這裡 [HtmlUtils.clean]，快取存的才是還原後的。
+  @visibleForTesting
+  static MoodleNotificationList? notificationsOf(dynamic result) {
+    if (result is! Map || result["notifications"] is! List) return null;
+    final list =
+        MoodleNotificationList.fromJson(Map<String, dynamic>.from(result));
+    for (final n in list.notifications) {
+      n.subject = HtmlUtils.clean(n.subject);
+      final name = n.contexturlname;
+      if (name != null) n.contexturlname = HtmlUtils.clean(name);
+    }
+    return list;
+  }
+
+  /// 未讀數要打哪一支。**刻意與官方 App 相反**：TAT 的清單只顯示 popup 通知，
+  /// 用 core_ 的總數會出現「紅點 3、點進去只有 1 則未讀」；官方 App 的清單是
+  /// `core_message_get_messages`（全部 notifications），所以它反過來。
+  /// site_info 還沒載入時 fail-open，態度與 [wsFunctionBlocked] 一致。
+  @visibleForTesting
+  static String? preferredUnreadCountFunction() {
+    final profile = siteInfo;
+    if (profile == null || !profile.knowsWsFunctions) {
+      return popupUnreadCountFunction;
+    }
+    if (profile.wsAvailable(popupUnreadCountFunction)) {
+      return popupUnreadCountFunction;
+    }
+    if (profile.wsAvailable(unreadNotificationCountFunction)) {
+      return unreadNotificationCountFunction;
+    }
+    // 兩支都沒有：紅點交給清單回應裡自帶的 unreadcount。
+    return null;
+  }
+
+  /// 未讀數，抓不到回 null。
+  ///
+  /// `useridto` 一定要送真的 id：這兩支都沒有「0 代入目前使用者」那一步
+  /// （文件寫的 `0 for any user` 會把人騙進去），送 0 會被判 accessdenied。
+  static Future<int?> getUnreadNotificationCount() async {
+    final wsFunction = preferredUnreadCountFunction();
+    if (wsFunction == null) return null;
+    try {
+      final uid = await _ensureUserId();
+      if (uid == null) return null;
+      return unreadCountOf(await _callWs(wsFunction, {"useridto": uid}));
+    } catch (e, stack) {
+      _reportFailure(wsFunction, e, stack);
+      return null;
+    }
+  }
+
+  /// 這兩支回的是裸 JSON 數字，不是物件。
+  @visibleForTesting
+  static int? unreadCountOf(dynamic result) => switch (result) {
+        final int n => n,
+        final num n => n.toInt(),
+        final String s => int.tryParse(s),
+        _ => null,
+      };
+
+  /// 標記單則已讀。`timeread` 省略（VALUE_DEFAULT 0）→ 伺服器用 `time()`。
+  ///
+  /// `treatWarningsAsError` 照寫（寫入路徑的慣例），但這支的 warnings 在伺服器
+  /// 端是初始化後從不 append 的空陣列，實際上不會觸發。通知被伺服器的清理排程
+  /// 刪掉時回的是 `dml_missing_record_exception`——已讀 7 天後就會發生，
+  /// 呼叫端不可以讓它變成整頁的錯誤畫面。
+  static Future<bool> markNotificationRead(int notificationId) async {
+    try {
+      await _callWs(
+        markNotificationReadFunction,
+        {"notificationid": notificationId.toString()},
+        treatWarningsAsError: true,
+      );
+      return true;
+    } catch (e, stack) {
+      _reportFailure(markNotificationReadFunction, e, stack);
+      return false;
+    }
+  }
+
+  /// 全部標為已讀。回的是裸 bool，沒有 warnings 外殼，`treatWarningsAsError`
+  /// 對它無效，所以「沒有拋例外」不等於成功，要看值。
+  ///
+  /// `useridto` 一樣不能送 0：`useridto` 與 `useridfrom` 都是 0 時伺服器判
+  /// accessdenied。它標記的是 `{notifications}` 全部，不只 popup。
+  static Future<bool> markAllNotificationsRead() async {
+    try {
+      final uid = await _ensureUserId();
+      if (uid == null) return false;
+      final result =
+          await _callWs(markAllNotificationsReadFunction, {"useridto": uid});
+      return result == true;
+    } catch (e, stack) {
+      _reportFailure(markAllNotificationsReadFunction, e, stack);
+      return false;
+    }
+  }
 
   static String _firstWarningMessage(dynamic result) {
     if (result is! Map) return "";

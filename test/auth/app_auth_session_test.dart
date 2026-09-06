@@ -147,6 +147,13 @@ void main() {
       expect(error.message, isNull);
     });
 
+    test('空集合不需要任何登入：沒有憑證也回 null', () async {
+      // `AppNoticeRepository` 用 `run(requires: const {})` 讓沒登入的使用者
+      // 也看得到 App 公告，靠的就是這裡的迴圈跑零次。
+      expect(await auth.ensure(const {}), isNull);
+      expect(await auth.ensure(const {}, interactive: false), isNull);
+    });
+
     test('Moodle 有 token 就算已登入', () async {
       MoodleWebApiConnector.wsToken = 'a-token';
       expect(await auth.ensure({SystemId.moodleWebApi}), isNull);

@@ -40,12 +40,19 @@ void main() {
     // - 公告的第一篇貼文標題（Discussions.subject，announcementsOf；抓不到
     //   回覆時 rootPostOf 會把它當成貼文標題畫出來）
     // - 貼文標題（MoodleForumPost.subject，discussionPostsOf）
+    // - 站內通知的標題與來源名（MoodleNotification.subject /
+    //   contexturlname，notificationsOf）
+    // 另一個檔案是 moodle_notification_utils：通知摘要（smallmessage /
+    // fullmessage / text）先剝標籤再 clean，輸出只進 tile 的 Text。
     // 下游全是 Text 與 AppBar / WebView 標題（upcoming_events_section 的
     // tile、course_assignment_page 的列、course_assignment_detail_page 的
     // AppBar 與成績列、course_announcement_page 的清單卡片與討論串頁的
     // AppBar、course_announcement_detail_page 的卡片子標題、
     // InAppWebViewPage 的 title）。
-    const expected = {'lib/src/connector/moodle_webapi_connector.dart'};
+    const expected = {
+      'lib/src/connector/moodle_webapi_connector.dart',
+      'lib/src/util/moodle_notification_utils.dart',
+    };
 
     final actual = <String>{
       for (final file in libDartFiles())

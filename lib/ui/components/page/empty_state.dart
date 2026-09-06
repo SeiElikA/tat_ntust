@@ -3,7 +3,7 @@ import 'package:flutter_app/ui/other/svg_tint.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
 /// 整頁的空狀態：一張淡色插圖加一行說明。嵌在頁面中段、周圍畫面還在的區塊
-/// 有自己更小的一份（行事曆的待辦），不要共用這個。
+/// 有自己更小的一份（`SectionEmptyState`），不要共用這個。
 class EmptyState extends StatelessWidget {
   const EmptyState({super.key, required this.asset, required this.message});
 

@@ -47,11 +47,23 @@ class MessageLookup extends MessageLookupByLibrary {
     "agree": MessageLookupByLibrary.simpleMessage("Agree"),
     "alertError": MessageLookupByLibrary.simpleMessage("An error occurred"),
     "announcement": MessageLookupByLibrary.simpleMessage("Announcements"),
+    "announcementCenter": MessageLookupByLibrary.simpleMessage(
+      "Announcements & notifications",
+    ),
     "announcementEmpty": MessageLookupByLibrary.simpleMessage(
       "No Announcement",
     ),
     "announcementNoForum": MessageLookupByLibrary.simpleMessage(
       "This course has no announcements forum",
+    ),
+    "announcementPublishedAt": MessageLookupByLibrary.simpleMessage(
+      "Published",
+    ),
+    "appAnnouncement": MessageLookupByLibrary.simpleMessage(
+      "TAT announcements",
+    ),
+    "appAnnouncementEmpty": MessageLookupByLibrary.simpleMessage(
+      "No TAT announcements right now",
     ),
     "assignAllowSubmissionsFrom": MessageLookupByLibrary.simpleMessage("Opens"),
     "assignAttachments": MessageLookupByLibrary.simpleMessage("Attachments"),
@@ -206,6 +218,9 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "fullRange": MessageLookupByLibrary.simpleMessage("fullRange"),
     "general_dimension": MessageLookupByLibrary.simpleMessage("Dimension"),
+    "getAppNoticeError": MessageLookupByLibrary.simpleMessage(
+      "Failed to load TAT announcements",
+    ),
     "getCourse": MessageLookupByLibrary.simpleMessage("Get schedule..."),
     "getCourseDetailError": MessageLookupByLibrary.simpleMessage(
       "Course data reading error",
@@ -233,6 +248,9 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "getMoodleMembersError": MessageLookupByLibrary.simpleMessage(
       "Get Moodle members error",
+    ),
+    "getMoodleNotificationsError": MessageLookupByLibrary.simpleMessage(
+      "Failed to load Moodle notifications",
     ),
     "getMoodleScoreError": MessageLookupByLibrary.simpleMessage(
       "get score error",
@@ -286,6 +304,9 @@ class MessageLookup extends MessageLookupByLibrary {
     "moodleNotSignedIn": MessageLookupByLibrary.simpleMessage(
       "Not signed in to Moodle",
     ),
+    "moodleNotification": MessageLookupByLibrary.simpleMessage(
+      "Moodle notifications",
+    ),
     "moodle_setting": MessageLookupByLibrary.simpleMessage("Moodle setting"),
     "moodle_setting_description": MessageLookupByLibrary.simpleMessage(
       "Sync NTUST Moodle website settings",
@@ -294,9 +315,6 @@ class MessageLookup extends MessageLookupByLibrary {
       "Need validate captcha",
     ),
     "networkError": MessageLookupByLibrary.simpleMessage("Network error"),
-    "noAnnouncement": MessageLookupByLibrary.simpleMessage(
-      "No any announcement",
-    ),
     "noAnyFavorite": MessageLookupByLibrary.simpleMessage("No any favorite"),
     "noFunction": MessageLookupByLibrary.simpleMessage("No function"),
     "noPermission": MessageLookupByLibrary.simpleMessage("Permission denied"),
@@ -304,6 +322,34 @@ class MessageLookup extends MessageLookupByLibrary {
     "note": MessageLookupByLibrary.simpleMessage("Remarks"),
     "nothingHere": MessageLookupByLibrary.simpleMessage(
       "There\'s nothing here",
+    ),
+    "notificationDisabledOnMoodle": MessageLookupByLibrary.simpleMessage(
+      "Site notifications are turned off in your Moodle preferences. Turn them back on in the notification preferences on the Moodle website.",
+    ),
+    "notificationEmpty": MessageLookupByLibrary.simpleMessage(
+      "No notifications",
+    ),
+    "notificationMarkAllRead": MessageLookupByLibrary.simpleMessage(
+      "Mark all as read",
+    ),
+    "notificationMarkAllReadConfirm": MessageLookupByLibrary.simpleMessage(
+      "Mark every unread notification on Moodle as read, including ones not shown on this page? The school server deletes read notifications after 7 days by default.",
+    ),
+    "notificationMarkAllReadDone": MessageLookupByLibrary.simpleMessage(
+      "All notifications marked as read",
+    ),
+    "notificationMarkAllReadError": MessageLookupByLibrary.simpleMessage(
+      "Failed to mark all as read",
+    ),
+    "notificationMarkReadError": MessageLookupByLibrary.simpleMessage(
+      "Failed to mark as read",
+    ),
+    "notificationUnknownSource": MessageLookupByLibrary.simpleMessage(
+      "System notification",
+    ),
+    "notificationUnread": MessageLookupByLibrary.simpleMessage("Unread"),
+    "notificationUnreadTooltip": MessageLookupByLibrary.simpleMessage(
+      "Announcements & notifications, %s unread",
     ),
     "openInBrowser": MessageLookupByLibrary.simpleMessage("Open in browser"),
     "originPassword": MessageLookupByLibrary.simpleMessage("Origin password"),

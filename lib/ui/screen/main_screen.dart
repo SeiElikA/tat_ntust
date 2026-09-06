@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_app/ui/other/svg_tint.dart';
 import 'package:flutter_app/src/R.dart';
@@ -6,6 +8,7 @@ import 'package:flutter_app/ui/pages/score/score_page.dart';
 import 'package:flutter_app/ui/pages/other/other_page.dart';
 import 'package:flutter_app/ui/pages/course_table/course_table_page.dart';
 import 'package:flutter_app/ui/pages/calendar/calendar_page.dart';
+import 'package:flutter_app/src/controller/announcement/notification_badge_controller.dart';
 import 'package:flutter_app/src/controller/main_page/main_controller.dart';
 import 'package:flutter_app/src/util/analytics_utils.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -18,7 +21,8 @@ class MainScreen extends StatefulWidget {
   State<StatefulWidget> createState() => _MainScreenState();
 }
 
-class _MainScreenState extends State<MainScreen> with RouteAware {
+class _MainScreenState extends State<MainScreen>
+    with RouteAware, WidgetsBindingObserver {
   // 註冊在 AppBindings（lazyPut + fenix），這裡只取用。
   final controller = Get.find<MainController>();
   final items = [
@@ -30,14 +34,30 @@ class _MainScreenState extends State<MainScreen> with RouteAware {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     AnalyticsUtils.observer
         .subscribe(this, ModalRoute.of(context) as PageRoute);
   }
 
+  /// 課表是預設分頁，停在它把 App 丟到背景再回來不會觸發 `onPageChanged`，
+  /// 沒有這一段紅點就會一直停在進 App 那一刻的數字——那正是輪詢要解決的情境。
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      unawaited(NotificationBadgeController.instance.refresh());
+    }
+  }
+
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     AnalyticsUtils.observer.unsubscribe(this);
     super.dispose();
   }

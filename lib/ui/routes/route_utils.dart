@@ -1,9 +1,8 @@
 import 'dart:io';
 
-import 'package:flutter_app/src/R.dart';
 import 'package:flutter_app/src/connector/moodle_webapi_connector.dart';
-import 'package:flutter_app/src/util/my_toast.dart';
 import 'package:flutter_app/src/util/remote_config_utils.dart';
+import 'package:flutter_app/ui/pages/announcement/announcement_center_page.dart';
 import 'package:flutter_app/ui/pages/announcement/announcement_page.dart';
 import 'package:flutter_app/src/model/course/course_class_json.dart';
 import 'package:flutter_app/src/model/course_table/course_table_json.dart';
@@ -26,21 +25,26 @@ import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:get/get.dart';
 
 class RouteUtils {
-  /// 取得並顯示公告。沒有公告時，只有使用者主動查看（allTime）才提示。
-  static Future<void> showAnnouncement(
-      {bool test = false, bool allTime = false}) async {
-    final request = await RemoteConfigUtils.resolveAnnouncement(
-        test: test, allTime: allTime);
-    if (request == null) {
-      if (allTime) MyToast.show(R.current.noAnnouncement);
-      return;
-    }
+  /// 啟動時的公告彈窗。沒有要顯示的公告就什麼都不做——使用者主動查看的入口
+  /// 已經是 [toAnnouncementCenter]，那一頁有自己的空狀態。
+  static Future<void> showAnnouncement({bool test = false}) async {
+    final request = await RemoteConfigUtils.resolveAnnouncement(test: test);
+    if (request == null) return;
     await Get.to(
       () => AnnouncementPage(
         info: request.info,
         countDown: request.countDown,
       ),
       transition: Transition.downToUp,
+    );
+  }
+
+  /// 「公告與通知」頁。啟動彈窗（[showAnnouncement]）完全不受影響，這一頁只是
+  /// 給同一批 Remote Config 公告一個常駐的家，外加 Moodle 站內通知。
+  static Future<void> toAnnouncementCenter() async {
+    await Get.to(
+      () => const AnnouncementCenterPage(openWebView: toWebViewPage),
+      transition: transition,
     );
   }
 

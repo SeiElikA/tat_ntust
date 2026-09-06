@@ -201,7 +201,7 @@ nullable：**「讀不到」不等於「沒登入」**。Android 從備份還原
 | 教務處行事曆<br>`www.academic.ntust.edu.tw` | 公開頁爬 `.ics` 連結後下載成 `calendar.ics`。這台主機少送一張中介憑證，由 `twca_intermediate.dart` 補上 | `NTUSTConnector.getCalendarUrl`<br>`calendar_repository.dart` |
 | 課程查詢 API<br>`querycourse.ntust.edu.tw` | 公開 JSON API，**不需登入**：關鍵字搜尋、課程詳細、用課號反查課表 | `course_connector.dart` |
 | 成績查詢系統<br>`stuinfosys.ntust.edu.tw` | 不走 Dio。HeadlessInAppWebView 載入頁面取 HTML 再解析 | `score_connector.dart` |
-| Moodle<br>`moodle2.ntust.edu.tw` | WebView 走 `admin/tool/mobile/launch.php` 取 wstoken，之後 POST wsfunction：`core_webservice_get_site_info`、`core_enrol_get_users_courses`、`core_course_get_contents`、`core_enrol_get_enrolled_users`、`mod_forum_get_forum_discussions`、`gradereport_user_get_grade_items`、通知偏好兩支、`tool_mobile_get_autologin_key`（WebView 免登入）、`core_calendar_get_action_events_by_timesort`（行事曆頁的待辦）、`mod_assign_get_assignments` 與 `mod_assign_get_submission_status`（課程頁「作業」分頁與作業詳情：截止日期、繳交狀態、成績與回饋，唯讀）、`mod_forum_get_forums_by_courses`（用 `type == 'news'` 找公告區）與 `mod_forum_get_discussion_posts`（公告討論串的回覆） | `moodle_webapi_connector.dart`<br>`moodle_login_page.dart` |
+| Moodle<br>`moodle2.ntust.edu.tw` | WebView 走 `admin/tool/mobile/launch.php` 取 wstoken，之後 POST wsfunction：`core_webservice_get_site_info`、`core_enrol_get_users_courses`、`core_course_get_contents`、`core_enrol_get_enrolled_users`、`mod_forum_get_forum_discussions`、`gradereport_user_get_grade_items`、通知偏好兩支、`tool_mobile_get_autologin_key`（WebView 免登入）、`core_calendar_get_action_events_by_timesort`（行事曆頁的待辦）、`mod_assign_get_assignments` 與 `mod_assign_get_submission_status`（課程頁「作業」分頁與作業詳情：截止日期、繳交狀態、成績與回饋，唯讀）、`mod_forum_get_forums_by_courses`（用 `type == 'news'` 找公告區）與 `mod_forum_get_discussion_posts`（公告討論串的回覆）、站內通知五支（`message_popup_get_popup_notifications` 的清單、兩支未讀數與兩支標記已讀，見 docs/MOODLE_REFERENCE.md：三支的 `useridto` 不能送 0） | `moodle_webapi_connector.dart`<br>`moodle_login_page.dart` |
 | Firebase<br>`projectId ntust-tat` | Crashlytics 接 `FlutterError` 與 `runZonedGuarded`；Analytics 掛 navigatorObservers；Remote Config 讀公告；FCM 轉本地通知 | `lib/src/util/*_utils.dart` |
 | GitHub API | 貢獻者頁，`github` 套件 | `contributors_page.dart` |
 | App Store / Google Play | 啟動時問商店有沒有新版：Android 走 Play 的 in-app update（Play 自己的下載提示），iOS 用 `upgrader` 查 App Store 後跳對話框。兩邊都可以按「稍後」，沒有強制更新 | `store_update.dart`<br>`update_prompt.dart` |
@@ -239,13 +239,15 @@ WebMail（`mail.ntust.edu.tw`）與舊版 SSO 頁（`ssoam.ntust.edu.tw/nidp/app
 - 課程資料頁與課程詳情頁的分頁狀態是普通類別（`CourseDataController`、
   `CourseDetailController`），不是 GetxController：生命週期就是那一個頁面。它們在
   進入頁面時就把分頁的請求一起發出去，因為 `PageView(children:)` 是懶載入的。
-  作業詳情頁與公告討論串頁同理（`CourseAssignmentController`、
-  `CourseAnnouncementController`）。
+  作業詳情頁、公告討論串頁與公告與通知頁同理（`CourseAssignmentController`、
+  `CourseAnnouncementController`、`AnnouncementCenterController`）。
 - 新頁面**不可以** import `route_utils.dart` / `error_page.dart` / `base_page.dart`
   （lib/ui 那個環已經卡在 `MAX_SCC` 的門檻上）：錯誤畫面與 WebView 開啟器由
-  在環裡的呼叫端注入，公告分頁、公告討論串頁、作業分頁與作業詳情頁就是這樣接的。嵌在頁面中段、周圍
+  在環裡的呼叫端注入，公告分頁、公告討論串頁、作業分頁、作業詳情頁與公告與通知頁就是這樣接的（公告與通知頁的兩半都是頁面中段的區塊，所以它只注入 WebView 開啟器，錯誤畫面一律 `InlineErrorView`）。嵌在頁面中段、周圍
   畫面還在的區塊（行事曆的待辦、作業詳情的狀態卡）失敗時用 `InlineErrorView`
   （`lib/ui/components/page/`，不在環裡）：它有就地重試的鈕，`ErrorPage` 沒有。
+  同一批區塊「空」的時候用 `SectionEmptyState`（同一個目錄）而不是整頁級的
+  `EmptyState`：後者的插圖大一號，同一頁疊兩份會像兩個空畫面。
   這段規則的檔案內註解只留一句指到這裡，不要再各自抄一份。
 - 主畫面五個分頁的順序必須與 `MainTab` 一致——導覽列與 Analytics 事件都靠索引對
   應。`MainTab` 的名稱會直接送進 Analytics 當 screen name。
@@ -257,7 +259,7 @@ WebMail（`mail.ntust.edu.tw`）與舊版 SSO 頁（`ssoam.ntust.edu.tw/nidp/app
 | 路徑 | 內容 |
 | --- | --- |
 | `lib/main.dart` | 啟動順序。`AuthSession` 與 `InteractiveLoginGateway` 必須在 `runApp` 之前安裝，不能放 `onReady` |
-| `lib/src/repository/` | `run.dart`、`result.dart`、`retry.dart` 加三個 repository（ntust / moodle / calendar） |
+| `lib/src/repository/` | `run.dart`、`result.dart`、`retry.dart` 加四個 repository（ntust / moodle / calendar / app_notice；最後一個把 Remote Config 的 App 公告也套進 `Result`，公告與通知頁兩半才共用同一個 `ResultView`） |
 | `lib/src/auth/` | `auth_session.dart`（介面與 `SystemId`）、`app_auth_session.dart`、`session_cleaner.dart` |
 | `lib/src/store/` | 九個持久化檔案 |
 | `lib/src/connector/` | `core/` 放 DioConnector 與門面；站台 connector 在根目錄；`interceptors/` 放 Referer 與遮蔽版 log |
@@ -267,7 +269,7 @@ WebMail（`mail.ntust.edu.tw`）與舊版 SSO 頁（`ssoam.ntust.edu.tw/nidp/app
 | `lib/src/util/` · `version/` · `file/` | 靜態工具、版本遷移（`app_version.dart`）與商店更新（`store_update.dart`）、下載目錄。`file_icon_utils.dart` 依檔名 / MIME / modicon 挑 Moodle 檔案類型 icon，查的表 `file_icon_table.dart` 由 `tool/gen_file_icon_table.py` 從官方 App 的資料產生，不要手改 |
 | `lib/ui/screen/` | MainScreen、LoginScreen、PrivacyPolicyScreen |
 | `lib/ui/pages/` | 五個分頁與其子頁、通用 WebView、log 檢視頁 |
-| `lib/ui/components/` | BasePage、ErrorPage、LoadingPage、`ResultView`、`EmptyState`、AppBar、tile、shimmer、`FileTypeIcon`（畫 `assets/image/files/*.svg`，那 29 個單色 SVG 來自 moodlehq/moodleapp，Apache-2.0） |
+| `lib/ui/components/` | BasePage、ErrorPage、LoadingPage、`ResultView`、`EmptyState` / `SectionEmptyState`、AppBar、tile、shimmer、`FileTypeIcon`（畫 `assets/image/files/*.svg`，那 29 個單色 SVG 來自 moodlehq/moodleapp，Apache-2.0） |
 | `lib/ui/auth/` | 兩個 WebView 登入頁與 `InteractiveLoginGateway` 實作 |
 | `lib/ui/routes/route_utils.dart` | 所有導頁集中在這裡 |
 | `lib/debug/log/` | Log 門面，必須是葉節點 |

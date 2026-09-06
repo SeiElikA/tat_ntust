@@ -6,8 +6,7 @@ import 'package:flutter_app/src/util/ui_utils.dart';
 import 'package:flutter_app/src/util/upcoming_event_utils.dart';
 import 'package:flutter_app/ui/components/page/inline_error_view.dart';
 import 'package:flutter_app/ui/components/page/result_view.dart';
-import 'package:flutter_app/ui/other/svg_tint.dart';
-import 'package:flutter_svg/flutter_svg.dart';
+import 'package:flutter_app/ui/components/page/section_empty_state.dart';
 import 'package:get/get.dart';
 
 /// 行事曆頁底部的「待辦」區塊：所有課程的截止事項，分成逾期／今天／本週／之後。
@@ -188,27 +187,8 @@ class _Empty extends StatelessWidget {
   const _Empty();
 
   @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 24),
-      child: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            SvgPicture.asset(
-              'assets/image/img_calendar.svg',
-              colorFilter: svgTint(scheme.onSurface),
-              height: 56,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              R.current.upcomingEventsEmpty,
-              style: TextStyle(color: scheme.onSurfaceVariant),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+  Widget build(BuildContext context) => SectionEmptyState(
+        asset: 'assets/image/img_calendar.svg',
+        message: R.current.upcomingEventsEmpty,
+      );
 }

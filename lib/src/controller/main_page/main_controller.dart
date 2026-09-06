@@ -6,6 +6,7 @@ import 'package:flutter_app/src/auth/auth_session.dart';
 import 'package:flutter_app/debug/log/log.dart';
 import 'package:flutter_app/src/R.dart';
 import 'package:flutter_app/src/connector/moodle_webapi_connector.dart';
+import 'package:flutter_app/src/controller/announcement/notification_badge_controller.dart';
 import 'package:flutter_app/src/model/moodle_webapi/moodle_profile_entity.dart';
 import 'package:flutter_app/src/service/error_dialog_parameter.dart';
 import 'package:flutter_app/src/service/task_ui_delegate.dart';
@@ -52,6 +53,9 @@ class MainController extends GetxController {
       await AuthSession.instance.ensure({SystemId.ntustSso});
       if (await _checkMoodle()) {
         await _getMoodleProfile();
+        // 大聲公上的未讀數。放在這裡是因為 Moodle 的登入到這一步才確定過，
+        // 不會為了一顆紅點把登入頁蓋在課表上。
+        unawaited(NotificationBadgeController.instance.refresh());
       }
     } catch (e, stack) {
       Log.eWithStack(e.toString(), stack);
@@ -69,6 +73,11 @@ class MainController extends GetxController {
 
     final screenName = MainTab.values[index].name;
     AnalyticsUtils.setScreenName(screenName);
+
+    // 回到課表分頁時順手更新紅點；節流在 NotificationBadgeController 裡。
+    if (MainTab.values[index] == MainTab.courseTable) {
+      unawaited(NotificationBadgeController.instance.refresh());
+    }
   }
 
   /// Private Method

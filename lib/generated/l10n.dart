@@ -1194,16 +1194,6 @@ class S {
     );
   }
 
-  /// `No any announcement`
-  String get noAnnouncement {
-    return Intl.message(
-      'No any announcement',
-      name: 'noAnnouncement',
-      desc: '',
-      args: [],
-    );
-  }
-
   /// `WebMail`
   String get webMail {
     return Intl.message('WebMail', name: 'webMail', desc: '', args: []);
@@ -1924,6 +1914,176 @@ class S {
     return Intl.message(
       '%s file(s)',
       name: 'folderFileCount',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Announcements & notifications`
+  String get announcementCenter {
+    return Intl.message(
+      'Announcements & notifications',
+      name: 'announcementCenter',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `TAT announcements`
+  String get appAnnouncement {
+    return Intl.message(
+      'TAT announcements',
+      name: 'appAnnouncement',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `No TAT announcements right now`
+  String get appAnnouncementEmpty {
+    return Intl.message(
+      'No TAT announcements right now',
+      name: 'appAnnouncementEmpty',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Published`
+  String get announcementPublishedAt {
+    return Intl.message(
+      'Published',
+      name: 'announcementPublishedAt',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Failed to load TAT announcements`
+  String get getAppNoticeError {
+    return Intl.message(
+      'Failed to load TAT announcements',
+      name: 'getAppNoticeError',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Moodle notifications`
+  String get moodleNotification {
+    return Intl.message(
+      'Moodle notifications',
+      name: 'moodleNotification',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `No notifications`
+  String get notificationEmpty {
+    return Intl.message(
+      'No notifications',
+      name: 'notificationEmpty',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Site notifications are turned off in your Moodle preferences. Turn them back on in the notification preferences on the Moodle website.`
+  String get notificationDisabledOnMoodle {
+    return Intl.message(
+      'Site notifications are turned off in your Moodle preferences. Turn them back on in the notification preferences on the Moodle website.',
+      name: 'notificationDisabledOnMoodle',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Failed to load Moodle notifications`
+  String get getMoodleNotificationsError {
+    return Intl.message(
+      'Failed to load Moodle notifications',
+      name: 'getMoodleNotificationsError',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Unread`
+  String get notificationUnread {
+    return Intl.message(
+      'Unread',
+      name: 'notificationUnread',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Announcements & notifications, %s unread`
+  String get notificationUnreadTooltip {
+    return Intl.message(
+      'Announcements & notifications, %s unread',
+      name: 'notificationUnreadTooltip',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `System notification`
+  String get notificationUnknownSource {
+    return Intl.message(
+      'System notification',
+      name: 'notificationUnknownSource',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Mark all as read`
+  String get notificationMarkAllRead {
+    return Intl.message(
+      'Mark all as read',
+      name: 'notificationMarkAllRead',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Mark every unread notification on Moodle as read, including ones not shown on this page? The school server deletes read notifications after 7 days by default.`
+  String get notificationMarkAllReadConfirm {
+    return Intl.message(
+      'Mark every unread notification on Moodle as read, including ones not shown on this page? The school server deletes read notifications after 7 days by default.',
+      name: 'notificationMarkAllReadConfirm',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `All notifications marked as read`
+  String get notificationMarkAllReadDone {
+    return Intl.message(
+      'All notifications marked as read',
+      name: 'notificationMarkAllReadDone',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Failed to mark all as read`
+  String get notificationMarkAllReadError {
+    return Intl.message(
+      'Failed to mark all as read',
+      name: 'notificationMarkAllReadError',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Failed to mark as read`
+  String get notificationMarkReadError {
+    return Intl.message(
+      'Failed to mark as read',
+      name: 'notificationMarkReadError',
       desc: '',
       args: [],
     );

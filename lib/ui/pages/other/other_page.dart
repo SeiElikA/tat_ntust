@@ -9,6 +9,7 @@ import 'package:flutter_app/ui/other/svg_tint.dart';
 import 'package:flutter_app/debug/log/log.dart';
 import 'package:flutter_app/src/R.dart';
 import 'package:flutter_app/src/config/app_link.dart';
+import 'package:flutter_app/src/controller/announcement/notification_badge_controller.dart';
 import 'package:flutter_app/src/controller/course_table/course_controller.dart';
 import 'package:flutter_app/src/controller/score_page/score_page_controller.dart';
 import 'package:flutter_app/src/auth/session_cleaner.dart';
@@ -96,6 +97,9 @@ class _OtherPageState extends State<OtherPage> {
               if (Get.isRegistered<ScorePageController>()) {
                 Get.find<ScorePageController>().reset();
               }
+              // 紅點是 process 級狀態，重設由 SessionCleaner 的呼叫端觸發
+              // （auth → controller 是 tool/deps.py 擋死的上行邊）。
+              NotificationBadgeController.instance.reset();
               mainController.pageController.jumpToPage(0);
               setState(() {});
             });

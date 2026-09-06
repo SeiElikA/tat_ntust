@@ -27,10 +27,24 @@
 | `core_calendar_get_action_events_by_timesort` | 行事曆頁的待辦：所有課程的截止事項（只回 action event；`timesortfrom` 往前 14 天，`limitnum` 上限 50，不送 `timesortto`；回滿一頁就帶 `aftereventid`＝上一頁的 `lastid` 翻頁，最多 4 頁，與官方 App 同一套判斷；`name` / `activityname` / `course.fullname` / `course.shortname` 都是 format_string 過的，App 還原實體） | `getActionEvents` |
 | `mod_assign_get_assignments` | 課程頁「作業」分頁的作業清單（只送 `courseids[0]`；duedate 等已含使用者與群組的 override；`name` 是 format_string 過的——`&` 會是 `&amp;`——App 在 `assignmentsOf` 還原；模型只宣告畫面在讀的欄位，`configs`、`gradingduedate`、`introfiles` 等不落地） | `getAssignments` |
 | `mod_assign_get_submission_status` | 單一作業對自己的繳交狀態、成績與回饋（帶 `userid`；`lastattempt.submission` 缺席 = 還沒繳交；團隊作業**兩筆都回**，學生頁看的是 `teamsubmission`，非團隊作業才看 `submission`，見 `submissionFor`；`feedback` 缺席 = 學生看不到任何成績或回饋；`feedback.gradefordisplay` 是 PARAM_RAW 的 HTML 片段，數值成績在預設 Real 顯示型態下是 `85.00&nbsp;/&nbsp;100.00`，App 在 `submissionStatusOf` 還原；`feedback.grade` 在只有評語時也在，分數是 `-1.00000`；外掛以 `type` 分辨，不看本地化的 `name`） | `getSubmissionStatus` |
+| `message_popup_get_popup_notifications` | 公告與通知頁的站內通知清單（`useridto` 送真的 id、`newestfirst=1`、`limit=50`——伺服器的預設 0 是「不限筆數」；`newestfirst` 拿到的是最新 N 則、**不分已讀未讀**，而外層的 `unreadcount` 算的是收件匣全部，所以「回滿一頁而且手上的未讀數還少於 `unreadcount`」時要用 `offset` 往下翻，最多 4 頁，同 `getActionEvents` 的態度；回應外層自帶 `unreadcount`，紅點不必再打一趟；`subject` / `contexturlname` 是 PARAM_TEXT，實體還在，App 在 `notificationsOf` 還原） | `getNotifications` |
+| `message_popup_get_unread_popup_notification_count` | 課表頁紅點的未讀數（回**裸 JSON 數字**） | `getUnreadNotificationCount` |
+| `core_message_get_unread_notification_count` | 同上的退路（@since 4.0，算的是全部 notifications，不只 popup，所以可能高估） | `getUnreadNotificationCount` |
+| `core_message_mark_notification_read` | 點開一則通知時標記已讀（參數叫 `notificationid`；`warnings` 在伺服器端永遠是空的） | `markNotificationRead` |
+| `core_message_mark_all_notifications_as_read` | 「全部標為已讀」（回**裸 bool**；標的是 `{notifications}` 全部，不只 popup——所以確認框刻意不寫數字，畫面上的未讀數只算 popup，寫上去會少報這次寫入的範圍） | `markAllNotificationsRead` |
 
 ## 與官方 Moodle App 的差異
 
 比對對象：`moodlehq/moodleapp` v5.3.0 與 `moodle/moodle` MOODLE_502_STABLE。
+
+**站內通知：官方 App 早就不用 `message_popup_*`**，它的清單是
+`core_message_get_messages(type='notifications')`，未讀數優先打
+`core_message_get_unread_notification_count`。TAT 反過來以 popup 為主是刻意的：
+畫面上顯示的是 popup 清單，紅點若用「全部 notifications 的未讀數」就會出現
+「紅點 3、點進去只有 1 則未讀」。判準本身與官方相同——都是 site_info 的
+`functions[]`（TAT 的 `wsFunctionBlocked` / `preferredUnreadCountFunction`）。
+書面上的 Plan B 是 `core_message_get_messages`（同在 MOODLE_OFFICIAL_MOBILE_SERVICE、
+欄位是 popup 的超集），但不實作兩條路。
 
 ### 官方明顯更安全或更省，但 TAT 還沒跟上
 
@@ -76,6 +90,36 @@ POST 欄位。TAT 用 `parameter.data` 加 `getJsonByPost`，行為相同，
 這一項沒有問題，列出來是為了避免日後有人改成 GET。
 
 ### 會咬人的地方
+
+- **通知相關的三支不能送 `useridto: 0`。**
+  `message_popup_get_unread_popup_notification_count`、
+  `core_message_get_unread_notification_count` 與
+  `core_message_mark_all_notifications_as_read` 都是「先比對
+  `$useridto != $USER->id` 再檢查權限」，沒有「0 代入目前使用者」那一步，
+  送 0 直接回 `accessdenied`——文件上的 `0 for any user` 會把人騙進去。
+  只有 `message_popup_get_popup_notifications` 真的把 0 當成自己。
+- **`timecreatedpretty` 是伺服器端語系算好的**（`get_string('ago', ...)`，跟著
+  Moodle 帳號語言，不是 App 的語言切換），而且是抓取當下算的，離線快取拿出來
+  時早就過時。一律用 `timecreated` 自己格式化。
+- **`iconurl` 與 `customdata.notificationiconurl` 都不可以過
+  `fileUrlWithToken()`。** 前者是 `/theme/image.php/...` 的主題圖（公開、免
+  憑證），後者是 `/tokenpluginfile.php/<user key>/...`（自帶一次性憑證，而且
+  `_pluginFileSegment` 的正則不會 match 它）；兩者都會掉進 `fileUrlWithToken`
+  的 `?token=<wsToken>` 退路，等於把長效 token 貼到不需要憑證的網址上。TAT
+  兩個都不抓：icon 用本地 Material icon，寄件者頭像不顯示。
+- **站內通知清單空不等於「沒有新通知」。** `$USER->emailstop` 為真時伺服器直接
+  回空陣列，但外層的 `unreadcount` 照算——「清單空 + unreadcount > 0」是
+  「使用者自己在 Moodle 關掉了站內通知」，畫面要分得出來
+  （`MoodleNotificationUtils.looksDisabledByUser`）。這個未讀數在 App 內沒有
+  非破壞性的辦法清掉（`emailstop` 只有 Moodle 網站改得動，設定頁的開關是
+  per-provider 的 processor，不是它），所以課表頁的紅點在這個狀態要歸零並停掉
+  輪詢（`NotificationBadgeController.setDisabled`），否則會變成一顆永遠亮著、
+  點進去什麼都沒有的紅點。
+- **已讀的通知伺服器預設 7 天後刪除**（`messagingdeletereadnotificationsdelay`
+  604800，另有 `messagingdeleteallnotificationsdelay` 約 30 天），清理排程每
+  小時跑一次。所以通知清單是收件匣不是封存，「全部標為已讀」要先確認；對已被
+  刪掉的 id 標記已讀會回 `dml_missing_record_exception`，只能 toast，不可以
+  讓整頁變成錯誤畫面。
 
 - `mod_forum_get_forum_discussions` 每一列的 `id` 是**第一篇貼文**的 id，
   `discussion` 才是討論串 id。拿 `id` 去問 `mod_forum_get_discussion_posts`

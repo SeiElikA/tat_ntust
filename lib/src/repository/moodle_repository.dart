@@ -6,6 +6,7 @@ import 'package:flutter_app/src/model/moodle_webapi/moodle_core_calendar_action_
 import 'package:flutter_app/src/model/moodle_webapi/moodle_core_course_get_contents.dart';
 import 'package:flutter_app/src/model/moodle_webapi/moodle_core_enrol_get_users.dart';
 import 'package:flutter_app/src/model/moodle_webapi/moodle_gradereport_get_grade_items.dart';
+import 'package:flutter_app/src/model/moodle_webapi/moodle_message_popup_notifications.dart';
 import 'package:flutter_app/src/model/moodle_webapi/moodle_mod_assign_get_assignments.dart';
 import 'package:flutter_app/src/model/moodle_webapi/moodle_mod_assign_get_submission_status.dart';
 import 'package:flutter_app/src/model/moodle_webapi/moodle_mod_forum_get_discussion_posts.dart';
@@ -258,6 +259,86 @@ class MoodleRepository {
         errorMessage: R.current.getUpcomingEventsError,
         debugLabel: 'moodleUpcomingEvents',
         fetch: fetchActionEvents,
+      );
+
+  /// 站內通知的快取只有一筆（'all'）；登出時 `cache_` 前綴整包清掉。
+  static CacheKey<MoodleNotificationList> notificationsKey() =>
+      CacheKey<MoodleNotificationList>(
+        "cache_moodle_notification",
+        "all",
+        decode: (json) =>
+            MoodleNotificationList.fromJson(Map<String, dynamic>.from(json)),
+      );
+
+  /// 測試用的縫（同 [fetchCourseUrl]）。
+  @visibleForTesting
+  Future<MoodleNotificationList?> fetchNotifications() =>
+      MoodleWebApiConnector.getNotifications();
+
+  /// 站內通知。空清單是合法結果——清單空但 `unreadcount > 0` 代表使用者在
+  /// Moodle 關掉了站內通知，見 MoodleNotificationUtils.looksDisabledByUser。
+  Future<Result<MoodleNotificationList>> getNotifications(
+          {bool background = false}) =>
+      run<MoodleNotificationList>(
+        requires: const {SystemId.moodleWebApi},
+        cache: notificationsKey(),
+        background: background,
+        retry: background ? RetryPolicy.none : RetryPolicy.askUser,
+        errorMessage: R.current.getMoodleNotificationsError,
+        debugLabel: 'moodleNotifications',
+        fetch: fetchNotifications,
+      );
+
+  /// 樂觀標記已讀之後把新狀態寫回同一筆快取。`run()` 只在 fetch 成功那一刻
+  /// 寫快取，寫入路徑沒有 `cache:`，不補這一趟的話下一次讀快取（離線）會把
+  /// 剛剛標掉的圓點與未讀數整批復活。
+  Future<void> saveNotifications(MoodleNotificationList list) =>
+      CacheStore.instance
+          .write<MoodleNotificationList>(notificationsKey(), list);
+
+  @visibleForTesting
+  Future<int?> fetchUnreadNotificationCount() =>
+      MoodleWebApiConnector.getUnreadNotificationCount();
+
+  /// 紅點用的未讀數。刻意不快取：過期的數字比沒有數字更糟，失敗時由呼叫端
+  /// 保留上一個值。
+  Future<Result<int>> getUnreadNotificationCount() => run<int>(
+        requires: const {SystemId.moodleWebApi},
+        background: true,
+        retry: RetryPolicy.none,
+        errorMessage: R.current.getMoodleNotificationsError,
+        debugLabel: 'moodleUnreadCount',
+        fetch: fetchUnreadNotificationCount,
+      );
+
+  @visibleForTesting
+  Future<bool> writeNotificationRead(int notificationId) =>
+      MoodleWebApiConnector.markNotificationRead(notificationId);
+
+  /// 寫入也走 `run()`：要的是它的登入保證與離線分類，不是快取。
+  /// `fetch` 必須把 false 轉成 null——`run()` 只把 null 當失敗，回 false 會被
+  /// 當成成功。
+  Future<Result<bool>> markNotificationRead(int notificationId) => run<bool>(
+        requires: const {SystemId.moodleWebApi},
+        background: true,
+        retry: RetryPolicy.none,
+        errorMessage: R.current.notificationMarkReadError,
+        debugLabel: 'moodleMarkNotificationRead',
+        fetch: () async =>
+            await writeNotificationRead(notificationId) ? true : null,
+      );
+
+  @visibleForTesting
+  Future<bool> writeAllNotificationsRead() =>
+      MoodleWebApiConnector.markAllNotificationsRead();
+
+  Future<Result<bool>> markAllNotificationsRead() => run<bool>(
+        requires: const {SystemId.moodleWebApi},
+        background: true,
+        retry: RetryPolicy.none,
+        errorMessage: R.current.notificationMarkAllReadError,
+        debugLabel: 'moodleMarkAllNotificationsRead',
+        fetch: () async => await writeAllNotificationsRead() ? true : null,
       );
 }
 

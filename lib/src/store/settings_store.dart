@@ -14,7 +14,8 @@ class SettingsStore {
   // ---- 主題 ----------------------------------------------------------------
   static const themeModeKey = 'isThemeMode';
 
-  Future<int> get themeModeIndex async => await _store.readInt(themeModeKey) ?? 0;
+  Future<int> get themeModeIndex async =>
+      await _store.readInt(themeModeKey) ?? 0;
 
   Future<void> setThemeModeIndex(int index) =>
       _store.writeInt(themeModeKey, index);
@@ -57,8 +58,11 @@ class SettingsStore {
     }
   }
 
-  Future<void> markAnnouncementRead() {
-    final now = DateTime.now().toUtc().add(const Duration(hours: 8));
-    return _store.writeString(announcementLastReadKey, now.toString());
-  }
+  Future<void> markAnnouncementRead() => markAnnouncementReadUpTo(
+      DateTime.now().toUtc().add(const Duration(hours: 8)));
+
+  /// 已讀時間寫到指定的一刻。[moment] 必須跟 [announcementLastRead] 同一個
+  /// 座標系（UTC 欄位裝台北的牆上時間），公告的 `startTime` 正是這個格式。
+  Future<void> markAnnouncementReadUpTo(DateTime moment) =>
+      _store.writeString(announcementLastReadKey, moment.toString());
 }
