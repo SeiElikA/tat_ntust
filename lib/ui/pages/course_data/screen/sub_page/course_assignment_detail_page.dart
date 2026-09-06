@@ -211,7 +211,7 @@ class _CourseAssignmentDetailPageState
                 onPressed: _controller.submitting.value
                     ? null
                     : () => unawaited(_submitForGrading(a)),
-                icon: const Icon(LucideIcons.sendHorizontal),
+                icon: const Icon(LucideIcons.send),
                 label: Text(R.current.assignSubmitForGrading),
               )),
         ],

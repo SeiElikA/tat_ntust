@@ -2879,6 +2879,221 @@ class S {
     );
   }
 
+  /// `Reply`
+  String get forumReply {
+    return Intl.message('Reply', name: 'forumReply', desc: '', args: []);
+  }
+
+  /// `Replying to %s`
+  String get forumReplyingTo {
+    return Intl.message(
+      'Replying to %s',
+      name: 'forumReplyingTo',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `New discussion`
+  String get forumNewDiscussion {
+    return Intl.message(
+      'New discussion',
+      name: 'forumNewDiscussion',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Subject`
+  String get forumSubject {
+    return Intl.message('Subject', name: 'forumSubject', desc: '', args: []);
+  }
+
+  /// `Give this discussion a subject`
+  String get forumSubjectHint {
+    return Intl.message(
+      'Give this discussion a subject',
+      name: 'forumSubjectHint',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Write your message…`
+  String get forumMessageHint {
+    return Intl.message(
+      'Write your message…',
+      name: 'forumMessageHint',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Post`
+  String get forumSend {
+    return Intl.message('Post', name: 'forumSend', desc: '', args: []);
+  }
+
+  /// `Posting…`
+  String get forumSending {
+    return Intl.message('Posting…', name: 'forumSending', desc: '', args: []);
+  }
+
+  /// `Posted`
+  String get forumSendDone {
+    return Intl.message('Posted', name: 'forumSendDone', desc: '', args: []);
+  }
+
+  /// `Posted, but the thread could not be reloaded`
+  String get forumSendDoneRefreshFailed {
+    return Intl.message(
+      'Posted, but the thread could not be reloaded',
+      name: 'forumSendDoneRefreshFailed',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Couldn't post — refresh to check whether it went through before posting again`
+  String get forumSendError {
+    return Intl.message(
+      'Couldn\'t post — refresh to check whether it went through before posting again',
+      name: 'forumSendError',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Enter a subject first`
+  String get forumSubjectRequired {
+    return Intl.message(
+      'Enter a subject first',
+      name: 'forumSubjectRequired',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Write something first`
+  String get forumMessageRequired {
+    return Intl.message(
+      'Write something first',
+      name: 'forumMessageRequired',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Discard what you haven't posted yet?`
+  String get forumDiscardDraft {
+    return Intl.message(
+      'Discard what you haven\'t posted yet?',
+      name: 'forumDiscardDraft',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `The app posts plain text only. Attachments, formatting, private replies and editing need the website.`
+  String get forumPlainTextOnly {
+    return Intl.message(
+      'The app posts plain text only. Attachments, formatting, private replies and editing need the website.',
+      name: 'forumPlainTextOnly',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Open forum in browser`
+  String get forumOpenInWeb {
+    return Intl.message(
+      'Open forum in browser',
+      name: 'forumOpenInWeb',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `This forum has no discussions yet`
+  String get forumEmpty {
+    return Intl.message(
+      'This forum has no discussions yet',
+      name: 'forumEmpty',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `This thread is not open for replies`
+  String get forumThreadLocked {
+    return Intl.message(
+      'This thread is not open for replies',
+      name: 'forumThreadLocked',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `You can't post in this forum from the app`
+  String get forumCannotPost {
+    return Intl.message(
+      'You can\'t post in this forum from the app',
+      name: 'forumCannotPost',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Couldn't check whether you can post here`
+  String get forumCannotCheckPosting {
+    return Intl.message(
+      'Couldn\'t check whether you can post here',
+      name: 'forumCannotCheckPosting',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `You can't post in this thread right now`
+  String get forumErrorNoPermission {
+    return Intl.message(
+      'You can\'t post in this thread right now',
+      name: 'forumErrorNoPermission',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `This forum won't accept a new discussion`
+  String get forumErrorCannotCreateDiscussion {
+    return Intl.message(
+      'This forum won\'t accept a new discussion',
+      name: 'forumErrorCannotCreateDiscussion',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `The post you replied to is gone; the thread may have changed`
+  String get forumErrorPostGone {
+    return Intl.message(
+      'The post you replied to is gone; the thread may have changed',
+      name: 'forumErrorPostGone',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `You've hit this forum's posting limit`
+  String get forumErrorTooManyPosts {
+    return Intl.message(
+      'You\'ve hit this forum\'s posting limit',
+      name: 'forumErrorTooManyPosts',
+      desc: '',
+      args: [],
+    );
+  }
+
   /// `This folder is empty`
   String get folderEmpty {
     return Intl.message(

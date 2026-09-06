@@ -1,4 +1,5 @@
 import 'package:flutter_app/src/connector/moodle_webapi_connector.dart';
+import 'package:flutter_app/src/model/moodle_webapi/moodle_profile_entity.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../helpers/moodle_forum_fixtures.dart';
@@ -14,7 +15,10 @@ void main() {
   }
 
   setUp(resetConnectorStatics);
-  tearDown(resetConnectorStatics);
+  tearDown(() {
+    resetConnectorStatics();
+    MoodleWebApiConnector.resetAutologinState();
+  });
 
   group('forumsOf', () {
     test('回的是陣列本身，不是 {forums: []}；不建模的欄位被忽略而不是拋', () {
@@ -203,6 +207,267 @@ void main() {
       expect(MoodleWebApiConnector.discussionPostsOf({'posts': []}), isNull);
       expect(MoodleWebApiConnector.discussionPostsOf(const []), isNull);
       expect(MoodleWebApiConnector.discussionPostsOf(null), isNull);
+    });
+  });
+
+  group('discussionPostsOf 的 capabilities 與 messageformat', () {
+    test('capabilities.reply 逐篇讀進來：900/901/902 可回，已刪除的 903 不行', () {
+      final posts = fixturePosts();
+
+      expect(
+          posts.map((p) => p.capabilities?.reply), [true, true, true, false]);
+    });
+
+    test('replysubject 的實體被還原（它會原樣送回伺服器當 subject）', () {
+      final posts = fixturePosts();
+
+      expect(posts.first.replysubject, 'Re: 期中考 & 補考公告');
+      expect(posts.first.replysubject, isNot(contains('&amp;')));
+    });
+
+    test('沒有 capabilities 區塊的貼文 → null，不是「全部 false」', () {
+      final raw = loadMoodleForumFixture('get_discussion_posts');
+      (raw['posts'] as List)
+          .map((e) => e as Map<String, dynamic>)
+          .forEach((e) => e.remove('capabilities'));
+
+      final posts = MoodleWebApiConnector.discussionPostsOf(raw)!;
+
+      expect(posts.map((p) => p.capabilities), everyElement(isNull));
+    });
+
+    test('FORMAT_PLAIN 的貼文只被轉一次——轉完蓋成 HTML，快取讀回來不會再轉', () {
+      final raw = loadMoodleForumFixture('get_discussion_posts');
+      final first = (raw['posts'] as List).first as Map<String, dynamic>;
+      first['message'] = 'a < b\n第二行';
+      first['messageformat'] = 2;
+
+      final once = MoodleWebApiConnector.discussionPostsOf(raw)!.first;
+
+      expect(once.message, 'a &lt; b<br>第二行');
+      expect(once.messageformat, 1, reason: '轉過了，存進快取的就是 HTML');
+
+      // 快取的往返：把轉好的那一份再餵回去（reader 走的就是這條路），
+      // 內容必須一個字都不變。
+      final twice = MoodleWebApiConnector.discussionPostsOf({
+        'posts': [once.toJson()]
+      })!
+          .first;
+      expect(twice.message, once.message);
+    });
+  });
+
+  group('addedPostOf', () {
+    test('subject 與 replysubject 還原實體，@@PLUGINFILE@@ 換掉', () {
+      final post = MoodleWebApiConnector.addedPostOf(
+          loadMoodleForumFixture('add_discussion_post'))!;
+
+      expect(post.id, 950);
+      expect(post.subject, 'Re: 期中考 & 補考公告');
+      expect(post.replysubject, 'Re: 期中考 & 補考公告');
+      expect(post.message, isNot(contains('@@PLUGINFILE@@')));
+      expect(
+        post.message,
+        contains('https://moodle2.ntust.edu.tw/webservice/pluginfile.php/123'
+            '/mod_forum/post/950/inline%20image.png'),
+      );
+      expect(post.parentid, 900);
+      expect(post.capabilities?.reply, isTrue);
+    });
+
+    test('站台的預設編輯器是 textarea 時貼文留在 FORMAT_PLAIN，由客戶端轉', () {
+      final post = MoodleWebApiConnector.addedPostOf(
+          loadMoodleForumFixture('add_discussion_post_plain'))!;
+
+      expect(post.message, '老師好，<br>請問 a &lt; b 的那一題<br>也在範圍內嗎？');
+      expect(post.messageformat, 1);
+    });
+
+    test('沒有 post 這個 key、或形狀不對 → null', () {
+      expect(MoodleWebApiConnector.addedPostOf(const {'postid': 950}), isNull);
+      expect(MoodleWebApiConnector.addedPostOf(const {'post': 'x'}), isNull);
+      expect(MoodleWebApiConnector.addedPostOf(const []), isNull);
+      expect(MoodleWebApiConnector.addedPostOf(null), isNull);
+    });
+  });
+
+  group('addDiscussionPost', () {
+    test('送出去的參數：messageformat=2 加 topreferredformat，沒有其他 option', () async {
+      Map<String, dynamic>? sent;
+      MoodleWebApiConnector.wsToken = 'tok';
+      MoodleWebApiConnector.wsPost = (parameter) async {
+        sent = Map<String, dynamic>.from(parameter.data as Map);
+        return loadMoodleForumFixture('add_discussion_post');
+      };
+
+      final post = await MoodleWebApiConnector.addDiscussionPost(
+          postId: 900, subject: 'Re: 期中考', message: 'a < b\nc');
+
+      expect(post.id, 950);
+      expect(
+          sent!['wsfunction'], MoodleWebApiConnector.addDiscussionPostFunction);
+      expect(sent!['postid'], '900');
+      expect(sent!['subject'], 'Re: 期中考');
+      // 純文字原樣送出：escape 是伺服器在 topreferredformat 那一步做的。
+      expect(sent!['message'], 'a < b\nc');
+      expect(sent!['messageformat'], '2');
+      expect(sent!['options[0][name]'], 'topreferredformat');
+      expect(sent!['options[0][value]'], '1');
+      // 訂閱行為要跟網頁版一樣，附件與私訊回覆不在範圍內。
+      expect(sent!.keys.join(','), isNot(contains('discussionsubscribe')));
+      expect(sent!.keys.join(','), isNot(contains('private')));
+      expect(sent!.keys.join(','), isNot(contains('attachmentsid')));
+    });
+
+    test('errorcode 一路往上拋，不會被吞成 null', () async {
+      MoodleWebApiConnector.wsToken = 'tok';
+      MoodleWebApiConnector.wsPost = (_) async =>
+          loadMoodleForumFixture('add_discussion_post_nopostforum');
+
+      expect(
+        () => MoodleWebApiConnector.addDiscussionPost(
+            postId: 900, subject: 's', message: 'm'),
+        throwsA(isA<MoodleApiException>()
+            .having((e) => e.errorcode, 'errorcode', 'nopostforum')),
+      );
+    });
+
+    test('warnings[] 非空也算失敗（寫入路徑的慣例）', () async {
+      MoodleWebApiConnector.wsToken = 'tok';
+      MoodleWebApiConnector.wsPost =
+          (_) async => loadMoodleForumFixture('add_discussion_post_warning');
+
+      expect(
+        () => MoodleWebApiConnector.addDiscussionPost(
+            postId: 900, subject: 's', message: 'm'),
+        throwsA(isA<MoodleApiException>()
+            .having((e) => e.errorcode, 'errorcode', 'nopostforum')),
+      );
+    });
+
+    test('回應裡沒有 post 一律當成失敗，不可以報成送出成功', () async {
+      MoodleWebApiConnector.wsToken = 'tok';
+      MoodleWebApiConnector.wsPost =
+          (_) async => const {'postid': 950, 'warnings': []};
+
+      expect(
+        () => MoodleWebApiConnector.addDiscussionPost(
+            postId: 900, subject: 's', message: 'm'),
+        throwsA(isA<MoodleApiException>()
+            .having((e) => e.errorcode, 'errorcode', 'couldnotadd')),
+      );
+    });
+
+    test('invalidtoken 會送出 onApiError，但例外照樣往上拋', () async {
+      final errors = <MoodleApiException>[];
+      MoodleWebApiConnector.onApiError = errors.add;
+      MoodleWebApiConnector.wsToken = 'tok';
+      MoodleWebApiConnector.wsPost = (_) async => const {
+            'exception': 'moodle_exception',
+            'errorcode': 'invalidtoken',
+            'message': 'Invalid token - token not found',
+          };
+
+      await expectLater(
+        () => MoodleWebApiConnector.addDiscussionPost(
+            postId: 900, subject: 's', message: 'm'),
+        throwsA(isA<MoodleApiException>()),
+      );
+      expect(errors.single.errorcode, 'invalidtoken');
+      expect(errors.single.isInvalidToken, isTrue);
+    });
+  });
+
+  group('addDiscussion', () {
+    test('送出去的是 forumid/subject/message/groupid，沒有任何 option', () async {
+      Map<String, dynamic>? sent;
+      MoodleWebApiConnector.wsToken = 'tok';
+      MoodleWebApiConnector.wsPost = (parameter) async {
+        sent = Map<String, dynamic>.from(parameter.data as Map);
+        return loadMoodleForumFixture('add_discussion');
+      };
+
+      final id = await MoodleWebApiConnector.addDiscussion(
+          forumId: 5499, subject: '請問作業', htmlMessage: 'a &lt; b<br>c');
+
+      expect(id, 4321);
+      expect(sent!['wsfunction'], MoodleWebApiConnector.addDiscussionFunction);
+      expect(sent!['forumid'], '5499');
+      expect(sent!['subject'], '請問作業');
+      expect(sent!['message'], 'a &lt; b<br>c');
+      expect(sent!['groupid'], '0');
+      expect(sent!.keys.join(','), isNot(contains('options')));
+      expect(sent!.keys.join(','), isNot(contains('messageformat')));
+    });
+
+    test('沒有 discussionid 就是失敗——證明不了寫入發生過', () async {
+      MoodleWebApiConnector.wsToken = 'tok';
+      MoodleWebApiConnector.wsPost =
+          (_) async => loadMoodleForumFixture('add_discussion_no_id');
+
+      expect(
+        () => MoodleWebApiConnector.addDiscussion(
+            forumId: 5499, subject: 's', htmlMessage: 'm'),
+        throwsA(isA<MoodleApiException>()
+            .having((e) => e.errorcode, 'errorcode', 'couldnotadd')),
+      );
+    });
+  });
+
+  group('canAddDiscussionOf', () {
+    test('status 為 true，VALUE_OPTIONAL 的旗標讀得到', () {
+      final r = MoodleWebApiConnector.canAddDiscussionOf(
+          loadMoodleForumFixture('can_add_discussion'));
+
+      expect(r!.status, isTrue);
+      expect(r.cancreateattachment, isTrue);
+    });
+
+    test('status 為 false 而且 VALUE_OPTIONAL 全部缺席', () {
+      final r = MoodleWebApiConnector.canAddDiscussionOf(
+          loadMoodleForumFixture('can_add_discussion_denied'));
+
+      expect(r!.status, isFalse);
+      expect(r.cancreateattachment, isNull);
+    });
+
+    test('沒有 status 或不是 Map → null', () {
+      expect(MoodleWebApiConnector.canAddDiscussionOf(const {'warnings': []}),
+          isNull);
+      expect(MoodleWebApiConnector.canAddDiscussionOf(const []), isNull);
+      expect(MoodleWebApiConnector.canAddDiscussionOf(null), isNull);
+    });
+  });
+
+  group('站台沒開放這兩支 function 時', () {
+    test('canPostToForum / canCreateDiscussion 為 false，而且一個請求都不送', () async {
+      var calls = 0;
+      MoodleWebApiConnector.wsToken = 'tok';
+      MoodleWebApiConnector.wsPost = (_) async {
+        calls++;
+        return const {};
+      };
+      // functions[] 有東西（knowsWsFunctions 為真）但沒有這兩支。
+      MoodleWebApiConnector.siteInfo = MoodleProfileEntity(functions: [
+        MoodleProfileFunctions(
+            name: MoodleWebApiConnector.discussionPostsFunction,
+            version: '4.5'),
+      ]);
+
+      expect(MoodleWebApiConnector.canPostToForum, isFalse);
+      expect(MoodleWebApiConnector.canCreateDiscussion, isFalse);
+      await expectLater(
+        () => MoodleWebApiConnector.addDiscussionPost(
+            postId: 900, subject: 's', message: 'm'),
+        throwsA(isA<MoodleApiException>()
+            .having((e) => e.skippedBeforeRequest, 'skipped', isTrue)),
+      );
+      expect(calls, 0);
+    });
+
+    test('site_info 還沒載入時 fail-open', () {
+      expect(MoodleWebApiConnector.canPostToForum, isTrue);
+      expect(MoodleWebApiConnector.canCreateDiscussion, isTrue);
     });
   });
 }

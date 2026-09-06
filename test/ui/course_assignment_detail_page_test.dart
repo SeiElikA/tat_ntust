@@ -26,6 +26,7 @@ import '../helpers/moodle_assign_fixtures.dart';
 import '../helpers/recording_ui.dart';
 import '../helpers/reset_statics.dart';
 import '../helpers/test_l10n.dart';
+import '../helpers/finders.dart';
 
 /// 作業詳情頁的畫面規格。作業本體與狀態直接以 seed 傳入，不碰網路；
 /// 離線，所以被丟掉的 seed 再抓時只會落到快取或 Failed。
@@ -236,7 +237,7 @@ void main() {
         status: Stale(fixtureStatus('status_graded'), const Offline()));
 
     expect(find.text(R.current.networkError), findsOneWidget);
-    expect(find.widgetWithText(TextButton, R.current.refresh), findsOneWidget);
+    expect(buttonWithText(R.current.refresh), findsOneWidget);
     expect(
       find.descendant(
         of: find.byType(AssignStatusChip),
@@ -253,7 +254,7 @@ void main() {
     expect(find.text('x'), findsNothing, reason: 'Failed 的 seed 不該被沿用');
     // 不是整頁的 errorBuilder：那個沒有重試鈕，要離開頁面才能再抓一次。
     expect(find.textContaining('ERR:'), findsNothing);
-    final refresh = find.widgetWithText(TextButton, R.current.refresh);
+    final refresh = buttonWithText(R.current.refresh);
     expect(refresh, findsOneWidget);
     // 作業本體是 seed 的 Ok，頁面其餘部分照畫。
     expect(find.text('作業說明'), findsOneWidget);
@@ -562,9 +563,8 @@ void main() {
 
       await tapSubmitForGrading(tester);
 
-      final button = tester.widget<FilledButton>(find.ancestor(
-          of: find.text(R.current.assignSubmitForGrading),
-          matching: find.byType(FilledButton)));
+      final button = tester.widget<ButtonStyleButton>(
+          buttonWithText(R.current.assignSubmitForGrading));
       expect(button.onPressed, isNull);
 
       repo.pending.complete(Ok(MoodleAssignSubmitResult(

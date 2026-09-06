@@ -57,9 +57,9 @@ AppBar baseAppbar(
           size: 18,
           color: Get.theme.colorScheme.onSurface,
         ),
-        // 有寫入正在跑的頁面要自己接管：Get.back() 是 Navigator.pop，
-        // 會直接繞過 PopScope。
-        onPressed: onBack ?? () => Get.back(),
+        // 有未送出內容或寫入正在跑的頁面會傳 onBack，把這顆鈕接到
+        // `Navigator.maybePop`；`Get.back()` 是直接 pop，會跳過 PopScope。
+        onPressed: onBack ?? Get.back,
       ),
     ),
     actions: action,

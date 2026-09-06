@@ -15,6 +15,11 @@ class MoodleForumUtils {
 
   static const String pluginFileToken = '@@PLUGINFILE@@';
 
+  /// 標題的長度上限。`forum_discussions.name` 與 `forum_posts.subject` 都是
+  /// varchar(255)，而兩支寫入函式都沒有截斷——超過就是 dmlwriteexception，
+  /// 對應不到任何 forum errorcode，畫面只能說一句通用的送出失敗。
+  static const int subjectMaxLength = 255;
+
   /// post_exporter 不跑 format_text，訊息裡的 `@@PLUGINFILE@@` 原封不動送回來；
   /// 檔案的 url 是 `<前綴><filepath><filename>`，佔位字串代表的就是那個前綴。
   static String resolveInlinePluginFiles(
@@ -86,6 +91,63 @@ class MoodleForumUtils {
       walk(p, 0);
     }
     return flat;
+  }
+
+  /// 純文字 → HTML。escape 五個字元後把換行換成 `<br>`。
+  ///
+  /// `mod_forum_add_discussion` 沒有 `messageformat` 參數，伺服器寫死
+  /// `FORMAT_HTML`，所以新主題的內文一定要在這裡自己轉；少了這一步，
+  /// 手機上打的多行文字會變成一整段，而 `a < b` 會被 HTMLPurifier 吃掉。
+  static String plainTextToHtml(String text) {
+    final escaped = text
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#39;');
+    return escaped
+        .replaceAll('\r\n', '\n')
+        .replaceAll('\r', '\n')
+        .replaceAll('\n', '<br>');
+  }
+
+  static const int formatMoodle = 0;
+  static const int formatHtml = 1;
+  static const int formatPlain = 2;
+
+  /// 伺服器存的 `message` + `messageformat` → 可以直接餵給 HtmlWidget 的 HTML。
+  ///
+  /// `topreferredformat` 只在站台的預設編輯器是 TinyMCE/Atto 時才會把
+  /// FORMAT_PLAIN 轉成 HTML；預設編輯器是 textarea 的站台會原樣存成
+  /// FORMAT_PLAIN，那時要靠這裡轉，否則整篇擠成一行。
+  static String messageToDisplayHtml(String message, int format) =>
+      switch (format) {
+        formatPlain => plainTextToHtml(message),
+        // text_to_html() 只做 nl2br，不 escape——照抄它，不要多做。
+        formatMoodle => message
+            .replaceAll('\r\n', '\n')
+            .replaceAll('\r', '\n')
+            .replaceAll('\n', '<br>'),
+        _ => message,
+      };
+
+  /// 這一篇能不能回覆。`capabilities` 是 null（舊快取／站台沒回）時一律不行：
+  /// 不知道就不要給一顆按下去才失敗的鈕。
+  static bool canReply(MoodleForumPost p) =>
+      p.capabilities?.reply == true && !p.isdeleted;
+
+  /// 把剛送出的貼文併進手上的清單：同 id 就地取代，否則接在最後。
+  /// 送出成功但重抓失敗時用，`buildThread` 之後會依 parentid 掛回父貼文底下。
+  static List<MoodleForumPost> mergePost(
+      List<MoodleForumPost> posts, MoodleForumPost added) {
+    final merged = [...posts];
+    final index = merged.indexWhere((p) => p.id == added.id);
+    if (index >= 0) {
+      merged[index] = added;
+    } else {
+      merged.add(added);
+    }
+    return merged;
   }
 
   /// 抓不到回覆時的退路：討論串清單那一列本身就是第一篇貼文。

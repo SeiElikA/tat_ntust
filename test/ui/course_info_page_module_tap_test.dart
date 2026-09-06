@@ -5,12 +5,15 @@ import 'package:flutter_app/src/model/course/course_class_json.dart';
 import 'package:flutter_app/src/model/course/course_main_extra_json.dart';
 import 'package:flutter_app/src/model/course_table/course_table_json.dart';
 import 'package:flutter_app/src/model/moodle_webapi/moodle_core_course_get_contents.dart';
+import 'package:flutter_app/src/model/moodle_webapi/moodle_mod_forum_can_add_discussion.dart';
+import 'package:flutter_app/src/model/moodle_webapi/moodle_mod_forum_get_forum_discussions.dart';
 import 'package:flutter_app/src/model/moodle_webapi/moodle_mod_quiz_get_quizzes_by_courses.dart';
 import 'package:flutter_app/src/model/moodle_webapi/moodle_mod_quiz_get_user_attempts.dart';
 import 'package:flutter_app/src/model/moodle_webapi/moodle_mod_quiz_get_user_best_grade.dart';
 import 'package:flutter_app/src/repository/moodle_repository.dart';
 import 'package:flutter_app/src/repository/result.dart';
 import 'package:flutter_app/ui/pages/course_data/screen/sub_page/course_folder_page.dart';
+import 'package:flutter_app/ui/pages/course_data/screen/sub_page/course_forum_page.dart';
 import 'package:flutter_app/ui/pages/course_data/screen/sub_page/course_info_page.dart';
 import 'package:flutter_app/ui/pages/course_data/screen/sub_page/course_quiz_detail_page.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -81,6 +84,24 @@ void main() {
     expect(toasts, isEmpty);
   });
 
+  testWidgets('點 forum 模組會推進討論區頁，不再直接開網頁', (tester) async {
+    // forum 的 contents 也是空的；先前這一支是 openWebView。
+    AuthSession.instance = FakeAuthSession();
+    MoodleRepository.instance = _FailingQuizRepository();
+    addTearDown(() {
+      AuthSession.instance = const UninstalledAuthSession();
+      MoodleRepository.instance = MoodleRepository();
+    });
+
+    await pumpWithModule(
+        tester, Modules(name: '課程討論區', modname: 'forum', instance: 5499));
+
+    final page = tester.widget<CourseForumPage>(find.byType(CourseForumPage));
+    expect(page.forumId, 5499, reason: 'Modules.instance 就是 forum id');
+    expect(page.forumName, '課程討論區');
+    expect(toasts, isEmpty);
+  });
+
   testWidgets('點 quiz 模組會推進測驗頁，不再掉進 default 分支 toast', (tester) async {
     // quiz 的 contents 一定是空的，先前會落到 resource/default 那一支。
     AuthSession.instance = FakeAuthSession();
@@ -98,8 +119,16 @@ void main() {
   });
 }
 
-/// 測驗頁一開就會發三個請求；這裡只驗導頁，所以三個都立刻失敗。
+/// 測驗頁一開就會發三個請求、討論區頁發兩個；這裡只驗導頁，所以全部立刻失敗。
 class _FailingQuizRepository extends MoodleRepository {
+  @override
+  Future<Result<List<Discussions>>> getForumDiscussions(int forumId) async =>
+      const Failed(FetchFailed('x'));
+
+  @override
+  Future<Result<MoodleCanAddDiscussion>> canAddDiscussion(int forumId) async =>
+      const Failed(FetchFailed('x'));
+
   @override
   Future<Result<MoodleQuiz>> getQuiz(String courseId, int quizId) async =>
       const Failed(FetchFailed('x'));

@@ -26,6 +26,7 @@ import '../helpers/moodle_quiz_fixtures.dart';
 import '../helpers/recording_ui.dart';
 import '../helpers/reset_statics.dart';
 import '../helpers/test_l10n.dart';
+import '../helpers/finders.dart';
 
 /// 測驗頁的畫面規格。三段資料都由假的 repository 供給，不碰網路也不碰快取。
 void main() {
@@ -314,7 +315,7 @@ void main() {
     await pump(tester, quizResult: Stale(fixtureQuizzes()[0], const Offline()));
 
     expect(find.text(R.current.networkError), findsOneWidget);
-    expect(find.widgetWithText(TextButton, R.current.refresh), findsOneWidget);
+    expect(buttonWithText(R.current.refresh), findsOneWidget);
     expect(find.text('作答規則'), findsOneWidget);
   });
 

@@ -26,6 +26,7 @@ import '../helpers/moodle_assign_fixtures.dart';
 import '../helpers/recording_ui.dart';
 import '../helpers/reset_statics.dart';
 import '../helpers/test_l10n.dart';
+import '../helpers/finders.dart';
 
 /// 挑檔案的假實作：測試裡永遠不碰平台通道。
 class _FakePickService implements FilePickService {
@@ -109,7 +110,7 @@ void main() {
   }
 
   bool enabled(WidgetTester tester, Finder finder) =>
-      tester.widget<FilledButton>(finder).onPressed != null;
+      tester.widget<ButtonStyleButton>(finder).onPressed != null;
 
   /// 挑完檔案要 `File.length()`，那是真的 I/O：假時鐘不會讓它完成，
   /// 得先把真的事件迴圈跑一輪再 pump。
@@ -120,19 +121,16 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  Finder saveButton(String label) =>
-      find.ancestor(of: find.text(label), matching: find.byType(FilledButton));
+  Finder saveButton(String label) => buttonWithText(label);
 
-  Finder addFilesButton() => find.ancestor(
-      of: find.text(R.current.assignAddFiles),
-      matching: find.byType(FilledButton));
+  Finder addFilesButton() => buttonWithText(R.current.assignAddFiles);
 
   /// 現有線上文字含內嵌圖片：不能編也不能原封送回去（`moodlewssettingfileurl`
   /// 已經把 @@PLUGINFILE@@ 換成絕對網址）。
   MoodleAssignSubmissionStatus statusWithEmbeddedImage() {
     final json = loadMoodleAssignFixture('status_draft');
-    final plugins = (json['lastattempt']
-        as Map<String, dynamic>)['submission']['plugins'] as List<dynamic>;
+    final plugins = (json['lastattempt'] as Map<String, dynamic>)['submission']
+        ['plugins'] as List<dynamic>;
     for (final p in plugins) {
       if ((p as Map<String, dynamic>)['type'] == 'onlinetext') {
         (p['editorfields'] as List<dynamic>).first['text'] =
@@ -398,8 +396,8 @@ void main() {
 
       expect(find.text('new.pdf'), findsOneWidget);
       expect(enabled(tester, saveButton(R.current.assignSaveDraft)), isFalse);
-      expect(find.text(R.current.assignSubmitBlockedByOnlineText),
-          findsOneWidget);
+      expect(
+          find.text(R.current.assignSubmitBlockedByOnlineText), findsOneWidget);
     });
   });
 

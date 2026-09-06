@@ -23,6 +23,7 @@ import 'package:flutter_app/src/model/moodle_webapi/moodle_gradereport_overview_
 import 'package:flutter_app/src/model/moodle_webapi/moodle_message_popup_notifications.dart';
 import 'package:flutter_app/src/model/moodle_webapi/moodle_mod_assign_get_assignments.dart';
 import 'package:flutter_app/src/model/moodle_webapi/moodle_mod_assign_get_submission_status.dart';
+import 'package:flutter_app/src/model/moodle_webapi/moodle_mod_forum_can_add_discussion.dart';
 import 'package:flutter_app/src/model/moodle_webapi/moodle_mod_forum_get_discussion_posts.dart';
 import 'package:flutter_app/src/model/moodle_webapi/moodle_mod_forum_get_forum_discussions.dart';
 import 'package:flutter_app/src/model/moodle_webapi/moodle_mod_forum_get_forums_by_courses.dart';
@@ -143,6 +144,20 @@ class MoodleWebApiConnector {
 
   static const String discussionPostsFunction =
       "mod_forum_get_discussion_posts";
+
+  /// 回覆一篇貼文。type=write，capability 是 `mod/forum:replypost`。
+  static const String addDiscussionPostFunction =
+      "mod_forum_add_discussion_post";
+
+  /// 開一個新主題。type=write，capability 是 `mod/forum:startdiscussion`。
+  static const String addDiscussionFunction = "mod_forum_add_discussion";
+
+  /// 「這個討論區現在能不能開新主題」。不含發文節流。
+  static const String canAddDiscussionFunction = "mod_forum_can_add_discussion";
+
+  /// FORMAT_PLAIN。`messageformat` 的 VALUE_DEFAULT 是 FORMAT_HTML，
+  /// 不送就等於宣告「這是 HTML」，手機上打的純文字會掉換行、`a < b` 被吃掉。
+  static const String forumMessageFormatPlain = "2";
 
   /// 一頁抓滿；公告很少破百，超過的部分請使用者用網頁看。
   static const int announcementPerPage = 100;
@@ -1029,11 +1044,173 @@ class MoodleWebApiConnector {
         Map<String, dynamic>.from(result));
     if (parsed.posts.isEmpty) return null;
     for (final p in parsed.posts) {
-      p.subject = HtmlUtils.clean(p.subject);
-      p.message = MoodleForumUtils.resolveInlinePluginFiles(
-          p.message, p.messageinlinefiles);
+      _normalizePost(p);
     }
     return parsed.posts;
+  }
+
+  /// 網路邊界上的正規化，讀取與寫入兩條路共用一份。轉換必須恰好發生一次：
+  /// 轉完把 `messageformat` 蓋成 HTML，快取讀回來時才不會再轉一次。
+  static void _normalizePost(MoodleForumPost p) {
+    p.subject = HtmlUtils.clean(p.subject);
+    // replysubject 是回覆時要送回去的標題（PARAM_TEXT），純文字 sink。
+    p.replysubject = HtmlUtils.clean(p.replysubject);
+    p.message = MoodleForumUtils.resolveInlinePluginFiles(
+        p.message, p.messageinlinefiles);
+    p.message =
+        MoodleForumUtils.messageToDisplayHtml(p.message, p.messageformat);
+    p.messageformat = MoodleForumUtils.formatHtml;
+  }
+
+  /// 一般討論區的主題清單。參數與公告那一支完全相同，只差 forumId 是呼叫端
+  /// 給的；還原實體同樣共用 [announcementsOf]。
+  static Future<List<Discussions>?> getForumDiscussions(int forumId) async {
+    try {
+      final result = await _callWs(forumDiscussionsFunction, {
+        "moodlewssettingfilter": "true",
+        "moodlewssettingfileurl": "true",
+        "forumid": forumId.toString(),
+        "page": 0,
+        "perpage": announcementPerPage,
+        "sortorder": 1,
+        "groupid": 0,
+      });
+      return announcementsOf(result)?.discussions;
+    } catch (e, stack) {
+      _reportFailure(forumDiscussionsFunction, e, stack);
+      return null;
+    }
+  }
+
+  /// 形狀不對回 null。`status` 是唯一必要的欄位。
+  @visibleForTesting
+  static MoodleCanAddDiscussion? canAddDiscussionOf(dynamic result) {
+    if (result is! Map || !result.containsKey("status")) return null;
+    return MoodleCanAddDiscussion.fromJson(Map<String, dynamic>.from(result));
+  }
+
+  /// 這個討論區現在能不能開新主題。`groupid` 不送：伺服器預設是使用者目前的
+  /// 群組，與 [addDiscussion] 送 0 之後被正規化成的那一個相同。
+  static Future<MoodleCanAddDiscussion?> canAddDiscussion(int forumId) async {
+    try {
+      return canAddDiscussionOf(await _callWs(canAddDiscussionFunction, {
+        "forumid": forumId.toString(),
+      }));
+    } catch (e, stack) {
+      _reportFailure(canAddDiscussionFunction, e, stack);
+      return null;
+    }
+  }
+
+  /// 站台有沒有對這個 token 開放「回覆」。site_info 還沒載入時 fail-open，
+  /// 態度與 [wsFunctionBlocked] 一致：第一次送出才會拿到 accessexception。
+  static bool get canPostToForum =>
+      wsFunctionBlocked(addDiscussionPostFunction) == null;
+
+  /// 同上，但問的是「開新主題」。兩支是各自獨立的外部服務項目，站台可能只開
+  /// 其中一支，所以不共用同一顆旗標。
+  static bool get canCreateDiscussion =>
+      wsFunctionBlocked(addDiscussionFunction) == null;
+
+  /// `post` 欄位 → 已正規化的貼文。缺席或形狀不對回 null；呼叫端必須把 null
+  /// 當成失敗，**不可以**當成「送出成功但沒東西可畫」。
+  @visibleForTesting
+  static MoodleForumPost? addedPostOf(dynamic result) {
+    if (result is! Map) return null;
+    final post = result["post"];
+    if (post is! Map) return null;
+    final parsed = MoodleForumPost.fromJson(Map<String, dynamic>.from(post));
+    _normalizePost(parsed);
+    return parsed;
+  }
+
+  /// 回覆一篇貼文，回伺服器算好的新貼文。
+  ///
+  /// [postId] 是**貼文** id（第一篇也算），不是討論串 id。
+  ///
+  /// `messageformat=2` 加 `topreferredformat=1`：前者宣告送出去的是純文字，
+  /// 後者讓伺服器在存檔前依站台預設編輯器轉成 HTML。少了前者伺服器會把內容
+  /// 當 HTML 解析（VALUE_DEFAULT 是 FORMAT_HTML），換行與 `<` 都會不見。
+  /// `discussionsubscribe` / `private` / `attachmentsid` 一律不送：訂閱行為
+  /// 要跟網頁版一致，另外兩個不在範圍內。
+  ///
+  /// `treatWarningsAsError` 照寫（寫入路徑的慣例），但這一支的 `$warnings`
+  /// 在伺服器端初始化後從不 append，真正的失敗訊號是例外與「回不出 post」。
+  ///
+  /// 沒有冪等鍵：送出後連線中斷時，伺服器可能已經寫入而客戶端看到失敗。
+  /// 這件事在客戶端無解，所以失敗文案寫「送出失敗」而不是「請再試一次」，
+  /// 重新進頁面時的重新載入會顯示到底哪一則真的發出去了。
+  static Future<MoodleForumPost> addDiscussionPost({
+    required int postId,
+    required String subject,
+    required String message,
+  }) async {
+    try {
+      final result = await _callWs(
+        addDiscussionPostFunction,
+        {
+          "postid": postId.toString(),
+          "subject": subject,
+          "message": message,
+          "messageformat": forumMessageFormatPlain,
+          "options[0][name]": "topreferredformat",
+          "options[0][value]": "1",
+        },
+        treatWarningsAsError: true,
+      );
+      final post = addedPostOf(result);
+      if (post == null) {
+        throw MoodleApiException(
+          wsFunction: addDiscussionPostFunction,
+          errorcode: "couldnotadd",
+          message: "回應裡沒有可解析的 post，無法確認這則回覆真的送出去了",
+        );
+      }
+      return post;
+    } catch (e, stack) {
+      _reportAndRethrow(addDiscussionPostFunction, e, stack);
+    }
+  }
+
+  /// 開一個新主題，回討論串 id。
+  ///
+  /// 這一支**沒有** `messageformat` 參數，伺服器寫死 `FORMAT_HTML`，所以
+  /// [htmlMessage] 必須是呼叫端已經 escape 過的 HTML
+  /// （`MoodleForumUtils.plainTextToHtml`）。
+  ///
+  /// `groupid: 0` 就是「用我目前的群組」：伺服器在群組模式關閉時會改成 -1，
+  /// 否則代入 `groups_get_activity_group`。`discussionsubscribe` 不送，
+  /// 沿用伺服器寫死的 true——送 0 會把學生從自己開的主題退訂。
+  static Future<int> addDiscussion({
+    required int forumId,
+    required String subject,
+    required String htmlMessage,
+  }) async {
+    try {
+      final result = await _callWs(
+        addDiscussionFunction,
+        {
+          "forumid": forumId.toString(),
+          "subject": subject,
+          "message": htmlMessage,
+          "groupid": "0",
+        },
+        treatWarningsAsError: true,
+      );
+      final id = result is Map ? result["discussionid"] : null;
+      final discussionId = id is num ? id.toInt() : int.tryParse("$id");
+      // 證明不了寫入發生過就是失敗，不可以回一個 0 讓畫面裝作成功。
+      if (discussionId == null || discussionId <= 0) {
+        throw MoodleApiException(
+          wsFunction: addDiscussionFunction,
+          errorcode: "couldnotadd",
+          message: "回應裡沒有 discussionid，無法確認主題真的建立了",
+        );
+      }
+      return discussionId;
+    } catch (e, stack) {
+      _reportAndRethrow(addDiscussionFunction, e, stack);
+    }
   }
 
   /// manager、coursecreator 是站台層級角色、不是這門課的老師，刻意不列：

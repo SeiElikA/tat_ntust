@@ -398,10 +398,70 @@ class MessageLookup extends MessageLookupByLibrary {
     "folderEmpty": MessageLookupByLibrary.simpleMessage("This folder is empty"),
     "folderFileCount": MessageLookupByLibrary.simpleMessage("%s file(s)"),
     "forumAttachments": MessageLookupByLibrary.simpleMessage("Attachments"),
+    "forumCannotCheckPosting": MessageLookupByLibrary.simpleMessage(
+      "Couldn\'t check whether you can post here",
+    ),
+    "forumCannotPost": MessageLookupByLibrary.simpleMessage(
+      "You can\'t post in this forum from the app",
+    ),
+    "forumDiscardDraft": MessageLookupByLibrary.simpleMessage(
+      "Discard what you haven\'t posted yet?",
+    ),
+    "forumEmpty": MessageLookupByLibrary.simpleMessage(
+      "This forum has no discussions yet",
+    ),
+    "forumErrorCannotCreateDiscussion": MessageLookupByLibrary.simpleMessage(
+      "This forum won\'t accept a new discussion",
+    ),
+    "forumErrorNoPermission": MessageLookupByLibrary.simpleMessage(
+      "You can\'t post in this thread right now",
+    ),
+    "forumErrorPostGone": MessageLookupByLibrary.simpleMessage(
+      "The post you replied to is gone; the thread may have changed",
+    ),
+    "forumErrorTooManyPosts": MessageLookupByLibrary.simpleMessage(
+      "You\'ve hit this forum\'s posting limit",
+    ),
+    "forumMessageHint": MessageLookupByLibrary.simpleMessage(
+      "Write your message…",
+    ),
+    "forumMessageRequired": MessageLookupByLibrary.simpleMessage(
+      "Write something first",
+    ),
+    "forumNewDiscussion": MessageLookupByLibrary.simpleMessage(
+      "New discussion",
+    ),
+    "forumOpenInWeb": MessageLookupByLibrary.simpleMessage(
+      "Open forum in browser",
+    ),
+    "forumPlainTextOnly": MessageLookupByLibrary.simpleMessage(
+      "The app posts plain text only. Attachments, formatting, private replies and editing need the website.",
+    ),
     "forumPostDeleted": MessageLookupByLibrary.simpleMessage(
       "This post has been deleted",
     ),
     "forumReplies": MessageLookupByLibrary.simpleMessage("%s replies"),
+    "forumReply": MessageLookupByLibrary.simpleMessage("Reply"),
+    "forumReplyingTo": MessageLookupByLibrary.simpleMessage("Replying to %s"),
+    "forumSend": MessageLookupByLibrary.simpleMessage("Post"),
+    "forumSendDone": MessageLookupByLibrary.simpleMessage("Posted"),
+    "forumSendDoneRefreshFailed": MessageLookupByLibrary.simpleMessage(
+      "Posted, but the thread could not be reloaded",
+    ),
+    "forumSendError": MessageLookupByLibrary.simpleMessage(
+      "Couldn\'t post — refresh to check whether it went through before posting again",
+    ),
+    "forumSending": MessageLookupByLibrary.simpleMessage("Posting…"),
+    "forumSubject": MessageLookupByLibrary.simpleMessage("Subject"),
+    "forumSubjectHint": MessageLookupByLibrary.simpleMessage(
+      "Give this discussion a subject",
+    ),
+    "forumSubjectRequired": MessageLookupByLibrary.simpleMessage(
+      "Enter a subject first",
+    ),
+    "forumThreadLocked": MessageLookupByLibrary.simpleMessage(
+      "This thread is not open for replies",
+    ),
     "forumUnknownAuthor": MessageLookupByLibrary.simpleMessage(
       "Unknown author",
     ),

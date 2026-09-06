@@ -11,6 +11,7 @@ import 'package:get/get.dart';
 import '../helpers/fake_auth_session.dart';
 import '../helpers/recording_ui.dart';
 import '../helpers/test_l10n.dart';
+import '../helpers/finders.dart';
 
 /// 行事曆頁「待辦」區塊的畫面規格。
 ///
@@ -225,7 +226,7 @@ void main() {
 
     expect(find.text('boom'), findsOneWidget);
     expect(find.text('登入'), findsNothing);
-    final refresh = find.widgetWithText(TextButton, '重新整理');
+    final refresh = buttonWithText('重新整理');
     expect(refresh, findsOneWidget);
 
     await tester.tap(refresh);
