@@ -29,14 +29,14 @@ void main() {
   String normalize(String path) => path.replaceAll(r'\', '/');
 
   test('HtmlUtils.clean 的呼叫端清單沒有變動', () {
-    // 盤點結果：只有這一個檔案在呼叫，十七處——
+    // 盤點結果：只有這一個檔案在呼叫，十八處——
     // - 課程模組名（Modules.name，getCourseDirectory）
     // - 行事曆待辦的事件名與課名（MoodleActionEvent.name / activityname、
     //   MoodleActionEventCourse.fullname / shortname，actionEventsPageOf）
     // - 作業名（MoodleAssignment.name，assignmentsOf）
     // - 測驗名（MoodleQuiz.name，quizzesOf）
-    // - 作業成績的顯示字串（MoodleAssignFeedback.gradefordisplay，
-    //   submissionStatusOf）
+    // - 作業成績的顯示字串（MoodleAssignFeedback.gradefordisplay 與
+    //   previousattempts[].grade.gradefordisplay，submissionStatusOf）
     // - 公告標題（Discussions.name，announcementsOf）
     // - 公告的第一篇貼文標題（Discussions.subject，announcementsOf；抓不到
     //   回覆時 rootPostOf 會把它當成貼文標題畫出來）
@@ -51,7 +51,7 @@ void main() {
     // fullmessage / text）先剝標籤再 clean，輸出只進 tile 的 Text。
     // 下游全是 Text 與 AppBar / WebView 標題（upcoming_events_section 的
     // tile、course_assignment_page 的列、course_assignment_detail_page 的
-    // AppBar 與成績列、course_announcement_page 的清單卡片與討論串頁的
+    // AppBar、成績列與「先前的繳交」那幾列、course_announcement_page 的清單卡片與討論串頁的
     // AppBar、course_forum_thread_page 的卡片子標題與撰寫頁引用卡的標題、
     // moodle_course_grades_page 的課名與分數、course_quiz_detail_page 的
     // AppBar、InAppWebViewPage 的 title）。

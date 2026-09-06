@@ -5,20 +5,23 @@ import 'package:dio/dio.dart' show CancelToken;
 import 'package:flutter/material.dart';
 import 'package:flutter_app/src/R.dart';
 import 'package:flutter_app/src/auth/auth_session.dart';
+import 'package:flutter_app/src/connector/moodle_webapi_connector.dart';
 import 'package:flutter_app/src/model/moodle_webapi/moodle_mod_assign_get_assignments.dart';
 import 'package:flutter_app/src/model/moodle_webapi/moodle_mod_assign_get_submission_status.dart';
+import 'package:flutter_app/src/model/moodle_webapi/moodle_profile_entity.dart';
 import 'package:flutter_app/src/repository/moodle_repository.dart';
 import 'package:flutter_app/src/repository/result.dart';
+import 'package:flutter_app/src/util/moodle_assign_attempt_utils.dart';
 import 'package:flutter_app/src/util/moodle_assign_submit_utils.dart';
 import 'package:flutter_app/src/service/connectivity_probe.dart';
 import 'package:flutter_app/src/service/file_pick_service.dart';
 import 'package:flutter_app/src/service/task_ui_delegate.dart';
-import 'package:flutter_app/ui/components/page/section_empty_state.dart';
 import 'package:flutter_app/ui/components/tile/moodle_file_tile.dart';
 import 'package:flutter_app/ui/other/lucide_icons.dart';
 import 'package:flutter_app/ui/pages/course_data/screen/sub_page/course_assign_submit_page.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'package:sprintf/sprintf.dart';
 
 import '../helpers/fake_auth_session.dart';
@@ -58,6 +61,7 @@ void main() {
 
   setUpAll(() async {
     await loadTestL10n();
+    await initializeDateFormatting();
   });
 
   setUp(() {
@@ -123,7 +127,13 @@ void main() {
 
   Finder saveButton(String label) => buttonWithText(label);
 
-  Finder addFilesButton() => buttonWithText(R.current.assignAddFiles);
+  /// 「新增檔案」現在是一列 ListTile（metrics 照抄 MoodleFileTile），
+  /// 不再是一顆按鈕：限制寫在它的副標上，而不是它底下。
+  Finder addFilesButton() =>
+      find.widgetWithText(ListTile, R.current.assignAddFiles);
+
+  bool pickerEnabled(WidgetTester tester) =>
+      tester.widget<ListTile>(addFilesButton()).onTap != null;
 
   /// 現有線上文字含內嵌圖片：不能編也不能原封送回去（`moodlewssettingfileurl`
   /// 已經把 @@PLUGINFILE@@ 換成絕對網址）。
@@ -164,26 +174,68 @@ void main() {
       expect(find.byType(TextField), findsNothing);
     });
 
-    testWidgets('有草稿階段的作業不畫繳交聲明卡（那一步在送出評分時才擋）', (tester) async {
+    testWidgets('有草稿階段的作業照畫繳交聲明，但沒有勾選框（那一步在送出評分時才擋）', (tester) async {
       await pump(tester, submittable(), fixtureStatus('status_can_edit'));
 
       expect(submittable().requiresStatement, isTrue);
-      expect(find.text(R.current.assignSubmissionStatement), findsNothing);
+      // 規則本身要看得到，否則它只活在上一頁的對話框裡，按下去才知道。
+      expect(find.text(R.current.assignSubmissionStatement), findsOneWidget);
+      expect(find.text(R.current.assignStatementAtSubmit), findsOneWidget);
       expect(find.byType(CheckboxListTile), findsNothing);
     });
 
-    testWidgets('沒有繳交檔案時畫空狀態', (tester) async {
+    testWidgets('沒有繳交檔案時卡片裡只有挑檔案那一列', (tester) async {
       await pump(tester, submittable(), fixtureStatus('status_can_edit'));
 
-      expect(find.byType(SectionEmptyState), findsOneWidget);
+      expect(addFilesButton(), findsOneWidget);
       expect(find.byType(MoodleFileTile), findsNothing);
     });
 
-    testWidgets('已經交過的檔案是清單的初值，一列一個', (tester) async {
+    testWidgets('已經交過的檔案是清單的初值，一列一個，而且說得出它在哪', (tester) async {
       await pump(tester, submittable(), fixtureStatus('status_draft'));
 
-      expect(find.byType(SectionEmptyState), findsNothing);
       expect(find.text('hw1_b10000000.pdf'), findsOneWidget);
+      // 這一行副標就是「這個 X 會刪掉伺服器上的檔案」與「只是撤回剛剛那一下」
+      // 之間的全部差別。
+      expect(find.text(R.current.assignFileOnServer), findsOneWidget);
+    });
+
+    testWidgets('剛挑的檔案副標說「這次新增」加大小，跟伺服器上的那一種分得開', (tester) async {
+      FilePickService.instance = _FakePickService([makeFile('report.pdf')]);
+      await pump(tester, submittable(), fixtureStatus('status_draft'));
+
+      await tapAndFlush(tester, addFilesButton());
+
+      expect(find.text(R.current.assignFileOnServer), findsOneWidget);
+      expect(find.textContaining('這次新增'), findsOneWidget);
+    });
+  });
+
+  /// 表頭：截止提示、狀態籤，以及那一句「按下去會發生什麼事」。
+  group('狀態表頭', () {
+    testWidgets('有草稿階段：先講清楚存了還要再送出評分', (tester) async {
+      await pump(tester, submittable(), fixtureStatus('status_can_edit'));
+
+      expect(find.text(R.current.assignConsequenceDraft), findsOneWidget);
+    });
+
+    testWidgets('沒有草稿階段：存檔就是繳交，這句話在按下去之前就講', (tester) async {
+      await pump(tester, noDrafts(), fixtureStatus('status_can_edit'));
+
+      expect(find.text(R.current.assignConsequenceDirect), findsOneWidget);
+    });
+
+    testWidgets('沒有草稿階段又已經交過：說的是會覆蓋', (tester) async {
+      await pump(tester, noDrafts(), fixtureStatus('status_graded'));
+
+      expect(find.text(R.current.assignConsequenceOverwrite), findsOneWidget);
+    });
+
+    testWidgets('團隊作業：表頭就說這是整組共用的', (tester) async {
+      await pump(tester, submittable()..teamsubmission = 1,
+          fixtureStatus('status_team'));
+
+      expect(find.text(R.current.assignTeamNotice), findsOneWidget);
     });
   });
 
@@ -217,11 +269,19 @@ void main() {
       expect(enabled(tester, saveButton(R.current.assignSaveDraft)), isTrue);
     });
 
-    testWidgets('達到 maxfilesubmissions 時「新增檔案」是 disabled', (tester) async {
+    testWidgets('沒有任何變更時，那顆鈕底下說得出是為什麼', (tester) async {
+      await pump(tester, submittable(), fixtureStatus('status_draft'));
+
+      expect(find.text(R.current.assignBlockedNoChanges), findsOneWidget);
+    });
+
+    testWidgets('達到 maxfilesubmissions 時挑檔案那一列停用，而且在自己身上講出前提', (tester) async {
       // no_drafts 的 maxfilesubmissions 是 1，status_draft 已經有一個檔案。
       await pump(tester, noDrafts(), fixtureStatus('status_draft'));
 
-      expect(enabled(tester, addFilesButton()), isFalse);
+      expect(pickerEnabled(tester), isFalse);
+      expect(find.text(sprintf(R.current.assignFileLimitReached, ['1'])),
+          findsOneWidget);
     });
 
     testWidgets('還沒滿的時候可以按，而且只要求剩下的額度', (tester) async {
@@ -229,7 +289,7 @@ void main() {
       FilePickService.instance = pick;
       await pump(tester, submittable(), fixtureStatus('status_draft'));
 
-      expect(enabled(tester, addFilesButton()), isTrue);
+      expect(pickerEnabled(tester), isTrue);
       await tapAndFlush(tester, addFilesButton());
 
       // maxfilesubmissions 3，已經有 1 個。
@@ -249,8 +309,9 @@ void main() {
 
       await tapAndFlush(tester, addFilesButton());
       expect(find.text('report.pdf'), findsOneWidget);
-      // 有變更了，但還沒同意聲明。
+      // 有變更了，但還沒同意聲明——而且動作列說得出是這個原因。
       expect(enabled(tester, saveButton(R.current.assignSubmit)), isFalse);
+      expect(find.text(R.current.assignBlockedStatement), findsOneWidget);
 
       await tester.tap(find.byType(CheckboxListTile));
       await tester.pumpAndSettle();
@@ -275,7 +336,8 @@ void main() {
     testWidgets('有字數上限時提示裡帶著上限', (tester) async {
       await pump(tester, submittable(), fixtureStatus('status_can_edit'));
 
-      expect(find.textContaining('500'), findsOneWidget);
+      expect(find.text(sprintf(R.current.assignWordCount, ['0', '500'])),
+          findsOneWidget);
     });
   });
 
@@ -289,7 +351,7 @@ void main() {
       await tapAndFlush(tester, addFilesButton());
 
       expect(find.text('huge.pdf'), findsNothing);
-      expect(find.byType(SectionEmptyState), findsOneWidget);
+      expect(find.byType(MoodleFileTile), findsNothing);
       expect(ui.toasts.single, contains('huge.pdf'));
     });
 
@@ -327,8 +389,9 @@ void main() {
 
       expect(find.byType(LinearProgressIndicator), findsOneWidget);
       expect(find.text(R.current.cancel), findsOneWidget);
-      // 進行中的時候儲存鈕是 disabled，按第二次不會再送一趟。
-      expect(enabled(tester, saveButton(R.current.assignSaveDraft)), isFalse);
+      // 進行中的時候動作列整條換成傳輸列，儲存鈕根本不在畫面上——按第二次
+      // 這件事不存在。
+      expect(saveButton(R.current.assignSaveDraft), findsNothing);
 
       // 上傳到第一個檔案時，進度列會說正在傳哪一個。
       repo.onProgress?.call(const AssignTransferProgress(
@@ -410,8 +473,8 @@ void main() {
       await tester.pump();
 
       expect(enabled(tester, saveButton(R.current.assignSaveDraft)), isFalse);
-      expect(find.textContaining(R.current.assignWordCountExceeded),
-          findsOneWidget);
+      // 一次在字數列底下，一次在動作列那顆鈕上面。
+      expect(find.text(R.current.assignWordCountExceeded), findsNWidgets(2));
 
       await tester.enterText(find.byType(TextField), '短短一句');
       await tester.pump();
@@ -470,11 +533,335 @@ void main() {
       await tester.tap(find.byTooltip(R.current.assignRemoveFile));
       await tester.pumpAndSettle();
 
-      expect(find.byType(MoodleFileTile), findsNothing);
-      expect(find.text(R.current.assignFilesEmptiedWebOnly), findsOneWidget);
+      // 一次在檔案卡裡，一次在動作列那顆鈕上面。
+      expect(find.text(R.current.assignFilesEmptiedWebOnly), findsNWidgets(2));
       expect(enabled(tester, saveButton(R.current.assignSubmit)), isFalse);
     });
+
+    testWidgets('那一列不會消失：改成刪除線加「儲存後會從 Moodle 移除」，而且撤得回來', (tester) async {
+      await pump(tester, noDrafts(), fixtureStatus('status_draft'));
+
+      await tester.tap(find.byTooltip(R.current.assignRemoveFile));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(MoodleFileTile), findsOneWidget);
+      expect(tester.widget<MoodleFileTile>(find.byType(MoodleFileTile)).dimmed,
+          isTrue);
+      expect(find.text(R.current.assignFileWillBeRemoved), findsOneWidget);
+      expect(find.text(R.current.assignFileOnServer), findsNothing);
+
+      await tester.tap(find.byTooltip(R.current.assignRestoreFile));
+      await tester.pumpAndSettle();
+
+      expect(find.text(R.current.assignFileOnServer), findsOneWidget);
+      expect(find.text(R.current.assignFilesEmptiedWebOnly), findsNothing);
+    });
+
+    testWidgets('只移除其中一個：卡片裡就講出會刪掉幾個，而且儲存前一定跳確認框', (tester) async {
+      FilePickService.instance = _FakePickService([makeFile('extra.pdf')]);
+      // 有草稿階段的作業本來不跳確認框，這一趟跳是因為儲存會真的刪掉檔案。
+      await pump(tester, submittable(), fixtureStatus('status_draft'));
+      await tapAndFlush(tester, addFilesButton());
+
+      await tester.tap(find.byTooltip(R.current.assignRemoveFile).first);
+      await tester.pumpAndSettle();
+
+      final warning = sprintf(R.current.assignRemoveFilesWarning, [1]);
+      expect(find.text(warning), findsOneWidget);
+      // 清單沒有被清空，所以擋不住儲存——真正的守門是那個確認框。
+      expect(find.text(R.current.assignFilesEmptiedWebOnly), findsNothing);
+      expect(enabled(tester, saveButton(R.current.assignSaveDraft)), isTrue);
+
+      await tester.tap(saveButton(R.current.assignSaveDraft));
+      await tester.pumpAndSettle();
+
+      // 卡片裡那一句還在，對話框裡再講一次——這一頁本來不會為草稿存檔跳框。
+      expect(find.text(R.current.sure), findsOneWidget);
+      expect(find.textContaining(warning), findsNWidgets(2));
+      await tester.tap(find.text(R.current.cancel).last);
+      await tester.pumpAndSettle();
+    });
   });
+
+  /// 作答時限。這一段守的是本規格最容易被默默改壞的一條：**時限到期不可以
+  /// 讓儲存鈕變灰**。伺服器照收，只標記遲交（`caneditsubmission`）；本地擋下
+  /// 來就是把已經寫好的東西鎖死在畫面上。
+  group('作答時限', () {
+    int nowUnix() => DateTime.now().millisecondsSinceEpoch ~/ 1000;
+
+    /// 有時限的繳交狀態。[startedSecondsAgo] 為 null 代表還沒按過開始。
+    MoodleAssignSubmissionStatus timed({
+      int? startedSecondsAgo,
+      int timeLimit = 3600,
+    }) =>
+        MoodleAssignSubmissionStatus(
+          lastattempt: MoodleAssignLastAttempt(
+            submission: MoodleAssignSubmission(
+              status: startedSecondsAgo == null ? 'new' : 'draft',
+              timestarted:
+                  startedSecondsAgo == null ? 0 : nowUnix() - startedSecondsAgo,
+            ),
+            canedit: true,
+            gradingstatus: 'notgraded',
+            timelimit: timeLimit,
+          ),
+        );
+
+    testWidgets('還沒開始：動作列是「開始作答」，不是儲存', (tester) async {
+      await pump(tester, submittable(), timed());
+
+      expect(find.text(R.current.assignStartAttempt), findsOneWidget);
+      expect(find.text(R.current.assignSaveDraft), findsNothing);
+      expect(enabled(tester, saveButton(R.current.assignStartAttempt)), isTrue);
+    });
+
+    testWidgets('還沒開始：表頭先講清楚時限多長、不能暫停', (tester) async {
+      await pump(tester, submittable(), timed());
+
+      expect(
+          find.textContaining(
+              sprintf(R.current.assignTimeLimitNotice, ['1:00:00'])),
+          findsOneWidget);
+    });
+
+    testWidgets('站台沒開放在 App 內開始：鈕停用，說出原因並給網頁出口', (tester) async {
+      MoodleWebApiConnector.siteInfo = MoodleProfileEntity(functions: [
+        MoodleProfileFunctions(
+            name: MoodleWebApiConnector.saveSubmissionFunction, version: '4.5'),
+      ]);
+      await pump(tester, submittable(), timed());
+
+      expect(
+          enabled(tester, saveButton(R.current.assignStartAttempt)), isFalse);
+      expect(find.text(R.current.assignTimerNotAvailable), findsOneWidget);
+      expect(find.text(R.current.assignOpenInWeb), findsOneWidget);
+    });
+
+    testWidgets('計時中：表頭有倒數，動作列回到一般的儲存鈕', (tester) async {
+      await pump(tester, submittable(), timed(startedSecondsAgo: 60));
+
+      expect(find.text(R.current.assignStartAttempt), findsNothing);
+      expect(find.text(R.current.assignSaveDraft), findsOneWidget);
+    });
+
+    testWidgets('時限已過：表頭改口說會被標記為遲交', (tester) async {
+      await pump(
+          tester, submittable(), timed(startedSecondsAgo: 7200, timeLimit: 60));
+
+      expect(find.text(R.current.assignTimeExpiredStillEditable), findsWidgets);
+    });
+
+    testWidgets('時限已過而且有變更：儲存鈕仍然可以按（R1，本規格最怕被改壞的一條）', (tester) async {
+      await pump(
+          tester, submittable(), timed(startedSecondsAgo: 7200, timeLimit: 60));
+
+      await tester.enterText(find.byType(TextField), '遲交也要交');
+      await tester.pump();
+
+      expect(enabled(tester, saveButton(R.current.assignSaveDraft)), isTrue,
+          reason: '伺服器照收只標記遲交，本地擋下來就是把寫好的東西鎖死');
+    });
+
+    testWidgets('時限已過但什麼都沒改：擋下來的理由是「沒有變更」，不是時限', (tester) async {
+      await pump(
+          tester, submittable(), timed(startedSecondsAgo: 7200, timeLimit: 60));
+
+      expect(enabled(tester, saveButton(R.current.assignSaveDraft)), isFalse);
+      expect(find.text(R.current.assignBlockedNoChanges), findsOneWidget);
+    });
+
+    /// 按下「開始作答」之後動作列要換人。這一段守的是：**狀態欄位講不出來的
+    /// 兩件事，不可以讓畫面退回「還沒開始」**——那顆鈕再按幾次都是同一個結果，
+    /// 儲存鈕永遠出不來，這一頁就交不出作業了。
+    Future<void> startAttempt(WidgetTester tester) async {
+      await tester.tap(saveButton(R.current.assignStartAttempt));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(R.current.sure));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('timelimitnotenabled：站台把時限關了，動作列直接變回儲存', (tester) async {
+      MoodleRepository.instance = _StubStartRepository(
+          const MoodleAssignStartAttempt(
+              outcome: AssignStartOutcome.noTimeLimit));
+      await pump(tester, submittable(), timed());
+
+      await startAttempt(tester);
+
+      // timelimit 還是 3600、timestarted 還是 0：只有那一則 warning 講得出來。
+      expect(find.text(R.current.assignStartAttempt), findsNothing);
+      expect(find.text(R.current.assignSaveDraft), findsOneWidget);
+      expect(
+          find.textContaining(
+              sprintf(R.current.assignTimeLimitNotice, ['1:00:00'])),
+          findsNothing);
+    });
+
+    testWidgets('伺服器開始了但狀態重抓失敗：照樣進儲存，並說出算不出還剩多久', (tester) async {
+      MoodleRepository.instance = _StubStartRepository(
+          const MoodleAssignStartAttempt(outcome: AssignStartOutcome.started));
+      await pump(tester, submittable(), timed());
+
+      await startAttempt(tester);
+
+      expect(find.text(R.current.assignStartAttempt), findsNothing);
+      expect(find.text(R.current.assignSaveDraft), findsOneWidget);
+      expect(find.text(R.current.assignTimerStartedUnknown), findsOneWidget);
+    });
+
+    testWidgets('開始之後直接離開：伺服器的鐘已經在走，這件事要帶回上一頁', (tester) async {
+      MoodleRepository.instance = _StubStartRepository(MoodleAssignStartAttempt(
+          outcome: AssignStartOutcome.started,
+          status: fixtureStatus('status_timed_started')));
+      MoodleAssignSubmitResult? handed;
+
+      tester.view.physicalSize = const Size(800, 3000);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(GetMaterialApp(
+        home: Builder(
+          builder: (context) => TextButton(
+            onPressed: () async => handed =
+                await Get.to<MoodleAssignSubmitResult>(
+                    () => CourseAssignSubmitPage(
+                          assignment: submittable(),
+                          status: timed(),
+                          courseName: '作業系統',
+                          openWebView: (title, url) async {},
+                        )),
+            child: const Text('go'),
+          ),
+        ),
+      ));
+      await tester.tap(find.text('go'));
+      await tester.pumpAndSettle();
+
+      await startAttempt(tester);
+      await tester.tap(find.byIcon(LucideIcons.chevronLeft));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(CourseAssignSubmitPage), findsNothing);
+      expect(handed, isNotNull, reason: '草稿沒有任何痕跡記得這一趟寫入，回 null 上一頁就會停在「還沒開始」');
+      expect(handed!.status, isNotNull);
+      expect(handed!.submitted, isFalse);
+    });
+
+    testWidgets('沒按過開始就離開：什麼都沒寫過，不要謊報一趟寫入', (tester) async {
+      MoodleAssignSubmitResult? handed;
+      var popped = false;
+
+      tester.view.physicalSize = const Size(800, 3000);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(GetMaterialApp(
+        home: Builder(
+          builder: (context) => TextButton(
+            onPressed: () async {
+              handed = await Get.to<MoodleAssignSubmitResult>(
+                  () => CourseAssignSubmitPage(
+                        assignment: submittable(),
+                        status: timed(),
+                        courseName: '作業系統',
+                        openWebView: (title, url) async {},
+                      ));
+              popped = true;
+            },
+            child: const Text('go'),
+          ),
+        ),
+      ));
+      await tester.tap(find.text('go'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byIcon(LucideIcons.chevronLeft));
+      await tester.pumpAndSettle();
+
+      expect(popped, isTrue);
+      expect(handed, isNull);
+    });
+  });
+
+  group('重新開放的那一次', () {
+    testWidgets('又有草稿階段時兩件事都要講：不影響上一次的成績，但還要按送出評分', (tester) async {
+      final status = fixtureStatus('status_reopened');
+      await pump(tester, submittable(), status);
+
+      final attempt =
+          MoodleAssignAttemptUtils.attemptLabel(submittable(), status).current;
+      expect(
+          find.text(
+              sprintf(R.current.assignConsequenceReopenedDraft, [attempt])),
+          findsOneWidget);
+      expect(find.text(sprintf(R.current.assignConsequenceReopened, [attempt])),
+          findsNothing);
+    });
+
+    testWidgets('沒有草稿階段時維持原本那一句：存檔就是繳交，沒有第二步', (tester) async {
+      final status = fixtureStatus('status_reopened');
+      await pump(tester, noDrafts(), status);
+
+      final attempt =
+          MoodleAssignAttemptUtils.attemptLabel(noDrafts(), status).current;
+      expect(find.text(sprintf(R.current.assignConsequenceReopened, [attempt])),
+          findsOneWidget);
+    });
+  });
+
+  /// 表頭不捲動又沒有高度上限：六個區塊全開時在 360x640 加一個中文輸入法
+  /// 的鍵盤，工作區會被壓到零，Column 還會直接溢位。
+  group('鍵盤升起時的表頭', () {
+    testWidgets('收成一行：不溢位，工作區還在，讓位的是可以晚點再看的那幾行', (tester) async {
+      tester.view.physicalSize = const Size(360, 640);
+      tester.view.devicePixelRatio = 1.0;
+      tester.view.viewInsets = const FakeViewPadding(bottom: 320);
+      addTearDown(tester.view.reset);
+
+      await tester.pumpWidget(GetMaterialApp(
+        home: CourseAssignSubmitPage(
+          assignment: submittable()..teamsubmission = 1,
+          status: fixtureStatus('status_reopened'),
+          courseName: '作業系統',
+          openWebView: (title, url) async {},
+        ),
+      ));
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      expect(find.text(R.current.assignTeamNotice), findsNothing);
+      expect(
+          find.textContaining(R.current.assignConsequenceDraft), findsNothing);
+      expect(tester.getSize(find.byType(ListView)).height, greaterThan(100),
+          reason: '工作區被壓到零就等於這一頁交不出作業');
+    });
+  });
+
+  /// R2：移除與沿用上一次動的是伺服器上的那一份，不是編輯中的草稿，
+  /// 所以這一頁連選單都沒有——在編輯器裡跑 copy 會讓畫面上每一個
+  /// 已經填好的值變成過期的。
+  group('這一頁沒有溢位選單', () {
+    testWidgets('app bar 上沒有那三顆點，也沒有移除／沿用的字樣', (tester) async {
+      await pump(tester, submittable(), fixtureStatus('status_draft'));
+
+      expect(find.byIcon(LucideIcons.ellipsisVertical), findsNothing);
+      expect(find.text(R.current.assignRemoveSubmission), findsNothing);
+      expect(find.text(R.current.assignCopyPrevious), findsNothing);
+    });
+  });
+}
+
+/// 「開始作答」永遠回同一個結果，不碰網路。
+class _StubStartRepository extends MoodleRepository {
+  _StubStartRepository(this.attempt);
+
+  final MoodleAssignStartAttempt attempt;
+  int calls = 0;
+
+  @override
+  Future<Result<MoodleAssignStartAttempt>> startAssignAttempt({
+    required MoodleAssignment assignment,
+  }) async {
+    calls++;
+    return Ok(attempt);
+  }
 }
 
 /// 挑選器叫不起來。

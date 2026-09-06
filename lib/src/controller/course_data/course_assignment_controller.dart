@@ -27,6 +27,13 @@ class CourseAssignmentController {
   /// ——把成功的那一次報成失敗。
   final RxBool submitting = false.obs;
 
+  /// 同 [submitting]，但分開三顆：這三趟都沒有進度框，而且 remove 與 copy
+  /// 是破壞性的，共用一顆旗標會讓「送出評分中」把「移除」也一起鎖住，
+  /// 反過來也一樣，那不是這顆旗標要防的事。
+  /// 「開始作答」不在這裡：那顆鈕在繳交頁上，倒數要在按下去的那一頁看得到。
+  final RxBool removing = false.obs;
+  final RxBool copying = false.obs;
+
   Future<void> loadAll() => Future.wait([
         if (assignment.value == null) loadAssignment(),
         if (status.value == null) loadStatus(),
@@ -81,9 +88,63 @@ class CourseAssignmentController {
     }
   }
 
+  /// 移除這一次的繳交。回傳約定同 [submitForGrading]。
+  ///
+  /// 破壞性、不可逆，而且不論成敗都會帶回重抓的狀態——伺服器上檔案已經沒了，
+  /// 畫面停在移除前是最糟的一種說謊。
+  Future<({String? error, MoodleAssignSubmissionStatus? fresh})?>
+      removeSubmission() async {
+    if (removing.value) return null;
+    final a = assignment.value?.dataOrNull;
+    final s = status.value?.dataOrNull;
+    if (a == null || s == null) {
+      return (error: R.current.assignRemoveRejected, fresh: null);
+    }
+    removing.value = true;
+    try {
+      return _applyWrite(await MoodleRepository.instance
+          .removeAssignSubmission(assignment: a, status: s));
+    } finally {
+      removing.value = false;
+    }
+  }
+
+  /// 沿用上一次的繳交。回傳約定同 [submitForGrading]。
+  Future<({String? error, MoodleAssignSubmissionStatus? fresh})?>
+      copyPreviousAttempt() async {
+    if (copying.value) return null;
+    final a = assignment.value?.dataOrNull;
+    final s = status.value?.dataOrNull;
+    if (a == null || s == null) {
+      return (error: R.current.assignCopyPreviousRejected, fresh: null);
+    }
+    copying.value = true;
+    try {
+      return _applyWrite(await MoodleRepository.instance
+          .copyPreviousAssignAttempt(assignment: a, status: s));
+    } finally {
+      copying.value = false;
+    }
+  }
+
+  /// 三條寫入路徑共用的收尾：把重抓回來的狀態套上，再把
+  /// 「被拒絕但伺服器真的被寫過」那一種翻成帶 error 的成功。
+  ({String? error, MoodleAssignSubmissionStatus? fresh}) _applyWrite(
+      Result<MoodleAssignSubmitResult> result) {
+    final data = result.dataOrNull;
+    final fresh = data?.status;
+    if (fresh != null) applyStatus(fresh);
+    return switch (result) {
+      Ok() || Stale() => (error: data?.error, fresh: fresh),
+      Failed(:final reason) => (error: reason.message, fresh: fresh),
+    };
+  }
+
   void dispose() {
     assignment.close();
     status.close();
     submitting.close();
+    removing.close();
+    copying.close();
   }
 }

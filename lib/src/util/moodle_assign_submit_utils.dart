@@ -2,26 +2,44 @@ import 'dart:io';
 
 import 'package:flutter_app/src/model/moodle_webapi/moodle_mod_assign_get_assignments.dart';
 import 'package:flutter_app/src/model/moodle_webapi/moodle_mod_assign_get_submission_status.dart';
+import 'package:flutter_app/src/util/moodle_assign_attempt_utils.dart';
 
 /// 為什麼不能在 App 內交這份作業。null 代表可以交。
 enum AssignSubmitBlock {
-  /// 團隊作業：那一筆是 `lastattempt.teamsubmission`，還有隊員檢查。
-  team,
-
-  /// 有作答時限，要先 `mod_assign_start_submission`。
-  timed,
-
-  /// 匿名評分。
-  blind,
-
   /// `nosubmissions == 1`，離線評分。
   noSubmission,
+
+  /// 有 file / onlinetext / comments 以外的繳交外掛。
+  /// `assign::save_submission` 會對每一個 enabled 外掛都呼叫 save()，
+  /// 而我們給不出那個外掛要的參數，也不知道它缺參數時會不會像 onlinetext
+  /// 一樣把現有內容清掉。
+  unsupportedPlugin,
 
   /// file 與 onlinetext 都沒開。
   noPlugin,
 
+  /// 團隊作業但這位學生沒有被分到組。
+  noGroup,
+
+  /// 團隊作業但這位學生同時在多組，伺服器算不出要交給哪一組。
+  multipleGroups,
+
   /// 伺服器說不能編輯：canedit / submissionsenabled / locked。
   closed,
+}
+
+/// 儲存鈕為什麼是 disabled。null = 可以存。
+///
+/// **作答時限到期不在這裡**：伺服器照收，只是標記成遲交
+/// （`save_submission` / `submissions_open` 從頭到尾沒有檢查 timelimit，
+/// 網頁的 timer.js 歸零時也只是換一行字）。本地擋下來就是把學生已經寫好的
+/// 東西鎖死在畫面上，那是這條路上唯一會弄丟作業的失敗模式。
+enum AssignSaveBlock {
+  richOnlineText,
+  filesEmptied,
+  overWordLimit,
+  statementNotAccepted,
+  noChanges,
 }
 
 /// 一個檔案能不能收。[unverifiable] = `filetypeslist` 裡有我們看不懂的群組名。
@@ -139,16 +157,39 @@ class MoodleAssignSubmitUtils {
   static const String pluginFile = 'file';
   static const String pluginOnlineText = 'onlinetext';
 
+  /// 只讀不寫的那一個：老師開了它我們也不用送任何 plugindata。
+  static const String pluginComments = 'comments';
+
+  /// App 送得出 plugindata 的繳交外掛。其餘一律導網頁，見
+  /// [AssignSubmitBlock.unsupportedPlugin]。
+  static const Set<String> supportedSubmissionPlugins = {
+    pluginFile,
+    pluginOnlineText,
+    pluginComments,
+  };
+
   /// 判定順序刻意固定：先講「這個功能不支援」，最後才講「伺服器不讓交」。
-  /// 同時是團隊作業又 canedit=false 時要看到可行動的理由（去網頁交）。
+  ///
+  /// [AssignSubmitBlock.noGroup] / [AssignSubmitBlock.multipleGroups] 排在
+  /// [AssignSubmitBlock.closed] **前面**：沒被分到組的人 `canedit` 也是 false，
+  /// 而「你還沒有被分到組別」是可以行動的，「不能交」不是。
   static AssignSubmitBlock? blockOf(
       MoodleAssignment a, MoodleAssignSubmissionStatus s) {
-    if (a.isTeamSubmission) return AssignSubmitBlock.team;
-    if (a.hasTimeLimit || s.timeLimit > 0) return AssignSubmitBlock.timed;
-    if (a.isBlindMarking || s.isBlindMarking) return AssignSubmitBlock.blind;
     if (a.noSubmissionRequired) return AssignSubmitBlock.noSubmission;
+    if (hasUnsupportedPlugin(a)) return AssignSubmitBlock.unsupportedPlugin;
     if (!pluginEnabled(a, pluginFile) && !pluginEnabled(a, pluginOnlineText)) {
       return AssignSubmitBlock.noPlugin;
+    }
+    if (a.isTeamSubmission) {
+      switch (MoodleAssignAttemptUtils.teamState(a, s)) {
+        case AssignTeamState.noGroup:
+          return AssignSubmitBlock.noGroup;
+        case AssignTeamState.multipleGroups:
+          return AssignSubmitBlock.multipleGroups;
+        case AssignTeamState.notTeam:
+        case AssignTeamState.ok:
+          break;
+      }
     }
     // lastattempt 缺席 = 沒有 viewownsubmissionsummary，什麼都不該顯示。
     if (s.lastattempt == null ||
@@ -157,6 +198,35 @@ class MoodleAssignSubmitUtils {
         !s.canEdit) {
       return AssignSubmitBlock.closed;
     }
+    return null;
+  }
+
+  /// 有沒有我們送不出 plugindata 的繳交外掛（Turnitin、PoodLL……）。
+  /// `configs[]` 只收錄 enabled 且 visible 的外掛，所以「有沒有這一列」就是答案。
+  static bool hasUnsupportedPlugin(MoodleAssignment a) {
+    for (final c in a.configs) {
+      if (c.subtype != subtypeSubmission) continue;
+      if (!supportedSubmissionPlugins.contains(c.plugin)) return true;
+    }
+    return false;
+  }
+
+  /// 儲存鈕為什麼不能按。判定順序刻意固定（同 [blockOf]）：先講結構上改不了的，
+  /// 再講學生自己修得好的，最後才講最不緊張、也最不言而喻的「還沒改東西」。
+  /// 只回第一個理由——列出全部會把動作列撐成四行，而常見的單一理由看起來
+  /// 反而像出了大事。
+  static AssignSaveBlock? saveBlockOf({
+    required bool onlineTextIsRich,
+    required bool filesEmptied,
+    required bool overWordLimit,
+    required bool statementOk,
+    required bool dirty,
+  }) {
+    if (onlineTextIsRich) return AssignSaveBlock.richOnlineText;
+    if (filesEmptied) return AssignSaveBlock.filesEmptied;
+    if (overWordLimit) return AssignSaveBlock.overWordLimit;
+    if (!statementOk) return AssignSaveBlock.statementNotAccepted;
+    if (!dirty) return AssignSaveBlock.noChanges;
     return null;
   }
 

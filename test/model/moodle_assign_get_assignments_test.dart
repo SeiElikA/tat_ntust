@@ -30,6 +30,8 @@ void main() {
     'cutoffdate',
     'nosubmissions',
     'teamsubmission',
+    'requireallteammemberssubmit',
+    'preventsubmissionnotingroup',
     'submissiondrafts',
     'requiresubmissionstatement',
     'submissionstatement',

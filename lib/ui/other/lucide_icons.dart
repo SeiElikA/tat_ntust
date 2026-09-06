@@ -160,6 +160,9 @@ class LucideIcons {
   /// pin
   static const IconData pin = IconData(0xe259, fontFamily: _family);
 
+  /// play
+  static const IconData play = IconData(0xe13c, fontFamily: _family);
+
   /// plus
   static const IconData plus = IconData(0xe13d, fontFamily: _family);
 
@@ -195,6 +198,9 @@ class LucideIcons {
 
   /// triangle-alert
   static const IconData triangleAlert = IconData(0xe193, fontFamily: _family);
+
+  /// undo-2
+  static const IconData undo2 = IconData(0xe2a1, fontFamily: _family);
 
   /// user
   static const IconData user = IconData(0xe19f, fontFamily: _family);

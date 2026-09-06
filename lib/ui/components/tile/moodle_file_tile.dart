@@ -15,6 +15,7 @@ class MoodleFileTile extends StatelessWidget {
     this.leading,
     this.trailing,
     this.onTap,
+    this.dimmed = false,
   });
 
   final String filename;
@@ -34,6 +35,10 @@ class MoodleFileTile extends StatelessWidget {
   /// null 時整列不吃點擊，也不會有漣漪——沒有事情可做的列不該假裝可以按。
   final VoidCallback? onTap;
 
+  /// true = 這一列指的東西即將消失（例如儲存後會被移除的繳交檔案）。
+  /// 刪除線與淡色一起上：只調淡的話跟「停用」長得一模一樣。
+  final bool dimmed;
+
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
@@ -49,8 +54,11 @@ class MoodleFileTile extends StatelessWidget {
       title: Text(filename,
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
-          style:
-              text.bodyMedium?.copyWith(color: scheme.onSurface, height: 1.3)),
+          style: text.bodyMedium?.copyWith(
+              color: dimmed ? scheme.onSurfaceVariant : scheme.onSurface,
+              decoration: dimmed ? TextDecoration.lineThrough : null,
+              decorationColor: scheme.onSurfaceVariant,
+              height: 1.3)),
       subtitle: subtitle == null
           ? null
           : Text(subtitle!,

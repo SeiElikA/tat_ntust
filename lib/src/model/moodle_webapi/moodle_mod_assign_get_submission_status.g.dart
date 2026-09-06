@@ -17,6 +17,11 @@ MoodleAssignSubmissionStatus _$MoodleAssignSubmissionStatusFromJson(
           ? null
           : MoodleAssignFeedback.fromJson(
               json['feedback'] as Map<String, dynamic>),
+      previousattempts: (json['previousattempts'] as List<dynamic>?)
+              ?.map((e) => MoodleAssignPreviousAttempt.fromJson(
+                  e as Map<String, dynamic>))
+              .toList() ??
+          [],
     );
 
 Map<String, dynamic> _$MoodleAssignSubmissionStatusToJson(
@@ -24,6 +29,8 @@ Map<String, dynamic> _$MoodleAssignSubmissionStatusToJson(
     <String, dynamic>{
       'lastattempt': instance.lastattempt?.toJson(),
       'feedback': instance.feedback?.toJson(),
+      'previousattempts':
+          instance.previousattempts.map((e) => e.toJson()).toList(),
     };
 
 MoodleAssignLastAttempt _$MoodleAssignLastAttemptFromJson(
@@ -51,6 +58,19 @@ MoodleAssignLastAttempt _$MoodleAssignLastAttemptFromJson(
           ? false
           : _boolFromJson(json['blindmarking']),
       timelimit: (json['timelimit'] as num?)?.toInt() ?? 0,
+      usergroups: (json['usergroups'] as List<dynamic>?)
+              ?.map((e) => (e as num).toInt())
+              .toList() ??
+          [],
+      submissiongroup: (json['submissiongroup'] as num?)?.toInt(),
+      submissiongroupmemberswhoneedtosubmit:
+          (json['submissiongroupmemberswhoneedtosubmit'] as List<dynamic>?)
+                  ?.map((e) => (e as num).toInt())
+                  .toList() ??
+              [],
+      caneditowner: json['caneditowner'] == null
+          ? false
+          : _boolFromJson(json['caneditowner']),
     );
 
 Map<String, dynamic> _$MoodleAssignLastAttemptToJson(
@@ -67,6 +87,11 @@ Map<String, dynamic> _$MoodleAssignLastAttemptToJson(
       'submissionsenabled': instance.submissionsenabled,
       'blindmarking': instance.blindmarking,
       'timelimit': instance.timelimit,
+      'usergroups': instance.usergroups,
+      'submissiongroup': instance.submissiongroup,
+      'submissiongroupmemberswhoneedtosubmit':
+          instance.submissiongroupmemberswhoneedtosubmit,
+      'caneditowner': instance.caneditowner,
     };
 
 MoodleAssignSubmission _$MoodleAssignSubmissionFromJson(
@@ -79,6 +104,8 @@ MoodleAssignSubmission _$MoodleAssignSubmissionFromJson(
                   (e) => MoodleAssignPlugin.fromJson(e as Map<String, dynamic>))
               .toList() ??
           [],
+      attemptnumber: (json['attemptnumber'] as num?)?.toInt() ?? 0,
+      timestarted: (json['timestarted'] as num?)?.toInt() ?? 0,
     );
 
 Map<String, dynamic> _$MoodleAssignSubmissionToJson(
@@ -87,6 +114,44 @@ Map<String, dynamic> _$MoodleAssignSubmissionToJson(
       'timemodified': instance.timemodified,
       'status': instance.status,
       'plugins': instance.plugins.map((e) => e.toJson()).toList(),
+      'attemptnumber': instance.attemptnumber,
+      'timestarted': instance.timestarted,
+    };
+
+MoodleAssignPreviousAttempt _$MoodleAssignPreviousAttemptFromJson(
+        Map<String, dynamic> json) =>
+    MoodleAssignPreviousAttempt(
+      attemptnumber: (json['attemptnumber'] as num?)?.toInt() ?? 0,
+      submission: json['submission'] == null
+          ? null
+          : MoodleAssignSubmission.fromJson(
+              json['submission'] as Map<String, dynamic>),
+      grade: json['grade'] == null
+          ? null
+          : MoodleAssignPreviousGrade.fromJson(
+              json['grade'] as Map<String, dynamic>),
+    );
+
+Map<String, dynamic> _$MoodleAssignPreviousAttemptToJson(
+        MoodleAssignPreviousAttempt instance) =>
+    <String, dynamic>{
+      'attemptnumber': instance.attemptnumber,
+      'submission': instance.submission?.toJson(),
+      'grade': instance.grade?.toJson(),
+    };
+
+MoodleAssignPreviousGrade _$MoodleAssignPreviousGradeFromJson(
+        Map<String, dynamic> json) =>
+    MoodleAssignPreviousGrade(
+      grade: json['grade'] as String? ?? '',
+      gradefordisplay: json['gradefordisplay'] as String? ?? '',
+    );
+
+Map<String, dynamic> _$MoodleAssignPreviousGradeToJson(
+        MoodleAssignPreviousGrade instance) =>
+    <String, dynamic>{
+      'grade': instance.grade,
+      'gradefordisplay': instance.gradefordisplay,
     };
 
 MoodleAssignPlugin _$MoodleAssignPluginFromJson(Map<String, dynamic> json) =>

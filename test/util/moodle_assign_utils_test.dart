@@ -121,11 +121,16 @@ void main() {
           AssignDisplayStatus.graded);
     });
 
-    test('new 與 reopened 都是 notSubmitted', () {
+    test('new 是 notSubmitted，reopened 有自己的一顆籤', () {
       expect(resolve(assignment(duedate: future), withStatus('new')),
           AssignDisplayStatus.notSubmitted);
       expect(resolve(assignment(duedate: future), withStatus('reopened')),
-          AssignDisplayStatus.notSubmitted);
+          AssignDisplayStatus.reopened);
+    });
+
+    test('reopened 過了截止照樣算逾期，跟草稿同一條規則', () {
+      expect(resolve(assignment(duedate: past), withStatus('reopened')),
+          AssignDisplayStatus.overdue);
     });
   });
 
