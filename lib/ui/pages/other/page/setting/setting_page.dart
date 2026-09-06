@@ -11,6 +11,7 @@ import 'package:flutter_app/ui/other/listview_animator.dart';
 import 'package:flutter_app/ui/pages/other/page/setting/moodle_setting_page.dart';
 import 'package:flutter_app/ui/pages/other/page/setting/theme_setting_page.dart';
 import 'package:get/get.dart';
+import 'package:flutter_app/ui/other/lucide_icons.dart';
 
 class SettingPage extends StatefulWidget {
   const SettingPage({
@@ -135,7 +136,7 @@ class _SettingPageState extends State<SettingPage> {
             ),
             const SizedBox(width: 12),
             Icon(
-              Icons.chevron_right,
+              LucideIcons.chevronRight,
               size: 20,
               color: Get.theme.colorScheme.onSurface,
             ),
@@ -169,7 +170,7 @@ class _SettingPageState extends State<SettingPage> {
             ),
             const SizedBox(width: 12),
             Icon(
-              Icons.chevron_right,
+              LucideIcons.chevronRight,
               size: 20,
               color: Get.theme.colorScheme.onSurface,
             ),

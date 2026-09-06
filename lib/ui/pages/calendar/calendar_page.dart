@@ -1,4 +1,3 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_app/src/R.dart';
 import 'package:flutter_app/src/controller/calendar/calendar_controller.dart';
@@ -11,6 +10,7 @@ import 'package:flutter_app/ui/pages/web_view/inapp_web_view_page.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:get/get.dart';
 import 'package:table_calendar/table_calendar.dart';
+import 'package:flutter_app/ui/other/lucide_icons.dart';
 
 /*
 kFirstDay / kLastDay 是日曆可存取範圍的上下界，超出這段的日期使用者點不到。
@@ -28,7 +28,7 @@ class CalendarPage extends GetView<CalendarController> {
       return Scaffold(
         appBar: mainAppbar(title: R.current.calendar, action: [
           IconButton(
-            icon: const Icon(CupertinoIcons.refresh),
+            icon: const Icon(LucideIcons.refreshCw),
             splashRadius: 18,
             iconSize: 24,
             onPressed: controller.refreshAll,
@@ -66,11 +66,11 @@ class CalendarPage extends GetView<CalendarController> {
                   color: Get.theme.colorScheme.onSurface,
                 ),
                 leftChevronIcon: Icon(
-                  Icons.chevron_left,
+                  LucideIcons.chevronLeft,
                   color: Get.theme.colorScheme.onSurface,
                 ),
                 rightChevronIcon: Icon(
-                  Icons.chevron_right,
+                  LucideIcons.chevronRight,
                   color: Get.theme.colorScheme.onSurface,
                 ),
               ),

@@ -22,6 +22,7 @@ import 'package:flutter_app/ui/pages/course_data/screen/widgets/assign_status_ch
 import 'package:flutter_app/ui/service/file_download.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
+import 'package:flutter_app/ui/other/lucide_icons.dart';
 
 /// 一份作業的唯讀詳情；繳交與編輯都走「在網頁開啟」。錯誤畫面與 WebView 開啟器
 /// 由呼叫端注入，見 docs/ARCHITECTURE.md「UI 慣例」。三段 Moodle 原文 HTML
@@ -107,13 +108,13 @@ class _CourseAssignmentDetailPageState
       padding: const EdgeInsets.fromLTRB(12, 12, 12, 32),
       children: [
         SectionHeader(
-          icon: Icons.event_outlined,
+          icon: LucideIcons.calendarClock,
           title: R.current.assignDueDate,
           first: true,
         ),
         _deadlineCard(a),
         SectionHeader(
-          icon: Icons.assignment_turned_in_outlined,
+          icon: LucideIcons.clipboardCheck,
           title: R.current.assignSubmissionStatus,
           trailing: Obx(() => AssignStatusChip.fromResult(
               a, _controller.status.value,
@@ -121,7 +122,7 @@ class _CourseAssignmentDetailPageState
         ),
         _statusCard(a),
         SectionHeader(
-          icon: Icons.description_outlined,
+          icon: LucideIcons.fileText,
           title: R.current.assignIntro,
         ),
         _introCard(a),
@@ -129,7 +130,7 @@ class _CourseAssignmentDetailPageState
         FilledButton.tonalIcon(
           style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
           onPressed: () => unawaited(_openInWeb(a)),
-          icon: const Icon(Icons.open_in_new),
+          icon: const Icon(LucideIcons.externalLink),
           label: Text(R.current.assignOpenInWeb),
         ),
       ],
@@ -233,7 +234,7 @@ class _CourseAssignmentDetailPageState
         ]),
         if (fb != null && _hasFeedbackContent(fb)) ...[
           SectionHeader(
-            icon: Icons.grading,
+            icon: LucideIcons.fileCheck2,
             title: R.current.assignSectionGradeFeedback,
           ),
           _feedbackCard(a, fb),

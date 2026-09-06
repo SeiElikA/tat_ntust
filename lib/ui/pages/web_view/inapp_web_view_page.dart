@@ -1,9 +1,7 @@
 import 'dart:convert';
 
 import 'package:back_button_interceptor/back_button_interceptor.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_app/ui/other/svg_tint.dart';
 import 'package:flutter_app/debug/log/log.dart';
 import 'package:flutter_app/src/R.dart';
 import 'package:flutter_app/src/service/ssoam2_login.dart';
@@ -16,8 +14,8 @@ import 'package:flutter_app/ui/components/custom_appbar.dart';
 import 'package:flutter_app/ui/components/page/loading_page.dart';
 import 'package:flutter_app/src/util/my_toast.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get/get.dart';
+import 'package:flutter_app/ui/other/lucide_icons.dart';
 
 class InAppWebViewPage extends StatefulWidget {
   final WebUri url;
@@ -232,7 +230,7 @@ class _InAppWebViewPageState extends State<InAppWebViewPage> {
             }
           },
           icon: const Icon(
-            CupertinoIcons.left_chevron,
+            LucideIcons.chevronLeft,
             size: 18,
           )),
       IconButton(
@@ -244,7 +242,7 @@ class _InAppWebViewPageState extends State<InAppWebViewPage> {
             }
           },
           icon: const Icon(
-            CupertinoIcons.right_chevron,
+            LucideIcons.chevronRight,
             size: 18,
           )),
       IconButton(
@@ -255,20 +253,20 @@ class _InAppWebViewPageState extends State<InAppWebViewPage> {
               await webView?.reload();
             }
           },
-          icon: const Icon(CupertinoIcons.refresh, size: 18)),
+          icon: const Icon(LucideIcons.refreshCw, size: 18)),
       Visibility(
           visible: widget.openWithExternalWebView,
           child: IconButton(
-            // SvgPicture 連 semanticsLabel 都沒有，沒 tooltip 就唸不出來。
+            // 純圖示按鈕沒 tooltip 就唸不出來。
             tooltip: R.current.openInBrowser,
             splashRadius: 16,
             onPressed: () async {
               await OpenUtils.launchURL(url.toString());
             },
-            icon: SvgPicture.asset(
-              "assets/image/img_external_link.svg",
-              colorFilter: svgTint(Get.iconColor),
-              height: 20,
+            icon: Icon(
+              LucideIcons.externalLink,
+              size: 20,
+              color: Get.iconColor,
             ),
           ))
     ];

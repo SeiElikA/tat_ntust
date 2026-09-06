@@ -66,10 +66,8 @@ dependencies:
   flutter_inappwebview: ^6.1.0
   webview_flutter_android: ^4.10.11
   #---------icon----------#
-  eva_icons_flutter: ^3.1.0
-  #https://akveo.github.io/eva-icons/#/
-  fluttericon: ^2.0.0
-  #https://oblador.github.io/react-native-vector-icons/
+  #Lucide 圖示不裝套件，改自帶 assets/fonts/lucide.ttf，
+  #見 lib/ui/other/lucide_icons.dart。
   #---------json----------#
   json_annotation: ^4.8.0
   #----------other----------#
@@ -165,17 +163,25 @@ flutter:
   uses-material-design: true
   assets:
     - assets/
-    - assets/image/
     - assets/image/files/
     - assets/launcher/
 
-  # 沒有任何內建字體。
+  # 只有 Lucide 一組圖示字體。
   #
   # MyFont（源泉圓體，三個 TTC 共 45 MB）改成用 google_fonts 在執行期抓
   # Noto Sans TC，見 lib/src/config/app_themes.dart。
   #
   # MyIcon（assets/fonts/MyIcon.ttf，5.7 KB）一併刪除：整個 repo 沒有任何
   # 一處用到那個 family，是一份只宣告沒使用的設定。
+  #
+  # lucide.ttf 取自 lucide_icons_flutter 3.1.18（Lucide 本體為 ISC 授權）。
+  # 不直接裝那個套件，是因為它另外宣告了 6 組 LucideVariable-w{100..600}
+  # 字重家族共 2.78 MB；本專案一個都沒用到，而 icon tree-shaking 只裁得掉
+  # 有 IconData 指向的字體，那 6 份會原封不動打進 APK。
+  fonts:
+    - family: Lucide
+      fonts:
+        - asset: assets/fonts/lucide.ttf
 
 flutter_intl:
   enabled: true

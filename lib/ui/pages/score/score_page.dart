@@ -1,4 +1,3 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_app/src/R.dart';
 import 'package:flutter_app/ui/components/page/loading_page.dart';
@@ -10,13 +9,13 @@ import 'package:flutter_app/src/controller/score_page/score_page_controller.dart
 import 'package:flutter_app/ui/components/custom_appbar.dart';
 import 'package:flutter_app/ui/components/page/error_page.dart';
 import 'package:get/get.dart';
+import 'package:flutter_app/ui/other/lucide_icons.dart';
 
 class ScoreViewerPage extends GetView<ScorePageController> {
   const ScoreViewerPage({super.key});
 
   @override
   Widget build(BuildContext context) {
-
     return Obx(
       () {
         switch (controller.state.value) {
@@ -42,7 +41,7 @@ class ScoreViewerPage extends GetView<ScorePageController> {
               title: R.current.searchScore,
               action: [
                 IconButton(
-                  icon: const Icon(CupertinoIcons.refresh),
+                  icon: const Icon(LucideIcons.refreshCw),
                   splashRadius: 18,
                   iconSize: 24,
                   onPressed: () async {
@@ -81,7 +80,7 @@ class ScoreViewerPage extends GetView<ScorePageController> {
     return Scaffold(
       appBar: mainAppbar(title: R.current.searchScore, action: [
         IconButton(
-          icon: const Icon(CupertinoIcons.refresh),
+          icon: const Icon(LucideIcons.refreshCw),
           splashRadius: 18,
           iconSize: 24,
           onPressed: () async {

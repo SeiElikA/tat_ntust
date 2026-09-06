@@ -1,10 +1,9 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_app/ui/other/svg_tint.dart';
 import 'package:flutter_app/src/util/course_table_control.dart';
 import 'package:flutter_app/src/model/course/course_main_extra_json.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get/get.dart';
+import 'package:flutter_app/ui/other/lucide_icons.dart';
 
 import '../../../src/R.dart';
 
@@ -59,18 +58,17 @@ class CourseSearchCard extends StatelessWidget {
   }
 
   Widget timeText() {
-    return _iconWithText("img_clock.svg", courseTimeString(info.course.time));
+    return _iconWithText(LucideIcons.clock, courseTimeString(info.course.time));
   }
 
   Widget teacherText() {
-    return _iconWithText("img_account.svg", info.getTeacherName());
+    return _iconWithText(LucideIcons.user, info.getTeacherName());
   }
 
-  Widget _iconWithText(String assetName, String content) {
+  Widget _iconWithText(IconData icon, String content) {
     return Row(
       children: [
-        SvgPicture.asset("assets/image/$assetName",
-            colorFilter: svgTint(Get.iconColor), height: 20, width: 20),
+        Icon(icon, size: 20, color: Get.iconColor),
         const SizedBox(width: 4),
         Text(content),
       ],

@@ -8,6 +8,7 @@ import 'package:flutter_app/ui/other/listview_animator.dart';
 import 'package:get/get.dart';
 import 'package:pretty_json/pretty_json.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_app/ui/other/lucide_icons.dart';
 
 class StoreEditPage extends StatefulWidget {
   const StoreEditPage({super.key});
@@ -90,7 +91,7 @@ class _StoreEditPageState extends State<StoreEditPage> {
                               // 這兩顆按鈕在同一列、只差圖示，沒有 tooltip 時
                               // 螢幕閱讀器會連唸兩次「按鈕」，分不出哪顆是刪除。
                               tooltip: R.current.edit,
-                              icon: const Icon(Icons.edit_outlined),
+                              icon: const Icon(LucideIcons.pencil),
                               onPressed: () {
                                 Get.dialog(CustomInputDialog(
                                   title: key,
@@ -111,7 +112,7 @@ class _StoreEditPageState extends State<StoreEditPage> {
                               }),
                           IconButton(
                             tooltip: R.current.delete,
-                            icon: const Icon(Icons.delete_outline),
+                            icon: const Icon(LucideIcons.trash2),
                             onPressed: () {
                               keyList.removeAt(index);
                               pref!.remove(key);

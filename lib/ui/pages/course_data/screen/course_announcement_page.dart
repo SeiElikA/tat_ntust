@@ -13,6 +13,7 @@ import 'package:flutter_app/ui/pages/course_data/screen/sub_page/course_announce
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import 'package:sprintf/sprintf.dart';
+import 'package:flutter_app/ui/other/lucide_icons.dart';
 
 /// 課程頁的「公告」分頁。錯誤畫面與 WebView 開啟器由呼叫端注入，
 /// 見 docs/ARCHITECTURE.md「UI 慣例」。
@@ -83,7 +84,7 @@ class _CourseAnnouncementPageState extends State<CourseAnnouncementPage>
   }
 
   Widget _empty(String message) =>
-      EmptyState(asset: "assets/image/img_message.svg", message: message);
+      EmptyState(icon: LucideIcons.messageSquare, message: message);
 
   @override
   bool get wantKeepAlive => true;
@@ -121,7 +122,7 @@ class _AnnouncementCard extends StatelessWidget {
               Row(
                 children: [
                   if (discussion.pinned) ...[
-                    Icon(Icons.push_pin,
+                    Icon(LucideIcons.pin,
                         size: 14, color: scheme.onSurfaceVariant),
                     const SizedBox(width: 6),
                   ],
@@ -152,7 +153,7 @@ class _AnnouncementCard extends StatelessWidget {
                   ),
                   if (discussion.numreplies > 0) ...[
                     const SizedBox(width: 8),
-                    Icon(Icons.mode_comment_outlined,
+                    Icon(LucideIcons.messageSquare,
                         size: 13, color: scheme.onSurfaceVariant),
                     const SizedBox(width: 4),
                     Text(

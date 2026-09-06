@@ -3,6 +3,7 @@ import 'package:flutter_app/src/R.dart';
 import 'package:flutter_app/src/repository/result.dart';
 import 'package:flutter_app/ui/components/page/loading_page.dart';
 import 'package:get/get.dart';
+import 'package:flutter_app/ui/other/lucide_icons.dart';
 
 /// 把 [Result] 三態畫成畫面：controller 持 `Rxn<Result<T>>`，`build()` 不觸發
 /// 請求。[Stale] 多一條橫幅，使用者才知道自己看的是舊資料。
@@ -73,7 +74,7 @@ class _StaleBanner extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         child: Row(
           children: [
-            Icon(Icons.history, size: 16, color: scheme.onSurfaceVariant),
+            Icon(LucideIcons.history, size: 16, color: scheme.onSurfaceVariant),
             const SizedBox(width: 8),
             Expanded(
               child: Text(

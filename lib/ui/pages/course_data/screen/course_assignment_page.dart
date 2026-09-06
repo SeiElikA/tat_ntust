@@ -12,12 +12,11 @@ import 'package:flutter_app/src/util/ui_utils.dart';
 import 'package:flutter_app/ui/components/page/empty_state.dart';
 import 'package:flutter_app/ui/components/page/result_view.dart';
 import 'package:flutter_app/ui/components/page/web_view_opener.dart';
-import 'package:flutter_app/ui/other/svg_tint.dart';
 import 'package:flutter_app/ui/pages/course_data/screen/sub_page/course_assignment_detail_page.dart';
 import 'package:flutter_app/ui/pages/course_data/screen/widgets/assign_status_chip.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
+import 'package:flutter_app/ui/other/lucide_icons.dart';
 
 /// 課程頁的「作業」分頁：清單加上每一份作業的狀態籤。錯誤畫面與 WebView
 /// 開啟器由呼叫端注入，見 docs/ARCHITECTURE.md「UI 慣例」。
@@ -68,7 +67,7 @@ class _CourseAssignmentPageState extends State<CourseAssignmentPage>
   Widget buildTree(List<MoodleAssignment> list) {
     if (list.isEmpty) {
       return EmptyState(
-        asset: "assets/image/img_clipboard.svg",
+        icon: LucideIcons.clipboardList,
         message: R.current.assignmentEmpty,
       );
     }
@@ -123,9 +122,10 @@ class _CourseAssignmentPageState extends State<CourseAssignmentPage>
           children: [
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12.0),
-              child: SvgPicture.asset(
-                "assets/image/img_clipboard.svg",
-                colorFilter: svgTint(scheme.onSurface),
+              child: Icon(
+                LucideIcons.clipboardList,
+                size: 24,
+                color: scheme.onSurface,
               ),
             ),
             Expanded(

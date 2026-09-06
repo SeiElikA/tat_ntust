@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:flutter_app/ui/other/lucide_icons.dart';
 
 class CustomSnackBar {
   static showCustomErrorSnackBar(
@@ -16,7 +17,7 @@ class CustomSnackBar {
       colorText: Colors.white,
       backgroundColor: color ?? Colors.redAccent,
       icon: const Icon(
-        Icons.error,
+        LucideIcons.circleAlert,
         color: Colors.white,
       ),
     );

@@ -5,7 +5,6 @@ import 'package:awesome_dialog/awesome_dialog.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_app/src/auth/auth_session.dart';
-import 'package:flutter_app/ui/other/svg_tint.dart';
 import 'package:flutter_app/debug/log/log.dart';
 import 'package:flutter_app/src/R.dart';
 import 'package:flutter_app/src/config/app_link.dart';
@@ -24,8 +23,8 @@ import 'package:flutter_app/ui/other/error_dialog.dart';
 import 'package:flutter_app/ui/pages/other/components/user_profile.dart';
 import 'package:flutter_app/ui/pages/password/check_password_dialog.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get/get.dart';
+import 'package:flutter_app/ui/other/lucide_icons.dart';
 
 enum OtherMenuAction { setting, logout, report, about, login, changePassword }
 
@@ -41,35 +40,35 @@ class OtherPage extends StatefulWidget {
 class _OtherPageState extends State<OtherPage> {
   List<Map> optionList = [
     {
-      "icon": "img_setting.svg",
+      "icon": LucideIcons.settings,
       "title": R.current.setting,
       "onPress": OtherMenuAction.setting
     },
     if (Model.instance.getPassword().isNotEmpty)
       {
-        "icon": "img_refresh.svg",
+        "icon": LucideIcons.refreshCw,
         "title": R.current.changePassword,
         "onPress": OtherMenuAction.changePassword
       },
     if (Model.instance.getPassword().isNotEmpty)
       {
-        "icon": "img_logout.svg",
+        "icon": LucideIcons.logOut,
         "title": R.current.logout,
         "onPress": OtherMenuAction.logout
       },
     if (Model.instance.getPassword().isEmpty)
       {
-        "icon": "img_login.svg",
+        "icon": LucideIcons.logIn,
         "title": R.current.login,
         "onPress": OtherMenuAction.login
       },
     {
-      "icon": "img_message.svg",
+      "icon": LucideIcons.messageSquare,
       "title": R.current.feedback,
       "onPress": OtherMenuAction.report
     },
     {
-      "icon": "img_info.svg",
+      "icon": LucideIcons.info,
       "title": R.current.about,
       "onPress": OtherMenuAction.about
     }
@@ -208,8 +207,8 @@ class _OtherPageState extends State<OtherPage> {
                   borderRadius: BorderRadius.circular(999),
                   color: Get.theme.colorScheme.surface),
               padding: const EdgeInsets.all(8),
-              child: SvgPicture.asset("assets/image/${data['icon']}",
-                  colorFilter: svgTint(Get.theme.colorScheme.onSurface)),
+              child: Icon(data['icon'] as IconData,
+                  size: 24, color: Get.theme.colorScheme.onSurface),
             ),
             const SizedBox(width: 12),
             Text(
@@ -254,7 +253,7 @@ class _OtherPageState extends State<OtherPage> {
                         color: Get.theme.colorScheme.onSurfaceVariant),
                   ),
                 ),
-                Icon(Icons.refresh,
+                Icon(LucideIcons.refreshCw,
                     size: 20, color: Get.theme.colorScheme.onSurfaceVariant),
               ],
             ),

@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_app/ui/other/lucide_icons.dart';
 import 'package:flutter_app/src/R.dart';
 import 'package:flutter_app/src/connector/moodle_webapi_connector.dart';
 import 'package:flutter_app/src/controller/announcement/announcement_center_controller.dart';
@@ -83,7 +84,7 @@ class _AnnouncementCenterPageState extends State<AnnouncementCenterPage> {
           padding: const EdgeInsets.fromLTRB(12, 4, 12, 32),
           children: [
             SectionHeader(
-              icon: Icons.campaign_outlined,
+              icon: LucideIcons.megaphone,
               title: R.current.appAnnouncement,
               first: true,
             ),
@@ -98,7 +99,7 @@ class _AnnouncementCenterPageState extends State<AnnouncementCenterPage> {
               builder: _buildAppNotices,
             ),
             SectionHeader(
-              icon: Icons.notifications_none,
+              icon: LucideIcons.bell,
               title: R.current.moodleNotification,
               trailing: _MarkAllReadButton(controller: _controller),
             ),
@@ -202,7 +203,7 @@ class _AnnouncementCenterPageState extends State<AnnouncementCenterPage> {
   /// 區塊級的空狀態：兩半都是頁面中段的一塊，整頁級的 `EmptyState` 疊兩份
   /// 會變成同一張插圖上下重複兩次。
   Widget _empty(String message) => SectionEmptyState(
-        asset: "assets/image/img_message.svg",
+        icon: LucideIcons.bell,
         message: message,
       );
 }

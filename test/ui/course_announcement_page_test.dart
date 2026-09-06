@@ -16,6 +16,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:intl/intl.dart';
+import 'package:flutter_app/ui/other/lucide_icons.dart';
 
 import '../helpers/fake_auth_session.dart';
 import '../helpers/moodle_forum_fixtures.dart';
@@ -108,10 +109,10 @@ void main() {
     expect(find.text('第一週上課說明'), findsOneWidget);
     expect(find.text('停課通知'), findsOneWidget);
 
-    expect(find.byIcon(Icons.push_pin), findsOneWidget,
+    expect(find.byIcon(LucideIcons.pin), findsOneWidget,
         reason: '只有第一則是 pinned');
     expect(find.text('3 則回覆'), findsOneWidget);
-    expect(find.byIcon(Icons.mode_comment_outlined), findsOneWidget,
+    expect(find.byIcon(LucideIcons.messageSquare), findsOneWidget,
         reason: 'numreplies 是 0 的那兩則不畫回覆數');
 
     // fixture 那則是老師編輯過的（created < modified）。清單印建立時間，

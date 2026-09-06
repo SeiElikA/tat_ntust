@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_app/ui/other/svg_tint.dart';
 import 'package:flutter_app/src/R.dart';
 import 'package:flutter_app/ui/pages/subsystem/sub_system_page.dart';
 import 'package:flutter_app/ui/pages/score/score_page.dart';
@@ -11,8 +10,8 @@ import 'package:flutter_app/ui/pages/calendar/calendar_page.dart';
 import 'package:flutter_app/src/controller/announcement/notification_badge_controller.dart';
 import 'package:flutter_app/src/controller/main_page/main_controller.dart';
 import 'package:flutter_app/src/util/analytics_utils.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get/get.dart';
+import 'package:flutter_app/ui/other/lucide_icons.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -26,11 +25,11 @@ class _MainScreenState extends State<MainScreen>
   // 註冊在 AppBindings（lazyPut + fenix），這裡只取用。
   final controller = Get.find<MainController>();
   final items = [
-    {"icon": "img_clock.svg", "name": R.current.titleCourse},
-    {"icon": "img_info.svg", "name": R.current.informationSystem},
-    {"icon": "img_calendar.svg", "name": R.current.calendar},
-    {"icon": "img_book.svg", "name": R.current.titleScore},
-    {"icon": "img_menu.svg", "name": R.current.titleOther}
+    {"icon": LucideIcons.clock, "name": R.current.titleCourse},
+    {"icon": LucideIcons.info, "name": R.current.informationSystem},
+    {"icon": LucideIcons.calendar, "name": R.current.calendar},
+    {"icon": LucideIcons.bookOpen, "name": R.current.titleScore},
+    {"icon": LucideIcons.menu, "name": R.current.titleOther}
   ];
 
   @override
@@ -99,13 +98,14 @@ class _MainScreenState extends State<MainScreen>
         destinations: items.map((item) {
           final index = items.indexOf(item);
           return NavigationDestination(
-            icon: SvgPicture.asset(
-              "assets/image/${item["icon"]}",
-              colorFilter: svgTint(currentIndex == index
+            icon: Icon(
+              item["icon"] as IconData,
+              size: 24,
+              color: currentIndex == index
                   ? Get.theme.colorScheme.onSecondaryContainer
-                  : Get.theme.colorScheme.onSurfaceVariant),
+                  : Get.theme.colorScheme.onSurfaceVariant,
             ),
-            label: item["name"]!,
+            label: item["name"] as String,
           );
         }).toList(),
       );

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_app/ui/other/lucide_icons.dart';
 import 'package:flutter_app/src/R.dart';
 import 'package:flutter_app/src/model/moodle_webapi/moodle_message_popup_notifications.dart';
 import 'package:flutter_app/src/util/moodle_notification_utils.dart';
@@ -35,14 +36,12 @@ class NotificationTile extends StatelessWidget {
   static IconData iconFor(String? component) {
     final name = component ?? '';
     return switch (name) {
-      'mod_assign' => Icons.assignment_outlined,
-      'mod_forum' => Icons.forum_outlined,
-      'mod_quiz' => Icons.quiz_outlined,
-      'mod_feedback' || 'mod_choice' || 'mod_survey' => Icons.poll_outlined,
-      'mod_lesson' || 'mod_scorm' => Icons.menu_book_outlined,
-      _ => name.startsWith('mod_')
-          ? Icons.extension_outlined
-          : Icons.campaign_outlined,
+      'mod_assign' => LucideIcons.clipboardList,
+      'mod_forum' => LucideIcons.messagesSquare,
+      'mod_quiz' => LucideIcons.fileQuestion,
+      'mod_feedback' || 'mod_choice' || 'mod_survey' => LucideIcons.vote,
+      'mod_lesson' || 'mod_scorm' => LucideIcons.bookOpen,
+      _ => name.startsWith('mod_') ? LucideIcons.puzzle : LucideIcons.megaphone,
     };
   }
 
@@ -134,8 +133,10 @@ class NotificationTile extends StatelessWidget {
                 const SizedBox(width: 8),
                 Icon(
                   openable
-                      ? Icons.open_in_new
-                      : (expanded ? Icons.expand_less : Icons.expand_more),
+                      ? LucideIcons.externalLink
+                      : (expanded
+                          ? LucideIcons.chevronUp
+                          : LucideIcons.chevronDown),
                   size: openable ? 14 : 18,
                   color: scheme.onSurfaceVariant,
                 ),

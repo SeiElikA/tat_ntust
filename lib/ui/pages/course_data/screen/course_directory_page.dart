@@ -12,6 +12,7 @@ import 'package:flutter_app/src/model/moodle_webapi/moodle_core_course_get_conte
 import 'package:flutter_app/ui/routes/route_utils.dart';
 import 'package:flutter_app/ui/components/tile/course_info_tile.dart';
 import 'package:flutter_app/src/util/my_toast.dart';
+import 'package:flutter_app/ui/other/lucide_icons.dart';
 
 class CourseDirectoryPage extends StatefulWidget {
   final CourseInfoJson courseInfo;
@@ -34,7 +35,8 @@ class _CourseDirectoryPageState extends State<CourseDirectoryPage>
     with AutomaticKeepAliveClientMixin {
   /// null 代表還在載入。請求不能寫進 build()，否則每一次 rebuild（切主題、
   /// 切語言、鍵盤彈出、上層 setState）都會重跑整段流程。
-  Rxn<Result<List<MoodleCoreCourseGetContents>>> get _state => widget.controller.directory;
+  Rxn<Result<List<MoodleCoreCourseGetContents>>> get _state =>
+      widget.controller.directory;
 
   // 沒有 initState 觸發請求：由頁面在進入時一次發完三個（或兩個），
   // 見 CourseDataController.loadAll / CourseDetailController.loadAll。
@@ -64,7 +66,7 @@ class _CourseDirectoryPageState extends State<CourseDirectoryPage>
         return CourseInfoTile(
             index: index,
             title: ap.name,
-            img: "img_file",
+            icon: LucideIcons.fileText,
             isShowArrow: ap.modules.isNotEmpty,
             onTap: () {
               if (ap.modules.isEmpty) {

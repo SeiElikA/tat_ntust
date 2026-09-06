@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_app/src/R.dart';
 import 'package:get/get.dart';
+import 'package:flutter_app/ui/other/lucide_icons.dart';
 
 class CourseSearchBar extends StatelessWidget {
   const CourseSearchBar(
@@ -55,13 +56,13 @@ class CourseSearchBar extends StatelessWidget {
 
   Widget searchButton() {
     var icon = Icon(
-      CupertinoIcons.search,
+      LucideIcons.search,
       color: Get.theme.colorScheme.onSurface,
     );
 
     if (isBack) {
       icon = Icon(
-        Icons.arrow_back_ios_new,
+        LucideIcons.chevronLeft,
         size: 18,
         color: Get.theme.colorScheme.onSurface,
       );

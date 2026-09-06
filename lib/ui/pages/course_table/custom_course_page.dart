@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_app/ui/components/custom_snackbar.dart';
-import 'package:flutter_app/ui/other/svg_tint.dart';
 import 'package:flutter_app/src/R.dart';
 import 'package:flutter_app/src/controller/course_table/course_controller.dart';
 import 'package:flutter_app/ui/components/card/course_search_card.dart';
 import 'package:flutter_app/ui/components/input/search_bar.dart';
 import 'package:flutter_app/ui/components/page/base_page.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get/get.dart';
+import 'package:flutter_app/ui/other/lucide_icons.dart';
 
 class CustomCoursePage extends GetView<CourseController> {
   const CustomCoursePage({super.key});
@@ -58,9 +57,8 @@ class CustomCoursePage extends GetView<CourseController> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          SvgPicture.asset("assets/image/img_search.svg",
-              colorFilter: svgTint(Get.theme.colorScheme.onSurfaceVariant),
-              height: 76),
+          Icon(LucideIcons.search,
+              size: 76, color: Get.theme.colorScheme.onSurfaceVariant),
           const SizedBox(height: 24),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24.0),

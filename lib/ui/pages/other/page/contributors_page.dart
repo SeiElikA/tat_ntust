@@ -8,11 +8,12 @@ import 'package:flutter_app/ui/other/listview_animator.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:get/get.dart';
 import 'package:github/github.dart';
+import 'package:flutter_app/ui/other/lucide_icons.dart';
 
 class ContributorsPage extends StatelessWidget {
   final github = GitHub();
   final repositorySlug =
-  RepositorySlug(AppLink.githubOwner, AppLink.githubName);
+      RepositorySlug(AppLink.githubOwner, AppLink.githubName);
 
   ContributorsPage({super.key});
 
@@ -84,7 +85,8 @@ class ContributorsPage extends StatelessWidget {
             ],
           ),
           FutureBuilder<List<Contributor>>(
-            future: github.repositories.listContributors(repositorySlug).toList(),
+            future:
+                github.repositories.listContributors(repositorySlug).toList(),
             builder: (BuildContext context,
                 AsyncSnapshot<List<Contributor>> snapshot) {
               if (snapshot.hasData) {
@@ -129,7 +131,7 @@ class ContributorsPage extends StatelessWidget {
                 );
               } else if (snapshot.hasError) {
                 return const Center(
-                  child: Icon(Icons.error),
+                  child: Icon(LucideIcons.circleAlert),
                 );
               }
 

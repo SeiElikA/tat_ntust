@@ -19,6 +19,7 @@ import 'package:flutter_app/ui/pages/announcement/announcement_center_page.dart'
 import 'package:flutter_app/ui/pages/announcement/notification_tile.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_app/ui/other/lucide_icons.dart';
 import 'package:get/get.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
@@ -250,7 +251,7 @@ void main() {
     await pump(tester);
 
     expect(find.byType(NotificationTile), findsNWidgets(3));
-    expect(find.byIcon(Icons.history), findsOneWidget);
+    expect(find.byIcon(LucideIcons.history), findsOneWidget);
     expect(find.text('全部標為已讀'), findsNothing);
   });
 
@@ -267,7 +268,7 @@ void main() {
 
     // 樂觀標記已讀不可以把 Stale 升級成 Ok：橫幅是使用者唯一知道自己在看
     // 舊資料的訊號，而那顆按鈕離線按下去一定失敗。
-    expect(find.byIcon(Icons.history), findsOneWidget);
+    expect(find.byIcon(LucideIcons.history), findsOneWidget);
     expect(find.text('全部標為已讀'), findsNothing);
   });
 
@@ -342,14 +343,14 @@ void main() {
 
   test('icon 由 component 決定，不抓伺服器的 iconurl', () {
     // iconurl 是站台主題圖：每一列要多一次網路請求，深色模式也不會反相。
-    expect(NotificationTile.iconFor('mod_assign'), Icons.assignment_outlined);
-    expect(NotificationTile.iconFor('mod_forum'), Icons.forum_outlined);
-    expect(NotificationTile.iconFor('mod_quiz'), Icons.quiz_outlined);
-    expect(NotificationTile.iconFor('mod_choice'), Icons.poll_outlined);
+    expect(NotificationTile.iconFor('mod_assign'), LucideIcons.clipboardList);
+    expect(NotificationTile.iconFor('mod_forum'), LucideIcons.messagesSquare);
+    expect(NotificationTile.iconFor('mod_quiz'), LucideIcons.fileQuestion);
+    expect(NotificationTile.iconFor('mod_choice'), LucideIcons.vote);
     // 沒對到的模組仍然看得出是模組，core 與 null 才退回大聲公。
-    expect(NotificationTile.iconFor('mod_wiki'), Icons.extension_outlined);
-    expect(NotificationTile.iconFor('moodle'), Icons.campaign_outlined);
-    expect(NotificationTile.iconFor(null), Icons.campaign_outlined);
+    expect(NotificationTile.iconFor('mod_wiki'), LucideIcons.puzzle);
+    expect(NotificationTile.iconFor('moodle'), LucideIcons.megaphone);
+    expect(NotificationTile.iconFor(null), LucideIcons.megaphone);
   });
 
   test('這一頁不可以 import route_utils / error_page / base_page', () {
