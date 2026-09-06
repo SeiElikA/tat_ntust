@@ -74,16 +74,33 @@ class _CourseAnnouncementPageState extends State<CourseAnnouncementPage>
       itemBuilder: (context, index) => ForumDiscussionCard(
         discussion: data.discussions[index],
         formatter: formatter,
-        onTap: () => unawaited(Get.to(() => CourseForumThreadPage(
-              widget.courseInfo,
-              // discussion 才是討論串 id；id 是第一篇貼文的 id。
-              discussionId: data.discussions[index].discussion,
-              title: data.discussions[index].name,
-              fallbackDiscussion: data.discussions[index],
-              openWebView: widget.openWebView,
-            ))),
+        onTap: () => unawaited(_openThread(data, data.discussions[index])),
       ),
     );
+  }
+
+  Future<void> _openThread(
+      MoodleModForumGetForumDiscussions data, Discussions d) async {
+    await Get.to<void>(() => CourseForumThreadPage(
+          widget.courseInfo,
+          // discussion 才是討論串 id；id 是第一篇貼文的 id。
+          discussionId: d.discussion,
+          title: d.name,
+          // 合成欄位，由 connector 填；舊快取是 0，那時附件入口收起來。
+          forumId: data.forumId,
+          fallbackDiscussion: d,
+          // 公告區對學生是唯讀的（`replynews` 只給老師），網頁版也一樣，
+          // 所以那裡不該掛一條「去網頁回覆」的列。
+          readOnly: true,
+          // 主文被刪掉或被編輯過時這一頁的清單就過期了。少了這一行，被刪掉
+          // 的那一列會留在畫面上，點進去還會把剛刪掉的貼文再畫一次。
+          onDiscussionChanged: _refresh,
+          openWebView: widget.openWebView,
+        ));
+  }
+
+  void _refresh() {
+    if (mounted) unawaited(_load());
   }
 
   Widget _empty(String message) =>

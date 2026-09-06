@@ -42,7 +42,9 @@ void main() {
     //   回覆時 rootPostOf 會把它當成貼文標題畫出來）
     // - 貼文標題（MoodleForumPost.subject，_normalizePost）
     // - 回覆用的標題（MoodleForumPost.replysubject，_normalizePost；它會被
-    //   當成 subject 送回伺服器，也印在撰寫頁的引用卡上，兩邊都是純文字）
+    //   當成 subject 送回伺服器，純文字）
+    // - 編輯頁要填的標題（postForEditOf 的 post.subject；下游是撰寫頁的
+    //   TextField，純文字 sink）
     // - 站內通知的標題與來源名（MoodleNotification.subject /
     //   contexturlname，notificationsOf）
     // - 課程總分清單的課名與分數（fullname / shortname 與 grades[].grade，
@@ -51,8 +53,8 @@ void main() {
     // fullmessage / text）先剝標籤再 clean，輸出只進 tile 的 Text。
     // 下游全是 Text 與 AppBar / WebView 標題（upcoming_events_section 的
     // tile、course_assignment_page 的列、course_assignment_detail_page 的
-    // AppBar、成績列與「先前的繳交」那幾列、course_announcement_page 的清單卡片與討論串頁的
-    // AppBar、course_forum_thread_page 的卡片子標題與撰寫頁引用卡的標題、
+    // AppBar、成績列與「先前的繳交」那幾列、course_announcement_page 的清單卡片與
+    // 討論串頁的 AppBar、forum_post_block 的卡片子標題與撰寫頁標題欄的 TextField、
     // moodle_course_grades_page 的課名與分數、course_quiz_detail_page 的
     // AppBar、InAppWebViewPage 的 title）。
     const expected = {

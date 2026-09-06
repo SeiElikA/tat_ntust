@@ -306,9 +306,14 @@ class _OtherPageState extends State<OtherPage> {
 
     File? file;
     try {
-      file = await ImagePickService.instance.pick(action == AvatarAction.camera
-          ? ImagePickSource.camera
-          : ImagePickSource.gallery);
+      file = await ImagePickService.instance.pick(
+        action == AvatarAction.camera
+            ? ImagePickSource.camera
+            : ImagePickSource.gallery,
+        // 頭貼要縮圖與重新編碼，理由見 image_pick_service.dart 的常數註解。
+        maxEdge: kAvatarImageMaxEdge,
+        quality: kAvatarImageQuality,
+      );
     } on ImagePickFailure catch (e) {
       TaskUiDelegate.instance.toast(_pickFailureMessage(e.reason));
       return;

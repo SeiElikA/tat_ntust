@@ -4,6 +4,8 @@ import 'package:flutter_app/src/controller/course_data/course_forum_thread_contr
 import 'package:flutter_app/src/model/moodle_webapi/moodle_mod_forum_get_discussion_posts.dart';
 import 'package:flutter_app/src/repository/moodle_repository.dart';
 import 'package:flutter_app/src/repository/result.dart';
+import 'package:flutter_app/src/service/connectivity_probe.dart';
+import 'package:flutter_app/src/store/cache_store.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../helpers/reset_statics.dart';
@@ -77,5 +79,65 @@ void main() {
     repo.gate.complete();
     await loading;
     expect(c.posts.value?.dataOrNull, hasLength(2));
+  });
+
+  group('樂觀併入之後寫回快取', () {
+    /// 少了這一步，離線重開會看到已經刪掉的貼文、或編輯前的內容。
+    setUp(() {
+      ConnectivityProbe.instance = FakeConnectivityProbe(online: false);
+    });
+
+    tearDown(() {
+      ConnectivityProbe.instance = const PlatformConnectivityProbe();
+    });
+
+    Future<List<MoodleForumPost>?> cached() =>
+        CacheStore.instance.read(MoodleRepository.discussionPostsKey(7701));
+
+    test('replacePost：同 id 就地取代，快取跟著換', () async {
+      final c = controller();
+      await c.appendPost(MoodleForumPost(id: 900, message: '<p>舊的</p>'));
+
+      await c.replacePost(MoodleForumPost(id: 900, message: '<p>改過了</p>'));
+
+      expect(c.posts.value?.dataOrNull, hasLength(1));
+      expect(c.posts.value!.dataOrNull!.single.message, '<p>改過了</p>');
+      final blob = await cached();
+      expect(blob!.single.message, '<p>改過了</p>');
+    });
+
+    test('removePost：那一列從畫面與快取一起消失', () async {
+      final c = controller();
+      await c.appendPost(MoodleForumPost(id: 900));
+      await c.appendPost(MoodleForumPost(id: 950));
+
+      await c.removePost(950);
+
+      expect(c.posts.value!.dataOrNull!.map((p) => p.id), [900]);
+      expect((await cached())!.map((p) => p.id), [900]);
+    });
+
+    test('removePost 在還沒有任何貼文時什麼都不做（不會寫一份空的進快取）', () async {
+      final c = controller();
+
+      await c.removePost(950);
+
+      expect(c.posts.value, isNull);
+      expect(await cached(), isNull);
+    });
+  });
+
+  group('fresh', () {
+    test('Ok 才算新鮮；null 與 Stale 都不是——編輯與刪除的能力旗標會過期', () async {
+      final c = controller();
+      expect(c.fresh, isFalse);
+
+      await c.appendPost(MoodleForumPost(id: 900));
+      expect(c.fresh, isTrue);
+
+      c.posts.value = Stale<List<MoodleForumPost>>(
+          [MoodleForumPost(id: 900)], const Offline());
+      expect(c.fresh, isFalse);
+    });
   });
 }

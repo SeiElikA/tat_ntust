@@ -116,18 +116,38 @@ class MoodleForumPost {
   String toString() => jsonEncode(this);
 }
 
-/// post_exporter 的 `capabilities`。只建模 `reply`：其餘（edit / delete /
-/// split / canreplyprivately）沒有任何畫面在讀，宣告出來只會誘人接上一個
-/// 規格上一律導到網頁的功能。
+/// post_exporter 的 `capabilities`。建模 `reply` / `edit` / `delete`；其餘
+/// （split / canreplyprivately / export / …）沒有任何畫面在讀。
 ///
-/// **不要改看 `urls.reply`**：`selfenrol` 為真時那個網址也非 null，
-/// 但使用者其實不能回覆（見 docs/MOODLE_REFERENCE.md）。
+/// 三格都是**抓取當下**算出來的快照，畫在螢幕上就開始過期：
+/// - `edit` ＝ `can_edit_post()`，**含 `$CFG->maxeditingtime` 這個時間窗**，
+///   而那個設定沒有任何 web service 讀得到（site_info 與
+///   `tool_mobile_get_config` 都沒有），所以客戶端不可以自己算倒數。
+/// - `delete` ＝ `can_delete_post()`，匯出時 `$hasreplies` 吃預設值 `false`，
+///   也就是**根本沒有算回覆數**：true 的貼文照樣可能在真的刪的時候拿到
+///   `couldnotdeletereplies`。
+///
+/// `defaultValue: false` 是刻意的：舊快取沒有這兩個 key，預設 false 就是
+/// 「不畫」。
+///
+/// **不要改看 `urls.reply` / `urls.edit` / `urls.delete`**：`selfenrol` 為真時
+/// 那些網址在不能動的時候也非 null（見 docs/MOODLE_REFERENCE.md）。
 @JsonSerializable()
 class MoodleForumPostCapabilities {
   @JsonKey(name: 'reply', defaultValue: false)
   bool reply;
 
-  MoodleForumPostCapabilities({this.reply = false});
+  @JsonKey(name: 'edit', defaultValue: false)
+  bool edit;
+
+  @JsonKey(name: 'delete', defaultValue: false)
+  bool delete;
+
+  MoodleForumPostCapabilities({
+    this.reply = false,
+    this.edit = false,
+    this.delete = false,
+  });
 
   factory MoodleForumPostCapabilities.fromJson(Map<String, dynamic> json) =>
       _$MoodleForumPostCapabilitiesFromJson(json);

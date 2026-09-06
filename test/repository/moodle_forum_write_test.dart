@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart' show CancelToken, DioException, RequestOptions;
 import 'package:flutter_app/src/R.dart';
 import 'package:flutter_app/src/auth/auth_session.dart';
 import 'package:flutter_app/src/connector/core/connector_parameter.dart';
@@ -8,6 +9,7 @@ import 'package:flutter_app/src/repository/result.dart';
 import 'package:flutter_app/src/service/connectivity_probe.dart';
 import 'package:flutter_app/src/service/task_ui_delegate.dart';
 import 'package:flutter_app/src/store/cache_store.dart';
+import 'package:flutter_app/src/util/moodle_forum_edit_utils.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../helpers/fake_auth_session.dart';
@@ -66,14 +68,26 @@ void main() {
       final result = await MoodleRepository.instance
           .postReply(postId: 900, subject: 'Re: 期中考', text: '謝謝老師');
 
-      expect(result, isA<Ok<MoodleForumPost>>());
-      expect(result.dataOrNull?.id, 950);
-      expect(result.dataOrNull?.capabilities?.reply, isTrue);
+      expect(result, isA<Ok<ForumReplyOutcome>>());
+      expect(result.dataOrNull?.post.id, 950);
+      expect(result.dataOrNull?.post.capabilities?.reply, isTrue);
+      // 沒有附件就沒有話要說。
+      expect(result.dataOrNull?.warning, isNull);
       // 寫入路徑沒有 cache:，併回快取是 saveDiscussionPosts 的事。
       expect(
           await CacheStore.instance
               .read(MoodleRepository.discussionPostsKey(7701)),
           isNull);
+    });
+
+    test('capabilities 的 edit / delete 讀得進來（舊快取沒有這兩個 key，預設 false）', () async {
+      respondWith(() => loadMoodleForumFixture('add_discussion_post'));
+
+      final result = await MoodleRepository.instance
+          .postReply(postId: 900, subject: 's', text: 'm');
+
+      expect(result.dataOrNull!.post.capabilities?.edit, isTrue);
+      expect(result.dataOrNull!.post.capabilities?.delete, isTrue);
     });
 
     test('nopostforum → 對應好的中文句子，伺服器的英文原文不會出現', () async {
@@ -83,8 +97,8 @@ void main() {
       final result = await MoodleRepository.instance
           .postReply(postId: 900, subject: 's', text: 'm');
 
-      expect(result, isA<Failed<MoodleForumPost>>());
-      final reason = (result as Failed<MoodleForumPost>).reason;
+      expect(result, isA<Failed<ForumReplyOutcome>>());
+      final reason = (result as Failed<ForumReplyOutcome>).reason;
       expect(reason, isA<FetchFailed>());
       expect(reason.message, R.current.forumErrorNoPermission);
       expect(reason.message, isNot(contains('Sorry')));
@@ -100,7 +114,7 @@ void main() {
       final result = await MoodleRepository.instance
           .postReply(postId: 900, subject: 's', text: 'm');
 
-      expect((result as Failed<MoodleForumPost>).reason.message,
+      expect((result as Failed<ForumReplyOutcome>).reason.message,
           R.current.forumSendError);
     });
 
@@ -111,7 +125,7 @@ void main() {
       final result = await MoodleRepository.instance
           .postReply(postId: 900, subject: 's', text: 'm');
 
-      expect((result as Failed<MoodleForumPost>).reason, isA<Offline>());
+      expect((result as Failed<ForumReplyOutcome>).reason, isA<Offline>());
       expect(sent, isEmpty);
     });
 
@@ -134,11 +148,30 @@ void main() {
       final result = await MoodleRepository.instance
           .postDiscussion(forumId: 5499, subject: '請問作業', text: 'a < b\nc');
 
-      expect(result, isA<Ok<int>>());
-      expect(result.dataOrNull, 4321);
+      expect(result, isA<Ok<ForumDiscussionOutcome>>());
+      expect(result.dataOrNull?.discussionId, 4321);
       // add_discussion 沒有 messageformat，伺服器一律當 HTML 存。
       expect(sent.single['message'], 'a &lt; b<br>c');
       expect(sent.single['subject'], '請問作業');
+      // 剛打的標題要跟著回去：add_discussion 只回 discussionid，而剛建立的
+      // 主題還沒有出現在清單裡，呼叫端手上沒有別的來源。
+      expect(result.dataOrNull?.subject, '請問作業');
+    });
+
+    test('使用者按取消 → 說「已取消上傳」，不是「送出失敗；請重新整理確認是否已送出」', () async {
+      final token = CancelToken();
+      MoodleWebApiConnector.wsPost = (parameter) async {
+        token.cancel();
+        throw DioException.requestCancelled(
+            requestOptions: RequestOptions(), reason: null);
+      };
+
+      final result = await MoodleRepository.instance.postDiscussion(
+          forumId: 5499, subject: 's', text: 'm', cancelToken: token);
+
+      // 什麼都還沒送出去，叫人去找一則不存在的貼文是錯的。
+      expect((result as Failed<ForumDiscussionOutcome>).reason.message,
+          R.current.forumSendCancelled);
     });
 
     test('cannotcreatediscussion → 對應的句子', () async {
@@ -151,7 +184,7 @@ void main() {
       final result = await MoodleRepository.instance
           .postDiscussion(forumId: 5499, subject: 's', text: 'm');
 
-      expect((result as Failed<int>).reason.message,
+      expect((result as Failed<ForumDiscussionOutcome>).reason.message,
           R.current.forumErrorCannotCreateDiscussion);
     });
 
@@ -165,7 +198,7 @@ void main() {
       final result = await MoodleRepository.instance
           .postDiscussion(forumId: 5499, subject: 's', text: 'm');
 
-      expect((result as Failed<int>).reason.message,
+      expect((result as Failed<ForumDiscussionOutcome>).reason.message,
           R.current.forumErrorTooManyPosts);
     });
 
@@ -175,7 +208,7 @@ void main() {
       final result = await MoodleRepository.instance
           .postDiscussion(forumId: 5499, subject: 's', text: 'm');
 
-      expect(result, isA<Failed<int>>());
+      expect(result, isA<Failed<ForumDiscussionOutcome>>());
     });
   });
 

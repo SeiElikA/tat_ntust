@@ -11,9 +11,9 @@ TAT 把學校的單一登入、課程查詢、成績系統與 Moodle 包成一�
 | 項目 | 數值 |
 | --- | --- |
 | Flutter SDK | 3.38.5（鎖在 `.fvmrc`，fvm 與 Puro 都讀得到） |
-| `lib/` Dart 檔案 | 256（其中 27 個 `*.g.dart`），import 邊 962 |
+| `lib/` Dart 檔案 | 273（其中 30 個 `*.g.dart`），import 邊 1054 |
 | GetxController | 7，另有 1 個 GetxService（`AppService`） |
-| 測試 | 1304 個，126 個測試檔 |
+| 測試 | 1556 個，135 個測試檔 |
 | analyzer | `dart analyze --fatal-infos` 零問題 |
 | 外部系統 | 校內 6 台主機，校外 Firebase、GitHub API、Google Forms、Google Fonts、App Store / Google Play |
 | CI | GitHub Actions 三個 job：`analyze-and-test`、`build-android`、`build-ios` |
@@ -26,15 +26,15 @@ TAT 把學校的單一登入、課程查詢、成績系統與 Moodle 包成一�
 | rank | 層 | 目錄 | 檔案 | 職責 |
 | --- | --- | --- | --- | --- |
 | 0 | main | `lib/main.dart` | 1 | 啟動順序：Firebase、Dio、Model、安裝 AuthSession 與登入閘道、決定初始路由 |
-| 1 | ui | `lib/ui/` | 94 | 頁面、共用元件、兩個 WebView 登入頁、路由 |
-| 2 | controller | `lib/src/controller/` | 15 | 頁面狀態；只回資料，不開對話框 |
+| 1 | ui | `lib/ui/` | 103 | 頁面、共用元件、兩個 WebView 登入頁、路由 |
+| 2 | controller | `lib/src/controller/` | 17 | 頁面狀態；只回資料，不開對話框 |
 | 2.5 | repository | `lib/src/repository/` | 7 | 取資料的唯一入口，對外只回 `Result<T>` |
 | 3.5 | auth | `lib/src/auth/` | 3 | 登入狀態的唯一所有者 |
 | 4 | connector | `lib/src/connector/` | 10 | 唯一的 HTTP 出口：單一 Dio 加持久化 cookie jar。唯一不是 form-urlencoded 的出口是 `DioConnector.postMultipart`（換頭貼的上傳） |
-| 5 | util | `lib/src/util/`、`service/`、`file/`、`version/` | 40 | 靜態工具、GetxService、平台服務、下載、版本遷移與商店更新 |
+| 5 | util | `lib/src/util/`、`service/`、`file/`、`version/` | 43 | 靜態工具、GetxService、平台服務、下載、版本遷移與商店更新 |
 | 6 | store | `lib/src/store/` | 9 | 本機持久化，不碰網路 |
 | 7 | config | `lib/src/config/`、`R.dart`、`firebase_options.dart` | 9 | 純常數與多語系門面 |
-| 8 | model | `lib/src/model/`、`lib/src/enum/` | 58 | json_serializable 模型 |
+| 8 | model | `lib/src/model/`、`lib/src/enum/` | 65 | json_serializable 模型 |
 | 9 | generated | `lib/generated/`、`lib/l10n/` | 4 | Intl 產生物 |
 | 10 | log | `lib/debug/` | 2 | 橫切關注點 |
 
@@ -201,7 +201,7 @@ nullable：**「讀不到」不等於「沒登入」**。Android 從備份還原
 | 教務處行事曆<br>`www.academic.ntust.edu.tw` | 公開頁爬 `.ics` 連結後下載成 `calendar.ics`。這台主機少送一張中介憑證，由 `twca_intermediate.dart` 補上 | `NTUSTConnector.getCalendarUrl`<br>`calendar_repository.dart` |
 | 課程查詢 API<br>`querycourse.ntust.edu.tw` | 公開 JSON API，**不需登入**：關鍵字搜尋、課程詳細、用課號反查課表 | `course_connector.dart` |
 | 成績查詢系統<br>`stuinfosys.ntust.edu.tw` | 不走 Dio。HeadlessInAppWebView 載入頁面取 HTML 再解析 | `score_connector.dart` |
-| Moodle<br>`moodle2.ntust.edu.tw` | WebView 走 `admin/tool/mobile/launch.php` 取 wstoken，之後 POST wsfunction：`core_webservice_get_site_info`、`core_enrol_get_users_courses`、`core_course_get_contents`、`core_enrol_get_enrolled_users`、`mod_forum_get_forum_discussions`、`gradereport_user_get_grade_items`、通知偏好兩支、`tool_mobile_get_autologin_key`（WebView 免登入）、`core_calendar_get_action_events_by_timesort`（行事曆頁的待辦）、`gradereport_overview_get_course_grades`（成績分頁的「Moodle 目前成績」：這學期每一門課的即時總分，只在使用者開那一頁時發——伺服器會先把所有課重算一次成績）、`mod_assign_get_assignments` 與 `mod_assign_get_submission_status`（課程頁「作業」分頁與作業詳情：截止日期、繳交狀態、成績與回饋）、`mod_assign_save_submission` 與 `mod_assign_submit_for_grading`（在 App 內交作業：檔案與線上文字；團隊／有時限／匿名評分的作業一律導網頁。這兩支回的是**裸的 warnings 陣列**，`treatWarningsAsError` 看不到，見 docs/MOODLE_REFERENCE.md〈交作業那條路〉）、`mod_quiz_get_quizzes_by_courses`、`mod_quiz_get_user_attempts`（Moodle 5.0 起改名 `mod_quiz_get_user_quiz_attempts`，依 site_info 的 `functions[]` 擇一）與 `mod_quiz_get_user_best_grade`（課程目錄點測驗進去的唯讀資訊頁：開放時間、作答時限與剩餘次數、最佳成績與作答紀錄；作答一律導到網頁）、`mod_forum_get_forums_by_courses`（用 `type == 'news'` 找公告區）與 `mod_forum_get_discussion_posts`（公告討論串的回覆）、討論區發文三支（`mod_forum_add_discussion_post` 回覆、`mod_forum_add_discussion` 開新主題、`mod_forum_can_add_discussion` 問能不能開；App 內只發純文字，附件與排版導到網頁，格式與失敗判讀見 docs/MOODLE_REFERENCE.md）、站內通知五支（`message_popup_get_popup_notifications` 的清單、兩支未讀數與兩支標記已讀，見 docs/MOODLE_REFERENCE.md：三支的 `useridto` 不能送 0）、換頭貼與交作業共用的 `webservice/upload.php`（把檔案送進 draft 區換一個 itemid，再由 `core_user_update_picture` 套用或移除；前者不是 wsfunction，回的是 `text/plain`，見 docs/MOODLE_REFERENCE.md） | `moodle_webapi_connector.dart`<br>`moodle_login_page.dart` |
+| Moodle<br>`moodle2.ntust.edu.tw` | WebView 走 `admin/tool/mobile/launch.php` 取 wstoken，之後 POST wsfunction：`core_webservice_get_site_info`、`core_enrol_get_users_courses`、`core_course_get_contents`、`core_enrol_get_enrolled_users`、`mod_forum_get_forum_discussions`、`gradereport_user_get_grade_items`、通知偏好兩支、`tool_mobile_get_autologin_key`（WebView 免登入）、`core_calendar_get_action_events_by_timesort`（行事曆頁的待辦）、`gradereport_overview_get_course_grades`（成績分頁的「Moodle 目前成績」：這學期每一門課的即時總分，只在使用者開那一頁時發——伺服器會先把所有課重算一次成績）、`mod_assign_get_assignments` 與 `mod_assign_get_submission_status`（課程頁「作業」分頁與作業詳情：截止日期、繳交狀態、成績與回饋）、`mod_assign_save_submission` 與 `mod_assign_submit_for_grading`（在 App 內交作業：檔案與線上文字；團隊／有時限／匿名評分的作業一律導網頁。這兩支回的是**裸的 warnings 陣列**，`treatWarningsAsError` 看不到，見 docs/MOODLE_REFERENCE.md〈交作業那條路〉）、`mod_quiz_get_quizzes_by_courses`、`mod_quiz_get_user_attempts`（Moodle 5.0 起改名 `mod_quiz_get_user_quiz_attempts`，依 site_info 的 `functions[]` 擇一）與 `mod_quiz_get_user_best_grade`（課程目錄點測驗進去的唯讀資訊頁：開放時間、作答時限與剩餘次數、最佳成績與作答紀錄；作答一律導到網頁）、`mod_forum_get_forums_by_courses`（用 `type == 'news'` 找公告區）與 `mod_forum_get_discussion_posts`（公告討論串的回覆）、討論區讀寫八支（`mod_forum_add_discussion_post` 回覆、`mod_forum_add_discussion` 開新主題、`mod_forum_can_add_discussion` 問能不能開、`mod_forum_get_forum_access_information` 問能不能附檔、`mod_forum_get_discussion_post` 拿編輯要用的原文與新鮮能力、`mod_forum_prepare_draft_area_for_post` 編輯時保住既有附件、`mod_forum_update_discussion_post` 編輯、`mod_forum_delete_post` 刪除；App 內發的是純文字**加附件**，粗體／清單／表格與私訊回覆才導到網頁，格式與失敗判讀見 docs/MOODLE_REFERENCE.md）、站內通知五支（`message_popup_get_popup_notifications` 的清單、兩支未讀數與兩支標記已讀，見 docs/MOODLE_REFERENCE.md：三支的 `useridto` 不能送 0）、換頭貼與交作業共用的 `webservice/upload.php`（把檔案送進 draft 區換一個 itemid，再由 `core_user_update_picture` 套用或移除；前者不是 wsfunction，回的是 `text/plain`，見 docs/MOODLE_REFERENCE.md） | `moodle_webapi_connector.dart`<br>`moodle_login_page.dart` |
 | Firebase<br>`projectId ntust-tat` | Crashlytics 接 `FlutterError` 與 `runZonedGuarded`；Analytics 掛 navigatorObservers；Remote Config 讀公告；FCM 轉本地通知 | `lib/src/util/*_utils.dart` |
 | GitHub API | 貢獻者頁，`github` 套件 | `contributors_page.dart` |
 | App Store / Google Play | 啟動時問商店有沒有新版：Android 走 Play 的 in-app update（Play 自己的下載提示），iOS 用 `upgrader` 查 App Store 後跳對話框。兩邊都可以按「稍後」，沒有強制更新 | `store_update.dart`<br>`update_prompt.dart` |

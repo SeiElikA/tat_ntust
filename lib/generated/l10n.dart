@@ -3389,6 +3389,16 @@ class S {
     );
   }
 
+  /// `Replying to the topic: %s`
+  String get forumReplyingToTopic {
+    return Intl.message(
+      'Replying to the topic: %s',
+      name: 'forumReplyingToTopic',
+      desc: '',
+      args: [],
+    );
+  }
+
   /// `New discussion`
   String get forumNewDiscussion {
     return Intl.message(
@@ -3459,6 +3469,16 @@ class S {
     );
   }
 
+  /// `Upload cancelled`
+  String get forumSendCancelled {
+    return Intl.message(
+      'Upload cancelled',
+      name: 'forumSendCancelled',
+      desc: '',
+      args: [],
+    );
+  }
+
   /// `Enter a subject first`
   String get forumSubjectRequired {
     return Intl.message(
@@ -3484,16 +3504,6 @@ class S {
     return Intl.message(
       'Discard what you haven\'t posted yet?',
       name: 'forumDiscardDraft',
-      desc: '',
-      args: [],
-    );
-  }
-
-  /// `The app posts plain text only. Attachments, formatting, private replies and editing need the website.`
-  String get forumPlainTextOnly {
-    return Intl.message(
-      'The app posts plain text only. Attachments, formatting, private replies and editing need the website.',
-      name: 'forumPlainTextOnly',
       desc: '',
       args: [],
     );
@@ -3534,6 +3544,16 @@ class S {
     return Intl.message(
       'You can\'t post in this forum from the app',
       name: 'forumCannotPost',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `This forum is not open for new discussions`
+  String get forumCannotPostHere {
+    return Intl.message(
+      'This forum is not open for new discussions',
+      name: 'forumCannotPostHere',
       desc: '',
       args: [],
     );
@@ -4004,6 +4024,331 @@ class S {
     return Intl.message(
       'Couldn\'t open the camera or photo library right now. Please try again.',
       name: 'avatarPickerUnavailable',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Write a reply…`
+  String get forumReplyHint {
+    return Intl.message(
+      'Write a reply…',
+      name: 'forumReplyHint',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Reply to the first post instead`
+  String get forumCancelReplyTarget {
+    return Intl.message(
+      'Reply to the first post instead',
+      name: 'forumCancelReplyTarget',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Add attachment`
+  String get forumAddAttachment {
+    return Intl.message(
+      'Add attachment',
+      name: 'forumAddAttachment',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Take a photo`
+  String get forumAttachFromCamera {
+    return Intl.message(
+      'Take a photo',
+      name: 'forumAttachFromCamera',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Choose from library`
+  String get forumAttachFromGallery {
+    return Intl.message(
+      'Choose from library',
+      name: 'forumAttachFromGallery',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Choose a file`
+  String get forumAttachFromFiles {
+    return Intl.message(
+      'Choose a file',
+      name: 'forumAttachFromFiles',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Remove this attachment`
+  String get forumRemoveAttachment {
+    return Intl.message(
+      'Remove this attachment',
+      name: 'forumRemoveAttachment',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Up to %s files`
+  String get forumAttachmentLimit {
+    return Intl.message(
+      'Up to %s files',
+      name: 'forumAttachmentLimit',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Up to %s per file`
+  String get forumAttachmentSizeLimit {
+    return Intl.message(
+      'Up to %s per file',
+      name: 'forumAttachmentSizeLimit',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `"%s" is over the %s per-file limit`
+  String get forumAttachmentTooLarge {
+    return Intl.message(
+      '"%s" is over the %s per-file limit',
+      name: 'forumAttachmentTooLarge',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Two files share a name; Moodle keeps only the first, so rename one`
+  String get forumAttachmentDuplicateName {
+    return Intl.message(
+      'Two files share a name; Moodle keeps only the first, so rename one',
+      name: 'forumAttachmentDuplicateName',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `This forum allows at most %s attachments`
+  String get forumAttachmentCountExceeded {
+    return Intl.message(
+      'This forum allows at most %s attachments',
+      name: 'forumAttachmentCountExceeded',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `%s did not upload; check on the website`
+  String get forumAttachmentMissing {
+    return Intl.message(
+      '%s did not upload; check on the website',
+      name: 'forumAttachmentMissing',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `This forum does not allow attachments`
+  String get forumAttachmentDisabled {
+    return Intl.message(
+      'This forum does not allow attachments',
+      name: 'forumAttachmentDisabled',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `File upload is disabled on the school's Moodle`
+  String get forumAttachmentUploadDisabled {
+    return Intl.message(
+      'File upload is disabled on the school\'s Moodle',
+      name: 'forumAttachmentUploadDisabled',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Bold, lists and tables need the website editor.`
+  String get forumFormattingInWeb {
+    return Intl.message(
+      'Bold, lists and tables need the website editor.',
+      name: 'forumFormattingInWeb',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `edited`
+  String get forumEdited {
+    return Intl.message('edited', name: 'forumEdited', desc: '', args: []);
+  }
+
+  /// `Edit post`
+  String get forumEditPost {
+    return Intl.message('Edit post', name: 'forumEditPost', desc: '', args: []);
+  }
+
+  /// `Save`
+  String get forumSaveEdit {
+    return Intl.message('Save', name: 'forumSaveEdit', desc: '', args: []);
+  }
+
+  /// `Updated`
+  String get forumEditDone {
+    return Intl.message('Updated', name: 'forumEditDone', desc: '', args: []);
+  }
+
+  /// `Update failed; refresh to check whether it went through instead of saving again`
+  String get forumEditError {
+    return Intl.message(
+      'Update failed; refresh to check whether it went through instead of saving again',
+      name: 'forumEditError',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `The time window for editing this post has closed`
+  String get forumEditWindowClosed {
+    return Intl.message(
+      'The time window for editing this post has closed',
+      name: 'forumEditWindowClosed',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `This post has formatting or images the app cannot reproduce; editing it here would destroy them.`
+  String get forumEditRichWebOnly {
+    return Intl.message(
+      'This post has formatting or images the app cannot reproduce; editing it here would destroy them.',
+      name: 'forumEditRichWebOnly',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Edit on the website`
+  String get forumEditInWeb {
+    return Intl.message(
+      'Edit on the website',
+      name: 'forumEditInWeb',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `This post has attachments and the school's Moodle does not let the app edit it without breaking the attachment marker. Edit it on the website.`
+  String get forumEditAttachmentsWebOnly {
+    return Intl.message(
+      'This post has attachments and the school\'s Moodle does not let the app edit it without breaking the attachment marker. Edit it on the website.',
+      name: 'forumEditAttachmentsWebOnly',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `This post`
+  String get forumPostActions {
+    return Intl.message(
+      'This post',
+      name: 'forumPostActions',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Delete post`
+  String get forumDeletePost {
+    return Intl.message(
+      'Delete post',
+      name: 'forumDeletePost',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Delete this post?`
+  String get forumDeletePostConfirm {
+    return Intl.message(
+      'Delete this post?',
+      name: 'forumDeletePostConfirm',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `This is the first post: deleting it removes the whole discussion and every reply. Delete?`
+  String get forumDeleteTopicConfirm {
+    return Intl.message(
+      'This is the first post: deleting it removes the whole discussion and every reply. Delete?',
+      name: 'forumDeleteTopicConfirm',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Deleted`
+  String get forumDeleteDone {
+    return Intl.message('Deleted', name: 'forumDeleteDone', desc: '', args: []);
+  }
+
+  /// `Delete failed; refresh to check whether the post is still there`
+  String get forumDeleteError {
+    return Intl.message(
+      'Delete failed; refresh to check whether the post is still there',
+      name: 'forumDeleteError',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `This post can no longer be deleted`
+  String get forumCannotDeletePost {
+    return Intl.message(
+      'This post can no longer be deleted',
+      name: 'forumCannotDeletePost',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `This post has replies and cannot be deleted`
+  String get forumCannotDeleteHasReplies {
+    return Intl.message(
+      'This post has replies and cannot be deleted',
+      name: 'forumCannotDeleteHasReplies',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `This post has been rated and cannot be deleted`
+  String get forumCannotDeleteRated {
+    return Intl.message(
+      'This post has been rated and cannot be deleted',
+      name: 'forumCannotDeleteRated',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `You cannot edit this post`
+  String get forumErrorNoEditPermission {
+    return Intl.message(
+      'You cannot edit this post',
+      name: 'forumErrorNoEditPermission',
       desc: '',
       args: [],
     );

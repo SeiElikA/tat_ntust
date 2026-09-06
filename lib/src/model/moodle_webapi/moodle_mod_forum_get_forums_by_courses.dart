@@ -34,6 +34,18 @@ class MoodleForum {
   @JsonKey(name: 'cancreatediscussions')
   bool? cancreatediscussions;
 
+  /// 這個討論區最多能附幾個檔案。**0 ＝完全不准附件**（`forum_can_create_attachment`
+  /// 的第一個 AND 條件就是 `!empty($forum->maxattachments)`）。
+  @JsonKey(name: 'maxattachments', defaultValue: 0)
+  int maxattachments;
+
+  /// 附件的位元組上限。**`== 1` ＝完全不准附件**（Moodle 用 1 當那個哨兵值）；
+  /// **`== 0` ＝用課程／站台預設**，而課程層級的 `$COURSE->maxbytes`
+  /// **沒有任何 App 拿得到的 API**（`core_enrol_get_users_courses` 不回它），
+  /// 所以新增路徑的本地上限只能是近似值，見 `MoodleForumEditUtils.effectiveMaxBytes`。
+  @JsonKey(name: 'maxbytes', defaultValue: 0)
+  int maxbytes;
+
   MoodleForum({
     this.id = 0,
     this.course = 0,
@@ -42,6 +54,8 @@ class MoodleForum {
     this.cmid = 0,
     this.numdiscussions = 0,
     this.cancreatediscussions,
+    this.maxattachments = 0,
+    this.maxbytes = 0,
   });
 
   factory MoodleForum.fromJson(Map<String, dynamic> json) =>

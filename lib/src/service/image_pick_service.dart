@@ -21,29 +21,33 @@ class ImagePickFailure implements Exception {
   String toString() => 'ImagePickFailure($reason)';
 }
 
+/// 頭貼的縮圖參數。Moodle 的 process_new_icon 只吃 GIF/JPEG/PNG，而且是用
+/// getimagesize() 嗅內容不是看副檔名；Android 的 resizer 只有在指定了
+/// maxWidth/maxHeight 或 imageQuality<100 時才會重新編碼成 JPEG/PNG，不指定
+/// 就原封不動把 HEIC/WebP 丟上去——伺服器只會回一個沒有理由的 success:false。
+/// 所以這兩個值是正確性需求，不是最佳化。
+///
+/// 1024 而不是 512：Moodle 的 f3 是置中裁切後的 512x512，長邊剛好給 512
+/// 會讓它往上放大。
+const double kAvatarImageMaxEdge = 1024;
+const int kAvatarImageQuality = 90;
+
 /// 挑一張圖。抽成介面加靜態 instance（同 [InteractiveLoginGateway] 的做法）
 /// 是為了測試不必碰平台通道。
 abstract class ImagePickService {
   static ImagePickService instance = PlatformImagePickService();
 
   /// 使用者取消時回 null。權限被拒、相機不可用時丟 [ImagePickFailure]。
-  Future<File?> pick(ImagePickSource source);
+  ///
+  /// [maxEdge] 與 [quality] 都是 null ＝原圖原封不動送出來。**討論區附件走這
+  /// 一條**：一張白板照片被縮到長邊 1024 就讀不出字了，而附件沒有頭貼那層
+  /// 格式限制。頭貼要傳 [kAvatarImageMaxEdge] / [kAvatarImageQuality]。
+  Future<File?> pick(ImagePickSource source, {double? maxEdge, int? quality});
 }
 
 /// 走 image_picker 的正式實作。
 class PlatformImagePickService implements ImagePickService {
   PlatformImagePickService();
-
-  /// Moodle 的 process_new_icon 只吃 GIF/JPEG/PNG，而且是用 getimagesize()
-  /// 嗅內容不是看副檔名。Android 的 resizer 只有在指定了 maxWidth/maxHeight
-  /// 或 imageQuality<100 時才會重新編碼成 JPEG/PNG，不指定就原封不動把
-  /// HEIC/WebP 丟上去——伺服器只會回一個沒有理由的 success:false。
-  /// 所以這兩個參數是正確性需求，不是最佳化。
-  ///
-  /// 1024 而不是 512：Moodle 的 f3 是置中裁切後的 512x512，長邊剛好給 512
-  /// 會讓它往上放大。
-  static const double _maxEdge = 1024;
-  static const int _quality = 90;
 
   bool _configured = false;
 
@@ -59,16 +63,17 @@ class PlatformImagePickService implements ImagePickService {
   }
 
   @override
-  Future<File?> pick(ImagePickSource source) async {
+  Future<File?> pick(ImagePickSource source,
+      {double? maxEdge, int? quality}) async {
     _configure();
     try {
       final picked = await ImagePicker().pickImage(
         source: source == ImagePickSource.camera
             ? ImageSource.camera
             : ImageSource.gallery,
-        maxWidth: _maxEdge,
-        maxHeight: _maxEdge,
-        imageQuality: _quality,
+        maxWidth: maxEdge,
+        maxHeight: maxEdge,
+        imageQuality: quality,
         // 不要 EXIF：那裡面有 GPS，沒有理由送上學校伺服器。
         requestFullMetadata: false,
       );
@@ -100,5 +105,7 @@ class NoopImagePickService implements ImagePickService {
   const NoopImagePickService();
 
   @override
-  Future<File?> pick(ImagePickSource source) async => null;
+  Future<File?> pick(ImagePickSource source,
+          {double? maxEdge, int? quality}) async =>
+      null;
 }

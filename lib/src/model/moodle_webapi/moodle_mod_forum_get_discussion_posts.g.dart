@@ -77,12 +77,16 @@ MoodleForumPostCapabilities _$MoodleForumPostCapabilitiesFromJson(
         Map<String, dynamic> json) =>
     MoodleForumPostCapabilities(
       reply: json['reply'] as bool? ?? false,
+      edit: json['edit'] as bool? ?? false,
+      delete: json['delete'] as bool? ?? false,
     );
 
 Map<String, dynamic> _$MoodleForumPostCapabilitiesToJson(
         MoodleForumPostCapabilities instance) =>
     <String, dynamic>{
       'reply': instance.reply,
+      'edit': instance.edit,
+      'delete': instance.delete,
     };
 
 MoodleForumAuthor _$MoodleForumAuthorFromJson(Map<String, dynamic> json) =>

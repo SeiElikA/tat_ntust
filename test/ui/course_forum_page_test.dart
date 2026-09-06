@@ -18,6 +18,7 @@ import 'package:flutter_app/src/store/cache_store.dart';
 import 'package:flutter_app/ui/components/page/empty_state.dart';
 import 'package:flutter_app/ui/pages/course_data/screen/sub_page/course_forum_page.dart';
 import 'package:flutter_app/ui/pages/course_data/screen/sub_page/course_forum_thread_page.dart';
+import 'package:flutter_app/ui/pages/course_data/screen/widgets/forum_bottom_bar.dart';
 import 'package:flutter_app/ui/pages/course_data/screen/widgets/forum_discussion_card.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
@@ -136,14 +137,33 @@ void main() {
     expect(find.text(R.current.forumCannotPost), findsNothing);
   });
 
-  testWidgets('說不行 → 沒有 FAB，改說一句為什麼並留網頁入口', (tester) async {
+  testWidgets('伺服器說不行 → 沒有 FAB，說一句為什麼，而且不給網頁入口', (tester) async {
     repo.canAdd = Ok(MoodleCanAddDiscussion(status: false));
     await seedDiscussions(5499, fixtureDiscussions().discussions);
 
     await pump(tester);
 
     expect(find.byType(FloatingActionButton), findsNothing);
-    expect(find.text(R.current.forumCannotPost), findsOneWidget);
+    expect(find.text(R.current.forumCannotPostHere), findsOneWidget);
+    // 網頁版問的是同一個 forum_user_can_post_discussion，那顆鈕只會把人送去
+    // 一頁同樣被拒的畫面；也不可以說成是 App 的限制。
+    expect(find.text(R.current.forumOpenInWeb), findsNothing);
+    expect(find.text(R.current.forumCannotPost), findsNothing);
+    // 說明釘在底部，不是清單的最後一項：五十則主題不必捲到底才知道自己
+    // 不能發文。
+    expect(
+      find.descendant(
+          of: find.byType(ForumNoticeBar),
+          matching: find.text(R.current.forumCannotPostHere)),
+      findsOneWidget,
+    );
+    expect(
+      find.ancestor(
+          of: find.byType(ForumNoticeBar),
+          matching: find.byType(ForumDiscussionCard)),
+      findsNothing,
+      reason: '不可以再是清單裡的一列',
+    );
   });
 
   testWidgets('問不到能不能發文：不給 FAB，但說一句為什麼並給重試', (tester) async {
@@ -159,9 +179,10 @@ void main() {
 
     // 重試就地重問——不然只能離開頁面再進來一次。
     repo.canAdd = Ok(MoodleCanAddDiscussion(status: true));
-    await tester.tap(find.ancestor(
-        of: find.byIcon(LucideIcons.refreshCw),
-        matching: find.byWidgetPredicate((w) => w is ButtonStyleButton)));
+    // 限定在底列裡找：`Stale` 的橫幅上也有一顆「重新整理」。
+    await tester.tap(find.descendant(
+        of: find.byType(ForumNoticeBar),
+        matching: find.widgetWithText(TextButton, R.current.refresh)));
     await tester.pumpAndSettle();
 
     expect(find.byType(FloatingActionButton), findsOneWidget);
@@ -188,6 +209,22 @@ void main() {
     await pump(tester);
 
     expect(find.byType(FloatingActionButton), findsNothing);
+  });
+
+  testWidgets('主題清單那一列有附件時畫迴紋針——App 現在做得出附件，清單就該看得出誰有', (tester) async {
+    final list = fixtureDiscussions().discussions;
+    await seedDiscussions(5499, list);
+
+    await pump(tester);
+
+    // fixture 的第一則帶附件，第二則沒有。
+    expect(list.first.attachment, isTrue);
+    expect(
+      find.descendant(
+          of: find.byType(ForumDiscussionCard),
+          matching: find.byIcon(LucideIcons.paperclip)),
+      findsOneWidget,
+    );
   });
 
   testWidgets('AppBar 的「在網頁開啟」用注入的開啟器，網址帶語系', (tester) async {
