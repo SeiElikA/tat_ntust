@@ -17,6 +17,7 @@ import 'package:flutter_app/ui/pages/course_data/screen/widgets/assign_status_ch
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:flutter_app/ui/other/lucide_icons.dart';
 
 import '../helpers/fake_auth_session.dart';
 import '../helpers/moodle_assign_fixtures.dart';
@@ -237,7 +238,7 @@ void main() {
     expect(
       find.descendant(
         of: find.byType(AssignStatusChip),
-        matching: find.byIcon(Icons.history),
+        matching: find.byIcon(LucideIcons.history),
       ),
       findsOneWidget,
     );
@@ -311,7 +312,7 @@ void main() {
         find.byWidgetPredicate((w) => w is Image && w.image is NetworkImage));
     expect(network.width, 120);
     expect(network.height, 80);
-    expect(find.byIcon(Icons.broken_image_outlined), findsOneWidget);
+    expect(find.byIcon(LucideIcons.imageOff), findsOneWidget);
   });
 
   testWidgets('說明裡的連結：https 交給 openWebView，javascript: 被擋下', (tester) async {
@@ -426,7 +427,7 @@ void main() {
         s.submissionFor(a)!.files.length +
         s.feedback!.files.length;
     expect(files, greaterThan(0));
-    expect(find.byIcon(Icons.download_outlined), findsNWidgets(files));
+    expect(find.byIcon(LucideIcons.download), findsNWidgets(files));
   });
 
   testWidgets('超長中文檔名：截成兩行，不擠掉下載 icon 也不 overflow', (tester) async {
@@ -444,7 +445,7 @@ void main() {
         viewSize: const Size(360, 3000));
 
     expect(tester.takeException(), isNull);
-    expect(find.byIcon(Icons.download_outlined), findsOneWidget);
+    expect(find.byIcon(LucideIcons.download), findsOneWidget);
     final title = tester.widget<Text>(find.textContaining('期末專題報告與附錄'));
     expect(title.maxLines, 2);
     expect(title.overflow, TextOverflow.ellipsis);

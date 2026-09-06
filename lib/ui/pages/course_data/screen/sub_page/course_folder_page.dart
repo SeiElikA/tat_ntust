@@ -15,6 +15,7 @@ import 'package:flutter_app/ui/service/file_download.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import 'package:sprintf/sprintf.dart';
+import 'package:flutter_app/ui/other/lucide_icons.dart';
 
 /// 資料夾模組的某一層。Moodle 只回檔案，子資料夾是從 `filepath` 推出來的，
 /// 見 [MoodleFolderUtils]。
@@ -46,7 +47,7 @@ class CourseFolderPage extends StatelessWidget {
       appBar: baseAppbar(title: _title),
       body: listing.isEmpty
           ? EmptyState(
-              asset: "assets/image/img_folder.svg",
+              icon: LucideIcons.folder,
               message: R.current.folderEmpty,
             )
           : _tree(context, listing),
@@ -62,7 +63,7 @@ class CourseFolderPage extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
           sliver: SliverToBoxAdapter(
             child: SectionHeader(
-              icon: Icons.folder_outlined,
+              icon: LucideIcons.folder,
               title: _breadcrumb,
               first: true,
             ),
@@ -117,9 +118,9 @@ class CourseFolderPage extends StatelessWidget {
     return MoodleFileTile(
       filename: folder.name,
       subtitle: sprintf(R.current.folderFileCount, [folder.fileCount]),
-      leading: Icon(Icons.folder_rounded, size: 24, color: scheme.primary),
-      trailing:
-          Icon(Icons.chevron_right, size: 18, color: scheme.onSurfaceVariant),
+      leading: Icon(LucideIcons.folder, size: 24, color: scheme.primary),
+      trailing: Icon(LucideIcons.chevronRight,
+          size: 18, color: scheme.onSurfaceVariant),
       // GetX 拿 widget 型別當路由名，同一頁再推一次會被 preventDuplicates
       // 當成重複而靜默不推，子資料夾就點不進去。
       onTap: () => unawaited(Get.to(

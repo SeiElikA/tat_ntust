@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_app/ui/other/svg_tint.dart';
 import 'package:flutter_app/src/R.dart';
 import 'package:flutter_app/src/store/model.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get/get.dart';
+import 'package:flutter_app/ui/other/lucide_icons.dart';
 
 class CourseMenu extends StatelessWidget {
   const CourseMenu(
@@ -16,10 +15,7 @@ class CourseMenu extends StatelessWidget {
   Widget build(BuildContext context) {
     return PopupMenuButton<int>(
       onSelected: onSelected,
-      icon: SvgPicture.asset(
-        "assets/image/img_more.svg",
-        colorFilter: svgTint(Get.iconColor),
-      ),
+      icon: Icon(LucideIcons.ellipsisVertical, size: 24, color: Get.iconColor),
       splashRadius: 18,
       itemBuilder: (BuildContext context) => [
         PopupMenuItem(

@@ -16,6 +16,7 @@ import 'package:flutter_app/ui/pages/course_data/screen/sub_page/course_announce
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:flutter_app/ui/other/lucide_icons.dart';
 
 import '../helpers/fake_auth_session.dart';
 import '../helpers/moodle_forum_fixtures.dart';
@@ -164,7 +165,7 @@ void main() {
 
     expect(find.text('附件'), findsOneWidget);
     expect(find.widgetWithText(MoodleFileTile, 'slides.pdf'), findsOneWidget);
-    expect(find.byIcon(Icons.download_outlined), findsOneWidget);
+    expect(find.byIcon(LucideIcons.download), findsOneWidget);
   });
 
   testWidgets('抓不到回覆：仍然畫出公告本文加就地重試，不是整頁錯誤', (tester) async {

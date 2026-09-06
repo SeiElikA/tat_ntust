@@ -17,6 +17,7 @@ import 'package:flutter_app/ui/pages/course_data/screen/widgets/assign_status_ch
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:flutter_app/ui/other/lucide_icons.dart';
 
 import '../helpers/fake_auth_session.dart';
 import '../helpers/moodle_assign_fixtures.dart';
@@ -198,7 +199,7 @@ void main() {
     expect(
       find.descendant(
         of: find.byType(AssignStatusChip),
-        matching: find.byIcon(Icons.history),
+        matching: find.byIcon(LucideIcons.history),
       ),
       findsOneWidget,
     );

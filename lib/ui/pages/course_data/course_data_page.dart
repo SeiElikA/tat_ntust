@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter_app/src/controller/course_data/course_data_controller.dart';
 import 'package:auto_size_text/auto_size_text.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_app/ui/other/svg_tint.dart';
 import 'package:flutter_app/src/R.dart';
 import 'package:flutter_app/src/model/course/course_class_json.dart';
 import 'package:flutter_app/src/model/course_table/course_table_json.dart';
@@ -14,8 +13,8 @@ import 'package:flutter_app/ui/pages/course_data/screen/course_assignment_page.d
 import 'package:flutter_app/ui/pages/course_data/screen/course_directory_page.dart';
 import 'package:flutter_app/ui/pages/course_data/screen/course_score_page.dart';
 import 'package:flutter_app/ui/routes/route_utils.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get/get.dart';
+import 'package:flutter_app/ui/other/lucide_icons.dart';
 
 class CourseDataPage extends StatefulWidget {
   final CourseInfoJson courseInfo;
@@ -63,10 +62,10 @@ class _CourseDataPageState extends State<CourseDataPage>
       ),
     ];
     _tabItems = [
-      {"name": R.current.file, "icon": "img_file.svg"},
-      {"name": R.current.announcement, "icon": "img_message.svg"},
-      {"name": R.current.score, "icon": "img_education.svg"},
-      {"name": R.current.assignment, "icon": "img_clipboard.svg"},
+      {"name": R.current.file, "icon": LucideIcons.fileText},
+      {"name": R.current.announcement, "icon": LucideIcons.messageSquare},
+      {"name": R.current.score, "icon": LucideIcons.graduationCap},
+      {"name": R.current.assignment, "icon": LucideIcons.clipboardList},
     ];
     _tabController = TabController(vsync: this, length: _tabItems.length);
   }
@@ -113,11 +112,11 @@ class _CourseDataPageState extends State<CourseDataPage>
       tabs: items.map((item) {
         final index = items.indexOf(item);
         return Tab(
-          icon: SvgPicture.asset("assets/image/${item["icon"]}",
-              colorFilter: svgTint(_currentIndex == index
+          icon: Icon(item["icon"] as IconData,
+              size: 24,
+              color: _currentIndex == index
                   ? Get.theme.colorScheme.primary
                   : Get.theme.colorScheme.onSurface),
-              height: 24),
           iconMargin: const EdgeInsets.only(bottom: 6),
           child: AutoSizeText(
             item["name"] as String,

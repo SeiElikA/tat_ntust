@@ -6,9 +6,8 @@ import 'package:flutter_app/src/util/ui_utils.dart';
 import 'package:flutter_app/src/util/upcoming_event_utils.dart';
 import 'package:flutter_app/ui/components/page/inline_error_view.dart';
 import 'package:flutter_app/ui/components/page/result_view.dart';
-import 'package:flutter_app/ui/other/svg_tint.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get/get.dart';
+import 'package:flutter_app/ui/other/lucide_icons.dart';
 
 /// 行事曆頁底部的「待辦」區塊：所有課程的截止事項，分成逾期／今天／本週／之後。
 /// 不可 import error_page / route_utils，見 docs/ARCHITECTURE.md「UI 慣例」。
@@ -175,12 +174,12 @@ class UpcomingEventsSection extends StatelessWidget {
   }
 
   static IconData _iconFor(String? modulename) => switch (modulename) {
-        'assign' => Icons.assignment_outlined,
-        'quiz' => Icons.quiz_outlined,
-        'forum' => Icons.forum_outlined,
-        'lesson' || 'scorm' => Icons.menu_book_outlined,
-        'choice' || 'feedback' || 'survey' => Icons.poll_outlined,
-        _ => Icons.event_note_outlined,
+        'assign' => LucideIcons.clipboardList,
+        'quiz' => LucideIcons.fileQuestion,
+        'forum' => LucideIcons.messagesSquare,
+        'lesson' || 'scorm' => LucideIcons.bookOpen,
+        'choice' || 'feedback' || 'survey' => LucideIcons.vote,
+        _ => LucideIcons.calendarDays,
       };
 }
 
@@ -196,10 +195,10 @@ class _Empty extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            SvgPicture.asset(
-              'assets/image/img_calendar.svg',
-              colorFilter: svgTint(scheme.onSurface),
-              height: 56,
+            Icon(
+              LucideIcons.calendar,
+              size: 56,
+              color: scheme.onSurface,
             ),
             const SizedBox(height: 16),
             Text(

@@ -8,6 +8,7 @@ import 'package:flutter_app/ui/components/page/web_view_opener.dart';
 import 'package:flutter_app/ui/service/file_download.dart';
 import 'package:flutter_widget_from_html/flutter_widget_from_html.dart';
 import 'package:html/dom.dart' as dom;
+import 'package:flutter_app/ui/other/lucide_icons.dart';
 
 /// 給 [HtmlWidget.factoryBuilder] 的具名 tear-off，理由同 course_html_page。
 /// 深色模式換另一個：教材寫死的顏色要中和掉。
@@ -90,7 +91,7 @@ class MoodleHtmlView extends StatelessWidget {
       MoodleWebApiConnector.fileUrlWithToken(src),
       width: _pxAttribute(element, 'width'),
       height: _pxAttribute(element, 'height'),
-      errorBuilder: (_, __, ___) => const Icon(Icons.broken_image_outlined),
+      errorBuilder: (_, __, ___) => const Icon(LucideIcons.imageOff),
     );
   }
 

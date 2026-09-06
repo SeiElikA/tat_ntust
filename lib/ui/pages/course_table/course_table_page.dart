@@ -1,8 +1,6 @@
 import 'package:auto_size_text/auto_size_text.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_app/src/auth/auth_session.dart';
-import 'package:flutter_app/ui/other/svg_tint.dart';
 import 'package:flutter_app/src/R.dart';
 import 'package:flutter_app/ui/pages/course_table/modal/semester_dialog.dart';
 import 'package:flutter_app/ui/pages/course_table/modal/favorite_dialog.dart';
@@ -21,16 +19,15 @@ import 'package:flutter_app/ui/components/page/base_page.dart';
 import 'package:flutter_app/ui/components/widget_size_render_object.dart';
 import 'package:flutter_app/ui/pages/course_table/component/course_menu.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get/get.dart';
 import 'package:screenshot/screenshot.dart';
+import 'package:flutter_app/ui/other/lucide_icons.dart';
 
 class CourseTablePage extends GetView<CourseController> {
   const CourseTablePage({super.key});
 
   @override
   Widget build(BuildContext context) {
-
     controller.refreshSemester();
 
     return Obx(() {
@@ -47,12 +44,9 @@ class CourseTablePage extends GetView<CourseController> {
   List<Widget> actionList() {
     return [
       IconButton(
-        // SvgPicture 沒有語意資訊，純圖示按鈕在螢幕閱讀器下只會唸「按鈕」。
+        // 純圖示按鈕在螢幕閱讀器下只會唸「按鈕」，要靠 tooltip 補語意。
         tooltip: R.current.announcement,
-        icon: SvgPicture.asset(
-          "assets/image/img_announcement.svg",
-          colorFilter: svgTint(Get.iconColor),
-        ),
+        icon: Icon(LucideIcons.megaphone, color: Get.iconColor),
         iconSize: 24,
         splashRadius: 18,
         onPressed: () {
@@ -64,7 +58,7 @@ class CourseTablePage extends GetView<CourseController> {
         visible: AuthSession.instance.isSignedIn,
         child: IconButton(
           tooltip: R.current.refresh,
-          icon: const Icon(CupertinoIcons.refresh),
+          icon: const Icon(LucideIcons.refreshCw),
           splashRadius: 18,
           iconSize: 24,
           onPressed: () {
@@ -120,8 +114,8 @@ class CourseTablePage extends GetView<CourseController> {
                       const Padding(
                         padding: EdgeInsets.all(5),
                       ),
-                      SvgPicture.asset("assets/image/img_arrow_down.svg",
-                          colorFilter: svgTint(Get.iconColor))
+                      Icon(LucideIcons.chevronDown,
+                          size: 24, color: Get.iconColor)
                     ],
                   ),
                 ),

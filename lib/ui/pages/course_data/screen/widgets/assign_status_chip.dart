@@ -5,6 +5,7 @@ import 'package:flutter_app/src/model/moodle_webapi/moodle_mod_assign_get_submis
 import 'package:flutter_app/src/repository/result.dart';
 import 'package:flutter_app/src/util/moodle_assign_utils.dart';
 import 'package:sprintf/sprintf.dart';
+import 'package:flutter_app/ui/other/lucide_icons.dart';
 
 /// [DueHint] 對映成畫面文字。住在 UI 層是因為要 R.current；
 /// 作業分頁與詳情頁共用。
@@ -95,7 +96,7 @@ class AssignStatusChip extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           if (stale) ...[
-            Icon(Icons.history, size: 12, color: fg),
+            Icon(LucideIcons.history, size: 12, color: fg),
             const SizedBox(width: 4),
           ],
           Text(labelOf(status), style: TextStyle(fontSize: 12, color: fg)),

@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_app/ui/other/svg_tint.dart';
 import 'package:flutter_app/src/R.dart';
 import 'package:flutter_app/ui/routes/route_utils.dart';
 import 'package:flutter_app/src/version/app_version.dart';
@@ -12,8 +11,8 @@ import 'package:flutter_app/ui/components/custom_appbar.dart';
 import 'package:flutter_app/ui/other/listview_animator.dart';
 import 'package:flutter_app/src/util/my_toast.dart';
 import 'package:flutter_app/ui/pages/password/check_password_dialog.dart';
-import 'package:flutter_svg/svg.dart';
 import 'package:get/get.dart';
+import 'package:flutter_app/ui/other/lucide_icons.dart';
 
 enum AboutMenuAction { appUpdate, contribution, privacyPolicy, version, dev }
 
@@ -38,22 +37,22 @@ class _AboutPageState extends State<AboutPage> {
   void initList() {
     listViewData = [
       {
-        "icon": "img_update.svg",
+        "icon": LucideIcons.refreshCw,
         "title": R.current.checkVersion,
         "onPress": AboutMenuAction.appUpdate
       },
       {
-        "icon": "img_award.svg",
+        "icon": LucideIcons.award,
         "title": R.current.Contribution,
         "onPress": AboutMenuAction.contribution
       },
       {
-        "icon": "img_privacy.svg",
+        "icon": LucideIcons.shieldCheck,
         "title": R.current.PrivacyPolicy,
         "onPress": AboutMenuAction.privacyPolicy
       },
       {
-        "icon": "img_info.svg",
+        "icon": LucideIcons.info,
         "title": R.current.versionInfo,
         "onPress": AboutMenuAction.version
       }
@@ -65,7 +64,7 @@ class _AboutPageState extends State<AboutPage> {
     if (inDevMode) {
       setState(() {
         listViewData.add({
-          "icon": "img_dev.svg",
+          "icon": LucideIcons.codeXml,
           "title": R.current.developerMode,
           "onPress": AboutMenuAction.dev
         });
@@ -153,8 +152,8 @@ class _AboutPageState extends State<AboutPage> {
                   borderRadius: BorderRadius.circular(999),
                   color: Get.theme.colorScheme.surface),
               padding: const EdgeInsets.all(8),
-              child: SvgPicture.asset("assets/image/${data['icon']}",
-                  colorFilter: svgTint(Get.theme.colorScheme.onSurface)),
+              child: Icon(data['icon'] as IconData,
+                  size: 24, color: Get.theme.colorScheme.onSurface),
             ),
             const SizedBox(width: 12),
             Text(

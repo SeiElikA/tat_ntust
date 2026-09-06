@@ -17,6 +17,7 @@ import 'package:flutter_app/ui/components/page/web_view_opener.dart';
 import 'package:flutter_app/ui/components/tile/moodle_file_tile.dart';
 import 'package:flutter_app/ui/service/file_download.dart';
 import 'package:intl/intl.dart';
+import 'package:flutter_app/ui/other/lucide_icons.dart';
 
 /// 一則公告的討論串：第一篇加上全部回覆。WebView 開啟器由呼叫端注入，
 /// 見 docs/ARCHITECTURE.md「UI 慣例」；貼文本文走 [MoodleHtmlView]。
@@ -101,8 +102,7 @@ class _CourseAnnouncementDetailPageState
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             SectionHeader(
-              icon:
-                  t.depth == 0 ? Icons.campaign_outlined : Icons.reply_outlined,
+              icon: t.depth == 0 ? LucideIcons.megaphone : LucideIcons.reply,
               title: author.isNotEmpty ? author : R.current.forumUnknownAuthor,
               first: first,
               trailing: Text(

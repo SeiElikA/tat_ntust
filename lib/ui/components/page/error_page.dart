@@ -5,6 +5,7 @@ import 'package:flutter_app/src/R.dart';
 import 'package:flutter_app/ui/routes/route_utils.dart';
 import 'package:flutter_app/ui/components/adaptive_button.dart';
 import 'package:get/get.dart';
+import 'package:flutter_app/ui/other/lucide_icons.dart';
 
 class ErrorPage extends StatelessWidget {
   const ErrorPage({super.key, this.errorMsg});
@@ -66,7 +67,7 @@ class ErrorPage extends StatelessWidget {
   }
 
   Widget alertIcon() {
-    return const Icon(CupertinoIcons.exclamationmark_triangle_fill, size: 32);
+    return const Icon(LucideIcons.triangleAlert, size: 32);
   }
 
   Widget loginBtn() {

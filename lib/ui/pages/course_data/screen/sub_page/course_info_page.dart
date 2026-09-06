@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:expansion_tile_card/expansion_tile_card.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_app/ui/other/svg_tint.dart';
 import 'package:flutter_app/src/R.dart';
 import 'package:flutter_app/src/connector/core/connector.dart';
 import 'package:flutter_app/src/connector/moodle_webapi_connector.dart';
@@ -19,9 +18,9 @@ import 'package:flutter_app/ui/components/page/error_page.dart';
 import 'package:flutter_app/src/util/my_toast.dart';
 import 'package:flutter_app/ui/pages/course_data/screen/sub_page/course_assignment_detail_page.dart';
 import 'package:flutter_app/ui/pages/course_data/screen/sub_page/course_html_page.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_widget_from_html/flutter_widget_from_html.dart';
 import 'package:get/get.dart';
+import 'package:flutter_app/ui/other/lucide_icons.dart';
 
 class CourseInfoPage extends StatefulWidget {
   final CourseInfoJson courseInfo;
@@ -57,26 +56,23 @@ class _CourseInfoPageState extends State<CourseInfoPage> {
         modicon: ap.modicon,
       );
     }
-    return SvgPicture.asset(
-      "assets/image/${getIcon(ap.modname)}.svg",
-      colorFilter: svgTint(Get.iconColor),
-    );
+    return Icon(getIcon(ap.modname), size: 24, color: Get.iconColor);
   }
 
-  String getIcon(String type) {
+  IconData getIcon(String type) {
     switch (type) {
       case "forum":
-        return "img_message";
+        return LucideIcons.messageSquare;
       case "assign":
-        return "img_clipboard";
+        return LucideIcons.clipboardList;
       case "folder":
-        return "img_folder";
+        return LucideIcons.folder;
       case "label":
-        return "img_tag";
+        return LucideIcons.tag;
       case "url":
-        return "img_link";
+        return LucideIcons.link;
       default:
-        return "img_copy";
+        return LucideIcons.copy;
     }
   }
 
@@ -173,8 +169,8 @@ class _CourseInfoPageState extends State<CourseInfoPage> {
                   children: [
                     Expanded(
                       child: InkWell(
-                        child: SvgPicture.asset("assets/image/img_download.svg",
-                            colorFilter: svgTint(Get.iconColor)),
+                        child: Icon(LucideIcons.download,
+                            size: 24, color: Get.iconColor),
                         onTap: () {
                           handleTap(ap);
                         },

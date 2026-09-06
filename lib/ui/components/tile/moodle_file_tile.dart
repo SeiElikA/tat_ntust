@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_app/ui/components/file_type_icon.dart';
+import 'package:flutter_app/ui/other/lucide_icons.dart';
 
 /// Moodle 檔案的一列：類型 icon、檔名、下載提示。下載本身留給呼叫端，
 /// 它才知道要存到哪個課程資料夾。
@@ -56,8 +57,7 @@ class MoodleFileTile extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
               style: text.bodySmall?.copyWith(color: scheme.onSurfaceVariant)),
       trailing: trailing ??
-          Icon(Icons.download_outlined,
-              size: 18, color: scheme.onSurfaceVariant),
+          Icon(LucideIcons.download, size: 18, color: scheme.onSurfaceVariant),
       onTap: onTap,
     );
   }
