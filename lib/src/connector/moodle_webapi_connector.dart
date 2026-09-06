@@ -150,6 +150,16 @@ class MoodleWebApiConnector {
   static const String submissionStatusFunction =
       "mod_assign_get_submission_status";
 
+  /// 存一次繳交（type=write）。回的是**裸的 warnings 陣列**，見 [writeWarningOf]。
+  static const String saveSubmissionFunction = "mod_assign_save_submission";
+
+  /// 把草稿送出評分（type=write）。回傳形狀同上。
+  static const String submitForGradingFunction =
+      "mod_assign_submit_for_grading";
+
+  /// FORMAT_HTML。onlinetext 的 format 是 PARAM_INT。
+  static const int onlineTextFormatHtml = 1;
+
   static const String popupNotificationsFunction =
       "message_popup_get_popup_notifications";
 
@@ -395,6 +405,24 @@ class MoodleWebApiConnector {
     CancelToken? cancelToken,
   }) uploadPost = Connector.postMultipart;
 
+  /// 下載的傳輸層；可替換是為了讓測試不必連網路，同 [wsPost]。
+  @visibleForTesting
+  static Future<void> Function(
+    String url,
+    String savePath, {
+    CancelToken? cancelToken,
+    void Function(int received, int total)? onProgress,
+  }) fileDownloader = _downloadWithDio;
+
+  static Future<void> _downloadWithDio(
+    String url,
+    String savePath, {
+    CancelToken? cancelToken,
+    void Function(int received, int total)? onProgress,
+  }) =>
+      DioConnector.instance.download(url, (_) => savePath,
+          cancelToken: cancelToken, progressCallback: onProgress);
+
   /// 測試用：把 autologin 的節流狀態與注入點全部還原。
   ///
   /// 名字已經跟不上內容了（它現在也重設 [wsPost] 與 [uploadPost]），改名要動
@@ -407,6 +435,7 @@ class MoodleWebApiConnector {
     autologinTimeout = _defaultAutologinTimeout;
     wsPost = Connector.getJsonByPost;
     uploadPost = Connector.postMultipart;
+    fileDownloader = _downloadWithDio;
   }
 
   static final String _moodleHost = Uri.parse(host).host;
@@ -583,6 +612,43 @@ class MoodleWebApiConnector {
     }
 
     return null;
+  }
+
+  /// 寫入路徑第二個判讀點：`external_warnings` 是 `external_multiple_structure`，
+  /// 所以 `mod_assign_save_submission` 與 `mod_assign_submit_for_grading` 回的是
+  /// **裸陣列**而不是 `{warnings: [...]}`。[moodleErrorOf] 第一行就是
+  /// `if (data is! Map) return null`，`treatWarningsAsError` 對它們完全無效——
+  /// 照抄 toggleSetting 的寫法會 100% 把失敗當成功。成功是 `[]`。
+  static MoodleApiException? writeWarningOf(
+    dynamic result, {
+    required String wsFunction,
+  }) {
+    if (result is! List || result.isEmpty) return null;
+    final first = result.first;
+    return MoodleApiException(
+      wsFunction: wsFunction,
+      errorcode: first is Map ? first["warningcode"]?.toString() : null,
+      message: first is Map ? first["message"]?.toString() : first.toString(),
+      siteFunctionVersion: siteInfo?.wsVersion(wsFunction),
+    );
+  }
+
+  /// 寫入路徑第三個判讀點：形狀本身就是契約。`external_warnings` 只可能回
+  /// `[]` 或 `[{...}]`，所以**不是 List 就是這一趟根本沒到 Moodle**——
+  /// captive portal 的 HTML、代理的錯誤頁、`validateStatus` 放行的 500 都是
+  /// String 或 null，[moodleErrorOf] 與 [writeWarningOf] 兩個都會放行。
+  /// 讀取路徑可以 fail-open（它有快取可以退），寫入路徑不行。
+  static MoodleApiException? writeShapeErrorOf(
+    dynamic result, {
+    required String wsFunction,
+  }) {
+    if (result is List) return null;
+    return MoodleApiException(
+      wsFunction: wsFunction,
+      errorcode: "badresponse",
+      message: "$wsFunction 回的不是 warnings 陣列（${result.runtimeType}）",
+      siteFunctionVersion: siteInfo?.wsVersion(wsFunction),
+    );
   }
 
   /// 不在 site_info `functions[]` 裡的 function 送出去必定回 accessexception，
@@ -1415,6 +1481,96 @@ class MoodleWebApiConnector {
   /// 作業的網頁位址。[cmid] 是 course module id，不是 assign id。
   static String assignViewUrl(int cmid) => "$host/mod/assign/view.php?id=$cmid";
 
+  /// 存一次繳交。[draftItemId] 為 null＝不動檔案。
+  ///
+  /// [onlineText] 為 null 是「這份作業沒開 onlinetext 外掛」，**不是**「不動
+  /// 線上文字」——那個對稱不存在，見 `AssignSubmissionDraft.onlineText`。
+  ///
+  /// `files_filemanager` 一旦送出，伺服器會把繳交區**同步**成那個 draft 區的
+  /// 內容（`file_save_draft_area_files` 會把不在 draft 區裡的舊檔案 delete
+  /// 掉），所以絕對不要為了「只是加一個檔案」而送一個只有新檔案的 draft。
+  ///
+  /// 扁平鍵是刻意的：`DioConnector.dioOptions` 的 contentType 是
+  /// form-urlencoded，`preferences[0][type]`（toggleSetting）已經是同一種寫法。
+  static Future<bool> saveSubmission({
+    required int assignId,
+    String? onlineText,
+    int? draftItemId,
+  }) async {
+    if (onlineText == null && draftItemId == null) {
+      throw ArgumentError('plugindata 是必填結構，至少要有一個外掛的資料');
+    }
+    final data = <String, dynamic>{"assignmentid": assignId.toString()};
+    if (onlineText != null) {
+      data["plugindata[onlinetext_editor][text]"] = onlineText;
+      data["plugindata[onlinetext_editor][format]"] =
+          onlineTextFormatHtml.toString();
+      // itemid 送 0：file_postupdate_standard_editor 的 empty($editor['itemid'])
+      // 分支會整段跳過 draft 同步，內文沒有內嵌檔案就走這條（官方 App 相同）。
+      data["plugindata[onlinetext_editor][itemid]"] = "0";
+    }
+    if (draftItemId != null) {
+      data["plugindata[files_filemanager]"] = draftItemId.toString();
+    }
+    try {
+      final result = await _callWs(saveSubmissionFunction, data);
+      final shape =
+          writeShapeErrorOf(result, wsFunction: saveSubmissionFunction);
+      if (shape != null) throw shape;
+      final warning =
+          writeWarningOf(result, wsFunction: saveSubmissionFunction);
+      if (warning != null) throw warning;
+      return true;
+    } catch (e, stack) {
+      _reportAndRethrow(saveSubmissionFunction, e, stack);
+    }
+  }
+
+  /// 送出評分。[acceptStatement] 只在使用者真的勾了同意時才傳 true——
+  /// 伺服器會據此觸發 statement_accepted 稽核事件，代勾等於偽造同意紀錄。
+  static Future<bool> submitForGrading({
+    required int assignId,
+    required bool acceptStatement,
+  }) async {
+    try {
+      final result = await _callWs(submitForGradingFunction, {
+        "assignmentid": assignId.toString(),
+        "acceptsubmissionstatement": acceptStatement ? "1" : "0",
+      });
+      final shape =
+          writeShapeErrorOf(result, wsFunction: submitForGradingFunction);
+      if (shape != null) throw shape;
+      final warning =
+          writeWarningOf(result, wsFunction: submitForGradingFunction);
+      if (warning != null) throw warning;
+      return true;
+    } catch (e, stack) {
+      _reportAndRethrow(submitForGradingFunction, e, stack);
+    }
+  }
+
+  /// 把 Moodle 上的一個檔案抓到 [savePath]（重傳舊繳交檔案用）。網址一律先過
+  /// [fileUrlWithToken]；非自家 host 直接回 false，不附憑證也不下載。
+  static Future<bool> downloadFileTo(
+    String fileUrl,
+    String savePath, {
+    CancelToken? cancelToken,
+    void Function(int received, int total)? onProgress,
+  }) async {
+    if (!isOwnHost(Uri.tryParse(fileUrl))) {
+      Log.e("refuse to download a foreign host file");
+      return false;
+    }
+    try {
+      await fileDownloader(fileUrlWithToken(fileUrl), savePath,
+          cancelToken: cancelToken, onProgress: onProgress);
+      return true;
+    } catch (e, stack) {
+      Log.eWithStack("download submission file: $e", stack);
+      return false;
+    }
+  }
+
   /// 這門課（Moodle 內部 id）的全部測驗，抓不到回 null。日期已套過 override；
   /// `moodlewssettingfileurl` 要留著，intro 的 `@@PLUGINFILE@@` 才會換成網址。
   static Future<List<MoodleQuiz>?> getQuizzes(String courseId) async {
@@ -1847,17 +2003,20 @@ class MoodleWebApiConnector {
 
   /// 把一個檔案送進自己的 draft 檔案區，回 draft itemid。
   ///
-  /// 不送 itemid：`optional_param('itemid', 0, PARAM_INT)` 為 0 時伺服器會叫
-  /// `file_get_unused_draft_itemid()` 開一個新的，這也順便讓 filenameexist
-  /// 不可能發生。token 放 POST 欄位不放 query：`get_request_parameter` 先看
-  /// `$_POST`，而 query string 會被寫進學校的 access log。
-  /// filepath 也不送，預設就是 '/'。
+  /// [draftItemId] 為 null（或 0）時不送 itemid：
+  /// `optional_param('itemid', 0, PARAM_INT)` 為 0 時伺服器會叫
+  /// `file_get_unused_draft_itemid()` 開一個新的。要把多個檔案放進同一個
+  /// draft 區時，第二個以後要把第一次拿到的 itemid 送回來——同一區裡檔名重複
+  /// 會拿到 filenameexist，所以呼叫端必須先擋重名。
+  /// token 放 POST 欄位不放 query：`get_request_parameter` 先看 `$_POST`，
+  /// 而 query string 會被寫進學校的 access log。filepath 也不送，預設就是 '/'。
   ///
   /// MultipartFile 刻意不指定 contentType：upload.php 從不讀那一欄，
   /// `process_new_icon` 是用 `getimagesize()` 嗅內容的。
   static Future<int?> uploadDraftFile(
     File file, {
     required String filename,
+    int? draftItemId,
     void Function(int sent, int total)? onProgress,
     CancelToken? cancelToken,
   }) async {
@@ -1866,6 +2025,8 @@ class MoodleWebApiConnector {
     try {
       final formData = FormData.fromMap({
         "token": token,
+        if (draftItemId != null && draftItemId > 0)
+          "itemid": draftItemId.toString(),
         uploadFieldName:
             await MultipartFile.fromFile(file.path, filename: filename),
       });

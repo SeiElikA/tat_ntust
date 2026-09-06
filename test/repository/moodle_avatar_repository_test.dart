@@ -40,6 +40,7 @@ class _FakeRepo extends MoodleRepository {
   Future<int?> writeDraftFile(
     File file, {
     required String filename,
+    int? draftItemId,
     void Function(int sent, int total)? onProgress,
     CancelToken? cancelToken,
   }) async {

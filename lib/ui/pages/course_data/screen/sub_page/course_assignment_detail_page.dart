@@ -10,6 +10,9 @@ import 'package:flutter_app/src/model/moodle_webapi/moodle_mod_assign_get_assign
 import 'package:flutter_app/src/model/moodle_webapi/moodle_mod_assign_get_submission_status.dart';
 import 'package:flutter_app/src/repository/result.dart';
 import 'package:flutter_app/src/util/language_utils.dart';
+import 'package:flutter_app/src/repository/moodle_repository.dart';
+import 'package:flutter_app/src/service/task_ui_delegate.dart';
+import 'package:flutter_app/src/util/moodle_assign_submit_utils.dart';
 import 'package:flutter_app/src/util/moodle_assign_utils.dart';
 import 'package:flutter_app/ui/components/card/section_card.dart';
 import 'package:flutter_app/ui/components/custom_appbar.dart';
@@ -18,13 +21,14 @@ import 'package:flutter_app/ui/components/page/inline_error_view.dart';
 import 'package:flutter_app/ui/components/page/result_view.dart';
 import 'package:flutter_app/ui/components/page/web_view_opener.dart';
 import 'package:flutter_app/ui/components/tile/moodle_file_tile.dart';
+import 'package:flutter_app/ui/pages/course_data/screen/sub_page/course_assign_submit_page.dart';
 import 'package:flutter_app/ui/pages/course_data/screen/widgets/assign_status_chip.dart';
 import 'package:flutter_app/ui/service/file_download.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter_app/ui/other/lucide_icons.dart';
 
-/// 一份作業的唯讀詳情；繳交與編輯都走「在網頁開啟」。錯誤畫面與 WebView 開啟器
+/// 一份作業的詳情。可以在 App 內交的作業會多出繳交入口，其餘一律導網頁。錯誤畫面與 WebView 開啟器
 /// 由呼叫端注入，見 docs/ARCHITECTURE.md「UI 慣例」。三段 Moodle 原文 HTML
 /// 都走 [MoodleHtmlView]。
 class CourseAssignmentDetailPage extends StatefulWidget {
@@ -35,6 +39,7 @@ class CourseAssignmentDetailPage extends StatefulWidget {
     this.initialStatus,
     required this.errorBuilder,
     required this.openWebView,
+    this.onStatusChanged,
     super.key,
   });
 
@@ -51,6 +56,9 @@ class CourseAssignmentDetailPage extends StatefulWidget {
 
   final Widget Function(String message) errorBuilder;
   final WebViewOpener openWebView;
+
+  /// 繳交成功之後把新狀態往上帶（清單頁那一列的狀態籤要跟著換）。
+  final void Function(MoodleAssignSubmissionStatus status)? onStatusChanged;
 
   static String formatUnix(int unix) => DateFormat.yMd()
       .add_jm()
@@ -127,6 +135,7 @@ class _CourseAssignmentDetailPageState
         ),
         _introCard(a),
         const SizedBox(height: 28),
+        Obx(() => _submitSection(a)),
         FilledButton.tonalIcon(
           style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
           onPressed: () => unawaited(_openInWeb(a)),
@@ -135,6 +144,202 @@ class _CourseAssignmentDetailPageState
         ),
       ],
     );
+  }
+
+  /// 繳交入口。
+  ///
+  /// 作業本體與繳交狀態**兩個都必須是 `Ok`**：`submissiondrafts` 與 `configs`
+  /// 是後來才新增的欄位，舊的 `cache_moodle_assign` blob 解出來全是預設值，
+  /// 拿它當寫入依據會直接把草稿交出去。所以 `Stale` 一律改畫「請先重新整理」。
+  Widget _submitSection(MoodleAssignment a) {
+    final assignmentResult = _controller.assignment.value;
+    final statusResult = _controller.status.value;
+    // 還在載入或那一段已經自己畫了錯誤，這裡什麼都不加。
+    if (statusResult == null || !statusResult.hasData) {
+      return const SizedBox.shrink();
+    }
+    if (assignmentResult is! Ok<MoodleAssignment> ||
+        statusResult is! Ok<MoodleAssignSubmissionStatus>) {
+      return _needsFreshHint();
+    }
+
+    final status = statusResult.data;
+    final block = MoodleAssignSubmitUtils.blockOf(a, status);
+    if (block != null) {
+      final hint = switch (block) {
+        AssignSubmitBlock.team => R.current.assignSubmitWebOnlyTeam,
+        AssignSubmitBlock.timed => R.current.assignSubmitWebOnlyTimed,
+        AssignSubmitBlock.blind => R.current.assignSubmitWebOnlyBlind,
+        // 伺服器說不能交時入口根本不存在，也不對著沒權限的人喊話。
+        AssignSubmitBlock.closed ||
+        AssignSubmitBlock.noSubmission ||
+        AssignSubmitBlock.noPlugin =>
+          null,
+      };
+      if (hint == null) return const SizedBox.shrink();
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 12),
+        child: Text(
+          hint,
+          textAlign: TextAlign.center,
+          style: Theme.of(context)
+              .textTheme
+              .bodySmall
+              ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
+        ),
+      );
+    }
+
+    final sub = status.submissionFor(a);
+    return Column(
+      children: [
+        FilledButton.icon(
+          style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
+          onPressed: () => unawaited(_openSubmitPage(a, status)),
+          icon: const Icon(LucideIcons.filePen),
+          label: Text(sub == null
+              ? R.current.assignAddSubmission
+              : R.current.assignEditSubmission),
+        ),
+        if (status.canSubmit) ...[
+          const SizedBox(height: 8),
+          // 送出評分沒有進度框，按第二下就會再發一趟，而伺服器對第二趟一律回
+          // couldnotsubmitforgrading——把成功的那一次報成失敗。
+          Obx(() => FilledButton.tonalIcon(
+                style: FilledButton.styleFrom(
+                    minimumSize: const Size.fromHeight(48)),
+                onPressed: _controller.submitting.value
+                    ? null
+                    : () => unawaited(_submitForGrading(a)),
+                icon: const Icon(LucideIcons.sendHorizontal),
+                label: Text(R.current.assignSubmitForGrading),
+              )),
+        ],
+        const SizedBox(height: 12),
+      ],
+    );
+  }
+
+  /// 只有一行字：`Stale` 一定伴隨 [ResultView] 的舊資料橫幅，重新整理的入口
+  /// 在那上面，這裡再放一顆只是重複。
+  Widget _needsFreshHint() {
+    final scheme = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Text(
+        R.current.assignSubmitNeedsFresh,
+        textAlign: TextAlign.center,
+        style: Theme.of(context)
+            .textTheme
+            .bodySmall
+            ?.copyWith(color: scheme.onSurfaceVariant),
+      ),
+    );
+  }
+
+  Future<void> _openSubmitPage(
+      MoodleAssignment a, MoodleAssignSubmissionStatus status) async {
+    final result =
+        await Get.to<MoodleAssignSubmitResult>(() => CourseAssignSubmitPage(
+              assignment: a,
+              status: status,
+              courseName: _courseName,
+              openWebView: widget.openWebView,
+            ));
+    // result 非 null＝伺服器真的被寫過（成功或被拒都算）。這時候 status 為
+    // null 只代表「重抓那一趟失敗」，畫面不可以就這樣留在寫入前的狀態，
+    // 否則那顆鈕還會寫著「新增繳交」，邀請使用者再交一次。
+    if (result == null) return;
+    if (result.status != null) {
+      _applyFresh(result.status);
+      return;
+    }
+    TaskUiDelegate.instance.toast(R.current.assignStatusRefreshFailed);
+    unawaited(_reloadStatus());
+  }
+
+  /// 重抓繳交狀態，抓到就往上帶：清單那一列不會自己重抓。
+  Future<void> _reloadStatus() async {
+    await _controller.loadStatus();
+    if (!mounted) return;
+    final fresh = _controller.status.value?.dataOrNull;
+    if (fresh != null) widget.onStatusChanged?.call(fresh);
+  }
+
+  /// 送出評分。`requiresubmissionstatement` 在這條路上伺服器是真的會擋的
+  /// （`submit_for_grading` 回 false），但它不會說原因，所以先自己要求勾選；
+  /// 而且只有真的勾了才送 acceptsubmissionstatement=1——那會留下稽核事件。
+  Future<void> _submitForGrading(MoodleAssignment a) async {
+    final statement = a.submissionstatement ?? '';
+    final needsStatement = a.requiresStatement && statement.trim().isNotEmpty;
+    final accepted =
+        await _confirmSubmitForGrading(a, statement, needsStatement);
+    if (accepted == null) return;
+
+    final result =
+        await _controller.submitForGrading(acceptStatement: accepted);
+    // null＝已經有一趟在跑，這一次連請求都沒發，不能 toast 任何結果。
+    if (result == null) return;
+    TaskUiDelegate.instance
+        .toast(result.error ?? R.current.assignSubmittedToast);
+    // 失敗也要把重抓到的狀態往上帶：清單那一列看到的必須是伺服器的真相。
+    final fresh = result.fresh;
+    if (fresh != null) {
+      widget.onStatusChanged?.call(fresh);
+      return;
+    }
+    // 重抓不到就自己再抓一次，否則那顆「送出評分」會一直留在畫面上。
+    TaskUiDelegate.instance.toast(R.current.assignStatusRefreshFailed);
+    unawaited(_reloadStatus());
+  }
+
+  /// 回 null＝取消；回 bool＝使用者是否勾了同意（不需要聲明時是 false）。
+  Future<bool?> _confirmSubmitForGrading(
+      MoodleAssignment a, String statement, bool needsStatement) async {
+    var checked = false;
+    return Get.dialog<bool>(StatefulBuilder(
+      builder: (context, setInner) => AlertDialog.adaptive(
+        title: Text(R.current.assignSubmitForGrading),
+        content: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(R.current.assignSubmitForGradingConfirm),
+              if (needsStatement) ...[
+                const SizedBox(height: 12),
+                _html(statement, a.name),
+                CheckboxListTile(
+                  contentPadding: EdgeInsets.zero,
+                  controlAffinity: ListTileControlAffinity.leading,
+                  value: checked,
+                  onChanged: (v) => setInner(() => checked = v ?? false),
+                  title: Text(R.current.assignAcceptStatement),
+                ),
+              ],
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back<bool>(),
+            child: Text(R.current.cancel),
+          ),
+          TextButton(
+            onPressed: (needsStatement && !checked)
+                ? null
+                : () => Get.back<bool>(result: checked),
+            child: Text(R.current.sure),
+          ),
+        ],
+      ),
+    ));
+  }
+
+  void _applyFresh(MoodleAssignSubmissionStatus? fresh) {
+    if (fresh == null) return;
+    _controller.applyStatus(fresh);
+    widget.onStatusChanged?.call(fresh);
   }
 
   Widget _deadlineCard(MoodleAssignment a) {

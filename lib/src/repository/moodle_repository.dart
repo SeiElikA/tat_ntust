@@ -24,9 +24,11 @@ import 'package:flutter_app/src/repository/retry.dart';
 import 'package:flutter_app/src/repository/run.dart';
 import 'package:flutter_app/src/store/cache_store.dart';
 import 'package:flutter_app/src/util/file_utils.dart';
+import 'package:flutter_app/src/util/moodle_assign_submit_utils.dart';
 import 'package:flutter_app/src/util/moodle_assign_utils.dart';
 import 'package:flutter_app/src/util/moodle_avatar_utils.dart';
 import 'package:flutter_app/src/util/moodle_quiz_utils.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:sprintf/sprintf.dart';
 
 /// 課程頁各分頁、行事曆待辦與作業詳情的 Moodle 資料來源。取得分兩段：課號換
@@ -205,6 +207,15 @@ class MoodleRepository {
     };
   }
 
+  /// 繳交狀態的快取鍵。寫入路徑要用同一把，才補得回這一趟的新狀態。
+  static CacheKey<MoodleAssignSubmissionStatus> submissionStatusKey(
+          int assignId) =>
+      CacheKey<MoodleAssignSubmissionStatus>(
+        "cache_moodle_assign_status",
+        assignId.toString(),
+        decode: decodeCachedSubmissionStatus,
+      );
+
   /// 繳交狀態、成績與回饋。[assignId] 已是 Moodle 內部 id，不走 [_withCourse]。
   /// [background]：清單上 N 份並行抓時不彈框、不開登入頁；詳情頁傳 false。
   Future<Result<MoodleAssignSubmissionStatus>> getSubmissionStatus(
@@ -213,11 +224,7 @@ class MoodleRepository {
   }) =>
       run<MoodleAssignSubmissionStatus>(
         requires: const {SystemId.moodleWebApi},
-        cache: CacheKey<MoodleAssignSubmissionStatus>(
-          "cache_moodle_assign_status",
-          assignId.toString(),
-          decode: decodeCachedSubmissionStatus,
-        ),
+        cache: submissionStatusKey(assignId),
         fetch: () => MoodleWebApiConnector.getSubmissionStatus(assignId),
         errorMessage: R.current.getMoodleAssignmentStatusError,
         debugLabel: 'moodleAssignStatus',
@@ -464,12 +471,14 @@ class MoodleRepository {
   Future<int?> writeDraftFile(
     File file, {
     required String filename,
+    int? draftItemId,
     void Function(int sent, int total)? onProgress,
     CancelToken? cancelToken,
   }) =>
       MoodleWebApiConnector.uploadDraftFile(
         file,
         filename: filename,
+        draftItemId: draftItemId,
         onProgress: onProgress,
         cancelToken: cancelToken,
       );
@@ -554,7 +563,397 @@ class MoodleRepository {
     }
     return MoodleAvatarChange(url: result.profileimageurl);
   }
+
+  /// 寫入之後把重抓到的狀態補寫回同一筆快取。`run()` 只在 fetch 成功那一刻寫
+  /// 快取，而寫入路徑沒有 `cache:`，不補這一趟的話離線時會看到繳交前的狀態。
+  Future<void> saveSubmissionStatus(
+          int assignId, MoodleAssignSubmissionStatus status) =>
+      CacheStore.instance.write<MoodleAssignSubmissionStatus>(
+          submissionStatusKey(assignId), status);
+
+  @visibleForTesting
+  Future<bool> writeSubmission({
+    required int assignId,
+    String? onlineText,
+    int? draftItemId,
+  }) =>
+      MoodleWebApiConnector.saveSubmission(
+        assignId: assignId,
+        onlineText: onlineText,
+        draftItemId: draftItemId,
+      );
+
+  @visibleForTesting
+  Future<bool> writeSubmitForGrading({
+    required int assignId,
+    required bool acceptStatement,
+  }) =>
+      MoodleWebApiConnector.submitForGrading(
+          assignId: assignId, acceptStatement: acceptStatement);
+
+  @visibleForTesting
+  Future<bool> downloadOnlineFile(String fileUrl, String savePath,
+          {CancelToken? cancelToken,
+          void Function(int received, int total)? onProgress}) =>
+      MoodleWebApiConnector.downloadFileTo(fileUrl, savePath,
+          cancelToken: cancelToken, onProgress: onProgress);
+
+  @visibleForTesting
+  Future<MoodleAssignSubmissionStatus?> refetchSubmissionStatus(int assignId) =>
+      MoodleWebApiConnector.getSubmissionStatus(assignId);
+
+  /// 重傳舊檔案時的暫存目錄。抽成縫是因為 `getTemporaryDirectory()` 走平台通道，
+  /// 測試碰不到。
+  @visibleForTesting
+  Future<Directory> createSubmitTempDir() async {
+    final base = await getTemporaryDirectory();
+    final dir = Directory(
+        '${base.path}/assign_submit_${DateTime.now().microsecondsSinceEpoch}');
+    await dir.create(recursive: true);
+    return dir;
+  }
+
+  /// 交作業。走 `run()` 是為了它的登入保證與離線分類，不是快取。
+  ///
+  /// `retry: none`：這一趟中途可能已經把檔案送進 draft 區、甚至已經存了一次
+  /// 繳交，`run()` 的重試會從頭再跑一次 fetch，等於重傳＋重存。
+  ///
+  /// `background: false`：token 死掉時仍然要開得了 Moodle 登入頁——這是使用者
+  /// 主動按下的動作。
+  Future<Result<MoodleAssignSubmitResult>> saveAssignSubmission({
+    required MoodleAssignment assignment,
+    required MoodleAssignSubmissionStatus status,
+    required AssignSubmissionDraft draft,
+    void Function(AssignTransferProgress progress)? onProgress,
+    CancelToken? cancelToken,
+  }) =>
+      run<MoodleAssignSubmitResult>(
+        requires: const {SystemId.moodleWebApi},
+        retry: RetryPolicy.none,
+        errorMessage: R.current.assignSubmitError,
+        debugLabel: 'moodleSaveAssignSubmission',
+        fetch: () => _saveAssignSubmission(
+          assignment: assignment,
+          status: status,
+          draft: draft,
+          onProgress: onProgress,
+          cancelToken: cancelToken,
+        ),
+      );
+
+  /// 把已經存好的草稿送出評分。不動繳交內容，所以不走 `save_submission`。
+  ///
+  /// [acceptStatement] 只在使用者真的勾了同意時才是 true。
+  Future<Result<MoodleAssignSubmitResult>> submitAssignForGrading({
+    required MoodleAssignment assignment,
+    required MoodleAssignSubmissionStatus status,
+    required bool acceptStatement,
+  }) =>
+      run<MoodleAssignSubmitResult>(
+        requires: const {SystemId.moodleWebApi},
+        retry: RetryPolicy.none,
+        errorMessage: R.current.assignSubmitForGradingRejected,
+        debugLabel: 'moodleSubmitAssignForGrading',
+        fetch: () async {
+          // 縱深防禦：`cansubmit` 是伺服器唯一算得準的閘門。
+          if (!status.canSubmit) {
+            throw TaskFailure(
+                FetchFailed(R.current.assignSubmitForGradingRejected));
+          }
+          try {
+            await writeSubmitForGrading(
+              assignId: assignment.id,
+              acceptStatement: acceptStatement,
+            );
+          } on MoodleApiException catch (e) {
+            // 拒絕也要重抓：`couldnotsubmitforgrading` 不說原因，而伺服器可能
+            // 早就是 SUBMITTED（另一個裝置送過了）。Failed 帶不了資料，所以
+            // 走 Ok 加 error，由呼叫端 toast。
+            return MoodleAssignSubmitResult(
+              status: await _refreshStatus(assignment.id),
+              submitted: false,
+              error: assignSubmitFailureMessage(e),
+            );
+          }
+          return MoodleAssignSubmitResult(
+            status: await _refreshStatus(assignment.id),
+            submitted: true,
+          );
+        },
+      );
+
+  Future<MoodleAssignSubmitResult?> _saveAssignSubmission({
+    required MoodleAssignment assignment,
+    required MoodleAssignSubmissionStatus status,
+    required AssignSubmissionDraft draft,
+    void Function(AssignTransferProgress progress)? onProgress,
+    CancelToken? cancelToken,
+  }) async {
+    // 縱深防禦：UI 已經擋過一次，但按鈕畫出來到按下去之間可能已經過了截止時間。
+    if (MoodleAssignSubmitUtils.blockOf(assignment, status) != null) {
+      throw TaskFailure(FetchFailed(R.current.assignSubmitRejected));
+    }
+    if (draft.isEmpty) {
+      throw TaskFailure(FetchFailed(R.current.assignNothingToSubmit));
+    }
+
+    int? draftItemId;
+    Directory? tempDir;
+    // save_submission 不是原子的：assign::save_submission 逐一呼叫每個
+    // enabled 外掛的 save()，一個成功一個失敗也只回一則 couldnotsavesubmission。
+    // 所以只要送出去了，之後的失敗都必須帶著重抓回來的狀態。
+    var sentSubmission = false;
+    try {
+      final files = draft.files;
+      if (files != null) {
+        _checkDraftFiles(assignment, files);
+        // 逐一算大小：超限的檔案伺服器不會抱怨，只會靜靜不見。
+        for (final f in files) {
+          if (f is LocalDraftFile) {
+            final bytes = await f.file.length();
+            if (MoodleAssignSubmitUtils.exceedsSize(
+                bytes, MoodleAssignSubmitUtils.maxBytes(assignment))) {
+              throw TaskFailure(
+                  FetchFailed(sprintf(R.current.assignFileTooLarge, [
+                f.filename,
+                FileUtils.formatBytes(
+                    MoodleAssignSubmitUtils.maxBytes(assignment), 1)
+              ])));
+            }
+          }
+        }
+        draftItemId = await _buildDraftArea(
+          files,
+          onProgress: onProgress,
+          cancelToken: cancelToken,
+          openTempDir: () async => tempDir ??= await createSubmitTempDir(),
+        );
+      }
+
+      sentSubmission = true;
+      await writeSubmission(
+        assignId: assignment.id,
+        onlineText: draft.onlineText,
+        draftItemId: draftItemId,
+      );
+    } on MoodleApiException catch (e) {
+      final message = assignSubmitFailureMessage(e);
+      // 還沒送出 save_submission：伺服器上什麼都沒動，直接失敗。
+      if (!sentSubmission) throw TaskFailure(FetchFailed(message));
+      return MoodleAssignSubmitResult(
+        status: await _refreshStatus(assignment.id),
+        submitted: false,
+        error: message,
+      );
+    } finally {
+      await _removeTempDir(tempDir);
+    }
+
+    // 存檔已經成功了：這之後不論成敗都要重抓狀態，畫面不可以停在繳交前。
+    //
+    // `submissiondrafts == 0` 的作業 save_submission 已經把 status 設成
+    // SUBMITTED 了，再送一次 submit_for_grading 必定回 couldnotsubmitforgrading
+    // （`$submission->status == SUBMITTED` 那條 return false），會把成功的繳交
+    // 報成失敗——所以那種作業一律不送第二趟。
+    var submitFailed = false;
+    if (draft.submitForGrading && assignment.tracksDrafts) {
+      try {
+        await writeSubmitForGrading(
+          assignId: assignment.id,
+          acceptStatement: draft.acceptStatement,
+        );
+      } on MoodleApiException {
+        submitFailed = true;
+      }
+    }
+
+    final fresh = await _refreshStatus(assignment.id);
+    // 第 4 步成功、第 5 步失敗不可以報成功，但訊息要說清楚「已存檔、未送出評分」，
+    // 而且重抓到的狀態照樣要帶上去——內容真的存進去了，畫面停在存檔前才是說謊。
+    return MoodleAssignSubmitResult(
+      status: fresh,
+      submitted: !submitFailed &&
+          (draft.submitForGrading || !assignment.tracksDrafts),
+      error: submitFailed ? R.current.assignSavedNotSubmitted : null,
+    );
+  }
+
+  /// 送出前一定要在本地擋掉的三件事：重名（upload.php 會回 filenameexist）、
+  /// 超過檔案數（伺服器靜靜丟掉多的）、站台關掉上傳。
+  void _checkDraftFiles(
+      MoodleAssignment assignment, List<AssignDraftFile> files) {
+    // 空清單會把繳交區的檔案全部刪光（file_save_draft_area_files 的同步語意），
+    // 呼叫端的約定是「files 非 null 就必定非空」，這裡再擋一次。
+    if (files.isEmpty) {
+      throw TaskFailure(FetchFailed(R.current.assignFilesEmptiedWebOnly));
+    }
+    final duplicate = MoodleAssignSubmitUtils.duplicateFilename(files);
+    if (duplicate != null) {
+      throw TaskFailure(FetchFailed(R.current.assignFileDuplicateName));
+    }
+    final max = MoodleAssignSubmitUtils.maxFiles(assignment);
+    if (files.length > max) {
+      throw TaskFailure(FetchFailed(
+          sprintf(R.current.assignFileCountExceeded, [max.toString()])));
+    }
+    final site = MoodleWebApiConnector.siteInfo;
+    if (site != null && site.uploadfiles != 1) {
+      throw TaskFailure(FetchFailed(R.current.assignUploadDisabled));
+    }
+  }
+
+  /// 把整份清單送進同一個 draft 區，回那個 itemid。
+  ///
+  /// 第一個檔案不送 itemid（拿一個新的），其餘每一個都送回同一個；一個一個傳，
+  /// 不並行，避免伺服器端的競態。任何一個失敗就整批放棄——半套的 draft 送進
+  /// `save_submission` 就是「只交到一半」。
+  Future<int> _buildDraftArea(
+    List<AssignDraftFile> files, {
+    required Future<Directory> Function() openTempDir,
+    void Function(AssignTransferProgress progress)? onProgress,
+    CancelToken? cancelToken,
+  }) async {
+    int? itemId;
+    for (var i = 0; i < files.length; i++) {
+      final entry = files[i];
+      void report(AssignTransferPhase phase, double ratio) =>
+          onProgress?.call(AssignTransferProgress(
+            done: i,
+            total: files.length,
+            ratio: ratio,
+            phase: phase,
+            filename: entry.filename,
+          ));
+
+      final File local;
+      // 舊檔案要先下載再重傳，兩段各佔這個檔案的一半，進度條才不會倒退。
+      final double uploadBase;
+      if (entry is LocalDraftFile) {
+        uploadBase = 0;
+        report(AssignTransferPhase.upload, 0);
+        local = entry.file;
+      } else {
+        uploadBase = 0.5;
+        final online = entry as OnlineDraftFile;
+        report(AssignTransferPhase.download, 0);
+        final dir = await openTempDir();
+        final path = '${dir.path}/${i}_${_safeName(online.filename)}';
+        final ok = await downloadOnlineFile(
+          online.fileurl,
+          path,
+          cancelToken: cancelToken,
+          onProgress: (received, total) => report(AssignTransferPhase.download,
+              total <= 0 ? 0 : received / total * 0.5),
+        );
+        if (!ok) {
+          throw TaskFailure(FetchFailed(R.current.assignSubmitError));
+        }
+        local = File(path);
+        // 收到什麼就傳什麼是這條路上唯一會毀掉使用者沒動過的東西的地方：
+        // `files_filemanager` 是同步，把一頁錯誤 HTML 當成 report.pdf 傳上去，
+        // 伺服器就會刪掉真的那一份。長度對不上寧可整批放棄。
+        final bytes = await local.length();
+        if (bytes <= 0 || (online.filesize > 0 && bytes != online.filesize)) {
+          throw TaskFailure(FetchFailed(R.current.assignSubmitError));
+        }
+      }
+      final uploaded = await writeDraftFile(
+        local,
+        filename: entry.filename,
+        draftItemId: itemId,
+        onProgress: (sent, total) => report(AssignTransferPhase.upload,
+            uploadBase + (total <= 0 ? 0 : sent / total * (1 - uploadBase))),
+        cancelToken: cancelToken,
+      );
+      if (uploaded == null) {
+        throw TaskFailure(FetchFailed(R.current.assignSubmitError));
+      }
+      itemId ??= uploaded;
+    }
+    onProgress?.call(AssignTransferProgress(
+      done: files.length,
+      total: files.length,
+      ratio: 0,
+      phase: AssignTransferPhase.upload,
+    ));
+    // files 非 null 時約定必定非空，所以這裡一定有值。
+    return itemId!;
+  }
+
+  /// 檔名是伺服器給的（`clean_param(PARAM_FILE)`），仍然不信任它會不會帶分隔符。
+  static String _safeName(String filename) =>
+      filename.replaceAll(RegExp(r'[/\\]'), '_');
+
+  Future<void> _removeTempDir(Directory? dir) async {
+    if (dir == null) return;
+    try {
+      if (await dir.exists()) await dir.delete(recursive: true);
+    } catch (_) {
+      // 暫存檔清不掉不影響這次繳交，系統自己也會清。
+    }
+  }
+
+  /// 寫入之後一定要重抓：使用者看到的必須是伺服器的真相，不是我們的樂觀狀態。
+  ///
+  /// 重抓不到時把那一筆快取**刪掉**：留著的是寫入前的狀態，離線再開會理直氣壯
+  /// 地畫成「未繳交」。寧可退成錯誤畫面，也不要拿舊快照冒充現況。
+  Future<MoodleAssignSubmissionStatus?> _refreshStatus(int assignId) async {
+    try {
+      final fresh = await refetchSubmissionStatus(assignId);
+      if (fresh != null) {
+        await saveSubmissionStatus(assignId, fresh);
+        return fresh;
+      }
+    } catch (_) {
+      // 寫入本身已經成功了，重抓失敗不該把它翻成失敗。
+    }
+    await CacheStore.instance.removeEntry(submissionStatusKey(assignId));
+    return null;
+  }
 }
+
+/// 一次繳交的結果。沒有 `.g.dart`：不落地也不上傳。
+class MoodleAssignSubmitResult {
+  const MoodleAssignSubmitResult({
+    required this.status,
+    required this.submitted,
+    this.error,
+  });
+
+  /// 寫入之後重新抓的繳交狀態；抓不到是 null（寫入本身已經成功了）。
+  final MoodleAssignSubmissionStatus? status;
+
+  /// true = 已送出評分，或這份作業沒有草稿階段（存檔就是繳交）。
+  final bool submitted;
+
+  /// 非 null＝這一趟沒有完全成功，要 toast 這句話。**仍然是 `Ok`**：
+  /// [Failed] 帶不了資料，而 `save_submission` 不是原子的，被拒絕之後
+  /// [status] 才是唯一說得清楚伺服器上到底變成什麼樣子的東西。
+  final String? error;
+}
+
+/// 交作業的 errorcode 換成使用者看得懂的一句話。認不得的一律回
+/// [R.current.assignSubmitError]——把英文原文丟到畫面上不叫「處理錯誤」。
+/// `couldnotsavesubmission` 一碼多因（逾期／內容為空／外掛回錯），所以那一句
+/// 只能是涵蓋性的，真正的原因由重抓回來的狀態卡自己說。
+String assignSubmitFailureMessage(MoodleApiException e) =>
+    switch (e.errorcode) {
+      'couldnotsavesubmission' => R.current.assignSubmitRejected,
+      'couldnotsubmitforgrading' => R.current.assignSubmitForGradingRejected,
+      'submissionslocked' => R.current.assignSubmitLocked,
+      'nopermissions' ||
+      'required_capability_exception' ||
+      'accessexception' =>
+        R.current.assignSubmitNoPermission,
+      'filenameexist' => R.current.assignFileDuplicateName,
+      'fileoversized' ||
+      'userquotalimit' ||
+      'upload_error_ini_size' ||
+      'upload_error_form_size' =>
+        R.current.assignFileTooLargeUnknown,
+      'virusfounduser' => R.current.assignFileVirusFound,
+      _ => R.current.assignSubmitError,
+    };
 
 /// 換頭貼的結果。沒有 `.g.dart`：不落地也不上傳，沒有東西序列化它。
 class MoodleAvatarChange {

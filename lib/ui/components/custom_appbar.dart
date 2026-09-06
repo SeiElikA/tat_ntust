@@ -35,7 +35,8 @@ AppBar baseAppbar(
     List<Widget>? action,
     BuildContext? context,
     PreferredSizeWidget? bottom,
-    Color? backgroundColor}) {
+    Color? backgroundColor,
+    VoidCallback? onBack}) {
   return AppBar(
     systemOverlayStyle: SystemUiOverlayStyle(
       statusBarIconBrightness: Get.theme.brightness == Brightness.light
@@ -56,9 +57,9 @@ AppBar baseAppbar(
           size: 18,
           color: Get.theme.colorScheme.onSurface,
         ),
-        onPressed: () {
-          Get.back();
-        },
+        // 有寫入正在跑的頁面要自己接管：Get.back() 是 Navigator.pop，
+        // 會直接繞過 PopScope。
+        onPressed: onBack ?? () => Get.back(),
       ),
     ),
     actions: action,

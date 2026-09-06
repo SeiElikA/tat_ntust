@@ -245,8 +245,14 @@ class DioConnector {
         .downloadUri(Uri.parse(url), savePath,
             onReceiveProgress: progressCallback,
             cancelToken: cancelToken,
-            options:
-                Options(receiveTimeout: Duration.zero, headers: header)) //設置不超時
+            options: Options(
+              receiveTimeout: Duration.zero, //設置不超時
+              headers: header,
+              // 共用的 validateStatus 放行到 500，下載時那等於把 404 的錯誤頁、
+              // 維護頁與 PHP fatal 的 HTML 原封不動寫成檔案。非 2xx 一律當失敗。
+              validateStatus: (status) =>
+                  status != null && status >= 200 && status < 300,
+            ))
         .catchError((onError, stack) {
       Log.eWithStack(onError.toString(), stack);
       throw onError;

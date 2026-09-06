@@ -216,15 +216,19 @@ void main() {
       }
     });
 
-    test('清單快取不含 configs（模型沒宣告的 key 不落地）', () async {
+    test('清單快取帶著繳交規則，但沒人讀的欄位仍然不落地', () async {
       await CacheStore.instance.write(assignKey(), fixtureAssignments());
 
       final raw = await stores.plain.readString('cache_moodle_assign');
 
       expect(raw, isNotNull);
-      expect(raw, isNot(contains('configs')));
-      expect(raw, isNot(contains('submissionstatement')));
       expect(raw, contains('"cmid":93001'));
+      // 繳交入口要看 submissiondrafts 與 configs，所以它們現在有人讀了。
+      expect(raw, contains('"submissiondrafts":1'));
+      expect(raw, contains('configs'));
+      expect(raw, isNot(contains('hidegrader')));
+      expect(raw, isNot(contains('introfiles')));
+      expect(raw, isNot(contains('gradingduedate')));
     });
   });
 }

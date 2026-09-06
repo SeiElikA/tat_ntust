@@ -47,16 +47,58 @@ class MessageLookup extends MessageLookupByLibrary {
     "announcementPublishedAt": MessageLookupByLibrary.simpleMessage("發布時間"),
     "appAnnouncement": MessageLookupByLibrary.simpleMessage("TAT 公告"),
     "appAnnouncementEmpty": MessageLookupByLibrary.simpleMessage("目前沒有 TAT 公告"),
+    "assignAcceptStatement": MessageLookupByLibrary.simpleMessage(
+      "我已閱讀並同意上述聲明",
+    ),
+    "assignAddFiles": MessageLookupByLibrary.simpleMessage("新增檔案"),
+    "assignAddSubmission": MessageLookupByLibrary.simpleMessage("新增繳交"),
     "assignAllowSubmissionsFrom": MessageLookupByLibrary.simpleMessage("開放繳交"),
+    "assignAttachmentSection": MessageLookupByLibrary.simpleMessage("繳交的檔案"),
     "assignAttachments": MessageLookupByLibrary.simpleMessage("附件"),
     "assignCutoffDate": MessageLookupByLibrary.simpleMessage("最後繳交期限"),
+    "assignDiscardChanges": MessageLookupByLibrary.simpleMessage(
+      "要放棄尚未儲存的變更嗎？",
+    ),
+    "assignDraftSaved": MessageLookupByLibrary.simpleMessage("草稿已儲存"),
     "assignDueDate": MessageLookupByLibrary.simpleMessage("截止日期"),
     "assignDueInDays": MessageLookupByLibrary.simpleMessage("%s 天後截止"),
     "assignDueInHours": MessageLookupByLibrary.simpleMessage("%s 小時後截止"),
     "assignDueSoon": MessageLookupByLibrary.simpleMessage("一小時內截止"),
+    "assignEditSubmission": MessageLookupByLibrary.simpleMessage("編輯繳交"),
     "assignExtensionDueDate": MessageLookupByLibrary.simpleMessage("延長期限"),
     "assignFeedback": MessageLookupByLibrary.simpleMessage("老師回饋"),
     "assignFeedbackFiles": MessageLookupByLibrary.simpleMessage("回饋檔案"),
+    "assignFileCountExceeded": MessageLookupByLibrary.simpleMessage(
+      "這份作業最多只能交 %s 個檔案",
+    ),
+    "assignFileDuplicateName": MessageLookupByLibrary.simpleMessage(
+      "有兩個檔案同名，Moodle 只會收下第一個，請先改名",
+    ),
+    "assignFileLimit": MessageLookupByLibrary.simpleMessage("最多 %s 個檔案"),
+    "assignFilePickerDenied": MessageLookupByLibrary.simpleMessage(
+      "沒有讀取檔案的權限，請到系統設定開啟後再試",
+    ),
+    "assignFilePickerUnavailable": MessageLookupByLibrary.simpleMessage(
+      "現在無法開啟檔案選擇器，請稍後再試",
+    ),
+    "assignFileSizeLimit": MessageLookupByLibrary.simpleMessage("單一檔案上限 %s"),
+    "assignFileTooLarge": MessageLookupByLibrary.simpleMessage(
+      "「%s」超過單一檔案上限 %s",
+    ),
+    "assignFileTooLargeUnknown": MessageLookupByLibrary.simpleMessage(
+      "檔案超過學校 Moodle 的上傳大小上限",
+    ),
+    "assignFileTypeRejected": MessageLookupByLibrary.simpleMessage(
+      "「%s」不是這份作業允許的檔案類型",
+    ),
+    "assignFileTypes": MessageLookupByLibrary.simpleMessage("允許的檔案類型：%s"),
+    "assignFileVirusFound": MessageLookupByLibrary.simpleMessage(
+      "學校的防毒掃描擋下了這個檔案",
+    ),
+    "assignFilesEmptiedWebOnly": MessageLookupByLibrary.simpleMessage(
+      "要移除全部繳交的檔案請在網頁操作",
+    ),
+    "assignFilesEmpty": MessageLookupByLibrary.simpleMessage("還沒有選擇任何檔案"),
     "assignGrade": MessageLookupByLibrary.simpleMessage("成績"),
     "assignGradedAt": MessageLookupByLibrary.simpleMessage("評分時間"),
     "assignGradingStatus": MessageLookupByLibrary.simpleMessage("評分狀態"),
@@ -65,11 +107,24 @@ class MessageLookup extends MessageLookupByLibrary {
     "assignLastModified": MessageLookupByLibrary.simpleMessage("最後修改時間"),
     "assignNoDueDate": MessageLookupByLibrary.simpleMessage("沒有截止日期"),
     "assignNotGraded": MessageLookupByLibrary.simpleMessage("尚未評分"),
+    "assignNothingToSubmit": MessageLookupByLibrary.simpleMessage("沒有可以繳交的內容"),
     "assignOnlineText": MessageLookupByLibrary.simpleMessage("線上文字"),
+    "assignOnlineTextHint": MessageLookupByLibrary.simpleMessage(
+      "這裡輸入的內容會以純文字送出",
+    ),
+    "assignOnlineTextNotEditable": MessageLookupByLibrary.simpleMessage(
+      "目前的線上文字含有圖片或排版，在 App 內編輯會破壞它，請在網頁修改",
+    ),
     "assignOpenInWeb": MessageLookupByLibrary.simpleMessage("在網頁開啟"),
     "assignOverdueDays": MessageLookupByLibrary.simpleMessage("已逾期 %s 天"),
     "assignOverdueHours": MessageLookupByLibrary.simpleMessage("已逾期 %s 小時"),
     "assignOverdueJustNow": MessageLookupByLibrary.simpleMessage("剛過截止時間"),
+    "assignPreparingFile": MessageLookupByLibrary.simpleMessage("正在準備 %s"),
+    "assignRemoveFile": MessageLookupByLibrary.simpleMessage("移除這個檔案"),
+    "assignSaveDraft": MessageLookupByLibrary.simpleMessage("儲存草稿"),
+    "assignSavedNotSubmitted": MessageLookupByLibrary.simpleMessage(
+      "內容已存檔，但送出評分失敗，請重新整理後再送一次",
+    ),
     "assignSectionGradeFeedback": MessageLookupByLibrary.simpleMessage("成績與回饋"),
     "assignStatusDraft": MessageLookupByLibrary.simpleMessage("草稿"),
     "assignStatusGraded": MessageLookupByLibrary.simpleMessage("已評分"),
@@ -78,10 +133,63 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "assignStatusNotSubmitted": MessageLookupByLibrary.simpleMessage("未繳交"),
     "assignStatusOverdue": MessageLookupByLibrary.simpleMessage("已逾期"),
+    "assignStatusRefreshFailed": MessageLookupByLibrary.simpleMessage(
+      "已送出，但沒有抓到最新狀態，請重新整理確認",
+    ),
     "assignStatusSubmitted": MessageLookupByLibrary.simpleMessage("已繳交"),
+    "assignSubmissionStatement": MessageLookupByLibrary.simpleMessage("繳交聲明"),
     "assignSubmissionStatus": MessageLookupByLibrary.simpleMessage("繳交狀態"),
+    "assignSubmit": MessageLookupByLibrary.simpleMessage("繳交"),
+    "assignSubmitAgainWarning": MessageLookupByLibrary.simpleMessage(
+      "重新繳交會用這次的清單覆蓋目前已交的檔案",
+    ),
+    "assignSubmitBlockedByOnlineText": MessageLookupByLibrary.simpleMessage(
+      "現有的線上文字在 App 內無法安全覆蓋，這份作業請在網頁繳交",
+    ),
+    "assignSubmitCancelled": MessageLookupByLibrary.simpleMessage("已取消上傳"),
+    "assignSubmitDirectConfirm": MessageLookupByLibrary.simpleMessage(
+      "這份作業沒有草稿階段，存檔就等於正式繳交。確定要繳交嗎？",
+    ),
+    "assignSubmitError": MessageLookupByLibrary.simpleMessage("繳交失敗"),
+    "assignSubmitForGrading": MessageLookupByLibrary.simpleMessage("送出評分"),
+    "assignSubmitForGradingConfirm": MessageLookupByLibrary.simpleMessage(
+      "送出評分之後就不能再修改，確定要送出嗎？",
+    ),
+    "assignSubmitForGradingRejected": MessageLookupByLibrary.simpleMessage(
+      "Moodle 沒有接受送出評分，請重新整理後再試",
+    ),
+    "assignSubmitLocked": MessageLookupByLibrary.simpleMessage(
+      "這份繳交已被老師鎖定，無法再修改",
+    ),
+    "assignSubmitNeedsFresh": MessageLookupByLibrary.simpleMessage(
+      "繳交前需要最新的作業資料，請先重新整理",
+    ),
+    "assignSubmitNoPermission": MessageLookupByLibrary.simpleMessage(
+      "你的 Moodle 帳號沒有繳交這份作業的權限",
+    ),
+    "assignSubmitRejected": MessageLookupByLibrary.simpleMessage(
+      "Moodle 沒有收下這次繳交，可能已經超過期限或作業已關閉",
+    ),
+    "assignSubmitWebOnlyBlind": MessageLookupByLibrary.simpleMessage(
+      "這份作業採匿名評分，請在網頁繳交",
+    ),
+    "assignSubmitWebOnlyTeam": MessageLookupByLibrary.simpleMessage(
+      "這是團隊作業，請在網頁繳交",
+    ),
+    "assignSubmitWebOnlyTimed": MessageLookupByLibrary.simpleMessage(
+      "這份作業有作答時限，請在網頁繳交",
+    ),
     "assignSubmittedAt": MessageLookupByLibrary.simpleMessage("繳交時間"),
     "assignSubmittedFiles": MessageLookupByLibrary.simpleMessage("繳交的檔案"),
+    "assignSubmittedToast": MessageLookupByLibrary.simpleMessage("作業已繳交"),
+    "assignUploadDisabled": MessageLookupByLibrary.simpleMessage(
+      "學校的 Moodle 已停用檔案上傳",
+    ),
+    "assignUploadingFile": MessageLookupByLibrary.simpleMessage("正在上傳 %s"),
+    "assignWordCount": MessageLookupByLibrary.simpleMessage("字數 %s / 上限 %s"),
+    "assignWordCountExceeded": MessageLookupByLibrary.simpleMessage(
+      "超過字數上限，請刪減後再繳交",
+    ),
     "assignment": MessageLookupByLibrary.simpleMessage("作業"),
     "assignmentDetail": MessageLookupByLibrary.simpleMessage("作業詳情"),
     "assignmentEmpty": MessageLookupByLibrary.simpleMessage("這門課沒有作業"),

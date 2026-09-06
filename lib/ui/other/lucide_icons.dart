@@ -90,6 +90,9 @@ class LucideIcons {
   /// file-check-2
   static const IconData fileCheck2 = IconData(0xe0c2, fontFamily: _family);
 
+  /// file-pen
+  static const IconData filePen = IconData(0xe31f, fontFamily: _family);
+
   /// file-question
   static const IconData fileQuestion = IconData(0xe322, fontFamily: _family);
 
@@ -144,6 +147,9 @@ class LucideIcons {
   /// minus
   static const IconData minus = IconData(0xe11c, fontFamily: _family);
 
+  /// paperclip
+  static const IconData paperclip = IconData(0xe12d, fontFamily: _family);
+
   /// pencil
   static const IconData pencil = IconData(0xe1f9, fontFamily: _family);
 
@@ -164,6 +170,9 @@ class LucideIcons {
 
   /// search
   static const IconData search = IconData(0xe151, fontFamily: _family);
+
+  /// send-horizontal
+  static const IconData sendHorizontal = IconData(0xe4f2, fontFamily: _family);
 
   /// settings
   static const IconData settings = IconData(0xe154, fontFamily: _family);
