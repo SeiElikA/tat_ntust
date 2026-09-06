@@ -2,49 +2,38 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_app/src/R.dart';
 import 'package:flutter_app/src/auth/auth_session.dart';
 import 'package:flutter_app/src/connector/moodle_webapi_connector.dart';
+import 'package:flutter_app/src/model/moodle_webapi/moodle_core_calendar_action_events.dart';
 import 'package:flutter_app/src/model/moodle_webapi/moodle_core_course_get_contents.dart';
 import 'package:flutter_app/src/model/moodle_webapi/moodle_core_enrol_get_users.dart';
 import 'package:flutter_app/src/model/moodle_webapi/moodle_gradereport_get_grade_items.dart';
+import 'package:flutter_app/src/model/moodle_webapi/moodle_mod_assign_get_assignments.dart';
+import 'package:flutter_app/src/model/moodle_webapi/moodle_mod_assign_get_submission_status.dart';
+import 'package:flutter_app/src/model/moodle_webapi/moodle_mod_forum_get_discussion_posts.dart';
 import 'package:flutter_app/src/model/moodle_webapi/moodle_mod_forum_get_forum_discussions.dart';
 import 'package:flutter_app/src/repository/result.dart';
+import 'package:flutter_app/src/repository/retry.dart';
 import 'package:flutter_app/src/repository/run.dart';
 import 'package:flutter_app/src/store/cache_store.dart';
+import 'package:flutter_app/src/util/moodle_assign_utils.dart';
 
-/// 課程頁四個分頁的資料來源。
-///
-/// 每一次取得都是兩段：先把課號換成 Moodle 的內部 id，再用那個 id 拿資料。
-/// **第一段失敗必須在 `fetch` 內丟 [TaskFailure]**，這樣 `run()` 的失敗路徑
-/// 才會去讀 [CacheKey] 而回得出 [Stale]；否則離線使用者看不到已經存在硬碟上
-/// 的成績。
+/// 課程頁各分頁、行事曆待辦與作業詳情的 Moodle 資料來源。取得分兩段：課號換
+/// 內部 id、再拿資料；第一段失敗必須在 `fetch` 內丟 [TaskFailure]，否則
+/// `run()` 不會去讀快取，離線使用者就看不到硬碟上的資料。
 class MoodleRepository {
   MoodleRepository();
 
   static MoodleRepository instance = MoodleRepository();
 
-  /// 課號到 Moodle 內部 id 的對照。
-  ///
-  /// 四個分頁共用同一個 name，只靠 courseId 分筆，而課程頁的分頁是並行載入
-  /// 的。整包 blob 的無鎖覆寫由 `CacheStore` 內部的 per-name 佇列負責，這裡
-  /// 不需要也不應該自己再加鎖。
+  /// 課號到 Moodle 內部 id 的對照。分頁並行寫同一包 blob，覆寫由 `CacheStore`
+  /// 內部的 per-name 佇列負責，這裡不該再自己加鎖。
   static CacheKey<String> _findIdKey(String courseId) => CacheKey<String>(
         "cache_moodle_support",
         courseId,
         decode: (json) => json as String,
       );
 
-  /// 第一段（課號 → Moodle 內部 id）正在解析中的課程 id。
-  ///
-  /// read-through：命中就完全不打網路。`getCourseUrl` 內含兩次 POST，三個
-  /// 分頁並行時差別是六次網路往返。找不到對應時丟 [UnsupportedCourse]
-  /// （不可重試），並清掉對照表那一筆，下次重試才會重新解析。
-  ///
-  /// 課程頁一次發出三個請求（檔案、公告、成績），少了這張表三個會同時 miss
-  /// 快取、同時打 `core_course_get_courses_by_field`——第一次寫進快取之前另外
-  /// 兩次早就出發了，快取擋不住。
-  ///
-  /// 用 static 而不是實例欄位，理由與 `AppAuthSession.inFlight` 相同：
-  /// `MoodleRepository.instance` 在測試裡會被換掉，去重要跨得過那次替換。
-  /// 同一個課號正在解析中的 Future，用來去重。
+  /// 同一課號正在解析中的 Future，用來去重：課程頁並行發三個請求，第一次寫進
+  /// 快取之前另外兩次早就出發了，快取擋不住。static 是為了跨過測試替換 instance。
   @visibleForTesting
   static final Map<String, Future<String>> findIdInFlight = {};
 
@@ -53,13 +42,11 @@ class MoodleRepository {
     if (running != null) return running;
     final future = _resolveFindId(courseId);
     findIdInFlight[courseId] = future;
-    // whenComplete 而不是 then：失敗也要移除，否則一次失敗會把這個課號的
-    // 結果永久釘成那個例外。
+    // whenComplete 而不是 then：失敗也要移除，否則一次失敗會永久釘住這個課號。
     return future.whenComplete(() => findIdInFlight.remove(courseId));
   }
 
-  /// 測試用的縫：把「真的去問 Moodle」那一步隔開。沒有它，去重那一層只能
-  /// 靠測試複製一份邏輯來驗——那種測試會過，但驗的是副本不是正式程式碼。
+  /// 測試用的縫：把「真的去問 Moodle」那一步隔開，去重那一層才驗得到。
   @visibleForTesting
   Future<String?> fetchCourseUrl(String courseId) =>
       MoodleWebApiConnector.getCourseUrl(courseId);
@@ -86,11 +73,8 @@ class MoodleRepository {
     return findId;
   }
 
-  /// 兩段式取得的共用外殼。
-  ///
-  /// **沒有 progressMessage，這是刻意的。** 呼叫端全是 `ResultView`，它在
-  /// `state.value == null` 時就會畫自己的 LoadingPage；再傳 progressMessage
-  /// 會多蓋一層全螢幕阻擋式進度框，同一件事兩個轉圈，還擋住底下的骨架。
+  /// 兩段式取得的共用外殼。刻意沒有 progressMessage：呼叫端全是 `ResultView`，
+  /// 它自己就會畫 LoadingPage，再開進度框會變成同一件事兩個轉圈。
   Future<Result<T>> _withCourse<T>({
     required String courseId,
     required CacheKey<T> cache,
@@ -137,7 +121,7 @@ class MoodleRepository {
         debugLabel: 'moodleDirectory',
       );
 
-  /// 這一門課的公告。
+  /// 這一門課的公告。找不到公告區時回的是 forumFound=false 的空清單，不是失敗。
   Future<Result<MoodleModForumGetForumDiscussions>> getAnnouncements(
           String courseId) =>
       _withCourse<MoodleModForumGetForumDiscussions>(
@@ -163,8 +147,7 @@ class MoodleRepository {
               .map((e) => MoodleCoreEnrolGetUsers.fromJson(e))
               .toList(),
         ),
-        // 空清單算失敗，不是「這門課沒有學生」。run() 只把 null 當失敗，
-        // 所以要映成 null，才會去讀快取。
+        // 空清單算失敗，不是「這門課沒有學生」；run() 只把 null 當失敗。
         fetch: (findId) async {
           final value = await MoodleWebApiConnector.getMember(findId);
           return (value == null || value.isEmpty) ? null : value;
@@ -172,24 +155,129 @@ class MoodleRepository {
         errorMessage: R.current.getMoodleMembersError,
         debugLabel: 'moodleMember',
       );
+
+  /// 這門課的作業清單；空清單是合法結果。
+  Future<Result<List<MoodleAssignment>>> getAssignments(String courseId) =>
+      _withCourse<List<MoodleAssignment>>(
+        courseId: courseId,
+        cache: CacheKey<List<MoodleAssignment>>(
+          "cache_moodle_assign",
+          courseId,
+          decode: (json) => (json as List)
+              .map((e) => MoodleAssignment.fromJson(
+                  Map<String, dynamic>.from(e as Map)))
+              .toList(),
+        ),
+        fetch: MoodleWebApiConnector.getAssignments,
+        errorMessage: R.current.getMoodleAssignmentsError,
+        debugLabel: 'moodleAssignments',
+      );
+
+  /// 從清單裡挑單一作業；給「檔案」分頁點進來、手上只有 assign id 的情況。
+  Future<Result<MoodleAssignment>> getAssignment(
+      String courseId, int assignId) async {
+    final list = await getAssignments(courseId);
+    return switch (list) {
+      Ok(:final data) => switch (MoodleAssignUtils.findById(data, assignId)) {
+          final a? => Ok<MoodleAssignment>(a),
+          null =>
+            Failed<MoodleAssignment>(FetchFailed(R.current.assignmentNotFound)),
+        },
+      Stale(:final data, :final reason) => switch (
+            MoodleAssignUtils.findById(data, assignId)) {
+          final a? => Stale<MoodleAssignment>(a, reason),
+          null => Failed<MoodleAssignment>(reason),
+        },
+      Failed(:final reason) => Failed<MoodleAssignment>(reason),
+    };
+  }
+
+  /// 繳交狀態、成績與回饋。[assignId] 已是 Moodle 內部 id，不走 [_withCourse]。
+  /// [background]：清單上 N 份並行抓時不彈框、不開登入頁；詳情頁傳 false。
+  Future<Result<MoodleAssignSubmissionStatus>> getSubmissionStatus(
+    int assignId, {
+    bool background = false,
+  }) =>
+      run<MoodleAssignSubmissionStatus>(
+        requires: const {SystemId.moodleWebApi},
+        cache: CacheKey<MoodleAssignSubmissionStatus>(
+          "cache_moodle_assign_status",
+          assignId.toString(),
+          decode: decodeCachedSubmissionStatus,
+        ),
+        fetch: () => MoodleWebApiConnector.getSubmissionStatus(assignId),
+        errorMessage: R.current.getMoodleAssignmentStatusError,
+        debugLabel: 'moodleAssignStatus',
+        retry: background ? RetryPolicy.none : RetryPolicy.askUser,
+        background: background,
+      );
+
+  /// 一則公告的討論串（第一篇加回覆）。[discussionId] 是 `Discussions.discussion`，
+  /// 不是 `Discussions.id`——後者是第一篇貼文的 id。
+  Future<Result<List<MoodleForumPost>>> getDiscussionPosts(int discussionId) =>
+      run<List<MoodleForumPost>>(
+        requires: const {SystemId.moodleWebApi},
+        cache: CacheKey<List<MoodleForumPost>>(
+          "cache_moodle_forum_posts",
+          discussionId.toString(),
+          decode: (json) => (json as List)
+              .map((e) =>
+                  MoodleForumPost.fromJson(Map<String, dynamic>.from(e as Map)))
+              .toList(),
+        ),
+        fetch: () => MoodleWebApiConnector.getDiscussionPosts(discussionId),
+        errorMessage: R.current.getMoodleForumPostsError,
+        debugLabel: 'moodleForumPosts',
+      );
+
+  /// 待辦快取只有一筆（'all'）；登出時 `cache_` 前綴整包清掉，不會跨帳號。
+  static CacheKey<List<MoodleActionEvent>> upcomingEventsKey() =>
+      CacheKey<List<MoodleActionEvent>>(
+        "cache_moodle_action_events",
+        "all",
+        decode: (json) => (json as List)
+            .map((e) =>
+                MoodleActionEvent.fromJson(Map<String, dynamic>.from(e as Map)))
+            .toList(),
+      );
+
+  /// 測試用的縫（同 [fetchCourseUrl]）。
+  @visibleForTesting
+  Future<List<MoodleActionEvent>?> fetchActionEvents() =>
+      MoodleWebApiConnector.getActionEvents();
+
+  /// 所有課程的待辦（逾期 14 天內到之後）。[background]：進頁時的預載，
+  /// 不開進度框、不開登入頁、不彈重試框；按重新整理時傳 false。
+  Future<Result<List<MoodleActionEvent>>> getUpcomingEvents(
+          {bool background = false}) =>
+      run<List<MoodleActionEvent>>(
+        requires: const {SystemId.moodleWebApi},
+        cache: upcomingEventsKey(),
+        background: background,
+        retry: background ? RetryPolicy.none : RetryPolicy.askUser,
+        errorMessage: R.current.getUpcomingEventsError,
+        debugLabel: 'moodleUpcomingEvents',
+        fetch: fetchActionEvents,
+      );
 }
 
-/// `cache_moodle_score` 這一筆的解碼器。
-///
-/// **這是舊快取的遷移點，不要簡化成 `MoodleUserGradesEntity.fromJson`。**
-///
-/// 硬碟上可能還留著 `gradereport_user_get_grades_table` 年代的舊 blob，而
-/// [MoodleUserGradesEntity] 每個欄位都有 defaultValue，把那包舊 blob 丟進
-/// `fromJson` **不會拋**——只有 `gradeitems` 缺席退回空清單，成績頁因此一片
-/// 空白；又因為快取命中，重開 App 也還是空白，直到有人手動登出。
-///
-/// 所以這裡明確要求 `gradeitems` 這個 key 存在，缺席就拋。`CacheStore.read`
-/// 會把 decode 失敗的那一筆從整包 blob 移除、回傳 null，於是照常走網路重抓
-/// 新格式。舊資料只會被讀壞一次。
+/// 舊快取的遷移點，不要簡化成 `fromJson`：每個欄位都有 defaultValue，舊格式的
+/// blob 丟進去不會拋，只會得到一頁空白而且永遠命中快取。明確要求 `gradeitems`
+/// 存在，缺席就拋，`CacheStore.read` 會移除那一筆並照常走網路重抓。
 MoodleUserGradesEntity decodeCachedScore(dynamic json) {
   if (json is! Map<String, dynamic> || !json.containsKey('gradeitems')) {
     throw const FormatException(
         'cache_moodle_score 是 gradereport_user_get_grades_table 年代的舊格式');
   }
   return MoodleUserGradesEntity.fromJson(json);
+}
+
+/// 走 connector 的 `submissionStatusOf` 而不是 `fromJson`：`gradefordisplay`
+/// 的 HTML 清洗只寫在那一處。
+MoodleAssignSubmissionStatus decodeCachedSubmissionStatus(dynamic json) {
+  final status = MoodleWebApiConnector.submissionStatusOf(json);
+  if (status == null) {
+    throw const FormatException('cache_moodle_assign_status 的形狀不對');
+  }
+  return status;
 }

@@ -11,40 +11,21 @@ import 'package:flutter_app/src/connector/moodle_webapi_connector.dart';
 import 'package:flutter_app/src/store/credentials_store.dart';
 import 'package:flutter_app/src/store/moodle_session_store.dart';
 
-/// [AuthSession] 的正式實作。
-///
-/// 登入流程在這裡，而且只有這一份：`ensure` 是唯一會發起登入的入口，
-/// `run()` 的 `requires` 是唯一宣告需求的方式。
+/// [AuthSession] 的正式實作；`ensure` 是唯一會發起登入的入口。
 
 class AppAuthSession implements AuthSession {
   AppAuthSession();
 
-  /// SSO 這一趟握手完成了沒有。
-  ///
-  /// Moodle 那邊不需要對應的欄位：`MoodleWebApiConnector.wsToken` 本身就是
-  /// 那個狀態，多一個布林只會多一種不一致。
-  ///
-  /// 公開是刻意的：測試要能設定「已經登入」這個前提，唯一的另一條路是真的
-  /// 跑一次網路登入。
+  /// SSO 這一趟握手完成了沒有。Moodle 不需要對應欄位：wsToken 本身就是狀態。
+  /// 公開是刻意的，測試要能設定「已經登入」這個前提。
   bool ssoReady = false;
 
-  /// 有沒有可用的憑證：帳號**與**密碼都非空。
-  ///
-  /// 只有帳號沒有密碼時，畫面會顯示「已登入」但任何一次登入都會失敗。
+  /// 帳號與密碼都非空才算：只有帳號時畫面會顯示已登入但每次登入都失敗。
   @override
   bool get isSignedIn => CredentialsStore.instance.hasCredentials;
 
-  /// [MoodleWebApiConnector.onApiError] 的處理器。由 `main.dart` 安裝。
-  ///
-  /// connector 刻意不在內部自動重登——[MoodleWebApiConnector.login] 會
-  /// `Get.to` 一個 WebView 頁面，背景任務失敗時憑空彈出登入畫面比失敗本身
-  /// 更糟——所以它只把錯誤從 `onApiError` 這條旁路送出來，由這裡決定怎麼做。
-  ///
-  /// **這個掛鉤一定要在啟動時裝上。** 沒裝的話 token 過期只會彈通用的重試
-  /// 對話框，而重試會帶著同一顆死 token 再失敗一次。
-  ///
-  /// 這裡只做「作廢」，不做「重登」。清掉 token 之後 [SystemId.moodleWebApi]
-  /// 的登入狀態就是 false，下一次 [ensure] 會走完整的登入流程。
+  /// [MoodleWebApiConnector.onApiError] 的處理器，一定要在啟動時裝上：沒裝的話
+  /// token 過期只會彈重試框，而重試會帶著同一顆死 token 再失敗一次。
   void onMoodleApiError(MoodleApiException error) {
     if (!error.isInvalidToken) return;
     // 九條讀取路徑可能同時失敗，清過就不要再清。
@@ -52,16 +33,12 @@ class AppAuthSession implements AuthSession {
     Log.d('[moodle] invalidtoken：作廢 token，下一次 ensure 會重登');
     // setter 會連 userId、siteInfo 與課程快取一起作廢。
     MoodleWebApiConnector.wsToken = null;
-    // 磁碟上那一顆也要清。不清的話下一次冷啟動 main.dart 的 restoreToken
-    // 會把同一顆死 token 撈回來，使用者要再撞一次 API 失敗才會重登。
+    // 磁碟上那一顆也要清，否則下次冷啟動 restoreToken 會把它撈回來。
     unawaited(MoodleSessionStore.instance.clear());
   }
 
-  /// 讓 [requires] 的登入狀態失效，下次 [ensure] 會重登。
-  ///
-  /// **不需要展開相依。** 兩個系統之間零相依：`ntustSso` 與 `moodleWebApi`
-  /// 是兩個獨立憑證，拿 wsToken 的過程會經過 ssoam2，但那是登入頁的 WebView
-  /// 自己完成的。
+  /// 讓 [requires] 的登入狀態失效，下次 [ensure] 會重登。兩個系統之間零相依，
+  /// 不需要展開。
   @override
   Future<void> invalidate(Set<SystemId> requires) async {
     for (final id in requires) {
@@ -76,9 +53,7 @@ class AppAuthSession implements AuthSession {
     }
   }
 
-  /// 確保 [requires] 都已登入。
-  ///
-  /// **這裡是登入流程的唯一實作。** 一個呼叫端可以一次宣告多個系統。
+  /// 確保 [requires] 都已登入；登入流程的唯一實作。
   @override
   Future<AuthError?> ensure(Set<SystemId> requires,
       {bool interactive = true}) async {
@@ -90,8 +65,6 @@ class AppAuthSession implements AuthSession {
   }
 
   /// 盡力而為：失敗不回報，也不讓例外逸出。
-  ///
-  /// 給「多個來源各自 try、誰掛了都不拖累別人」的情境用。
   @override
   Future<void> tryEnsure(SystemId id) async {
     try {
@@ -108,21 +81,12 @@ class AppAuthSession implements AuthSession {
         if (ids.contains(SystemId.moodleWebApi)) SystemId.moodleWebApi,
       ];
 
-  /// 同一個系統正在進行中的登入。
-  ///
-  /// **沒有這個的話首次登入會跑兩次 SSO。** 冷啟動時課表與 Moodle 個人資料
-  /// 並行，兩邊都會發現「還沒登入」然後各自開一個 WebView：使用者看到兩個
-  /// 登入畫面接連跳出來，學校那邊收到兩次登入嘗試。
-  ///
-  /// static 而不是實例欄位：`AuthSession.instance` 在測試之間會被換掉，但
-  /// 進行中的登入是 process 級的事實。`reset_statics` 會清掉它。
+  /// 同一個系統正在進行中的登入。沒有這個的話冷啟動會並行開兩個登入 WebView，
+  /// 學校那邊也收到兩次登入嘗試。static 是為了跨過測試替換 instance。
   static final Map<SystemId, Future<AuthError?>> inFlight = {};
 
-  /// [interactive] 為 false 時：不開進度框、不升級到可見的登入頁。
-  ///
-  /// 安靜的那一次仍然登記進 [inFlight]，所以不會有兩次登入同時跑。代價是
-  /// 緊接著來的互動式呼叫會跟著這一次的結果走。那不會卡住：`ssoReady` 沒被
-  /// 設起來，`run()` 的重試迴圈下一輪會重新 ensure，那時就是互動式的了。
+  /// [interactive] 為 false 時不開進度框、不升級到可見的登入頁。安靜那次仍登記
+  /// 進 [inFlight]，不會卡住：ssoReady 沒設起來，重試迴圈下一輪會重新 ensure。
   Future<AuthError?> _ensureOne(SystemId id, {required bool interactive}) {
     final running = inFlight[id];
     if (running != null) return running;
@@ -183,17 +147,22 @@ class AppAuthSession implements AuthSession {
     if (!repo.hasCredentials) {
       return const AuthError(AuthFailure.notSignedIn);
     }
-    final handle = interactive
-        ? TaskUiDelegate.instance.beginProgress(R.current.loginMoodleWebApi)
-        : null;
+    // Moodle 沒有非互動的登入段（一定要開 WebView），背景預載到此為止。
+    // 帶訊息：預設的「請登入」跟有憑證者看到的「重新整理」鈕對不起來。
+    if (!interactive) {
+      return AuthError(AuthFailure.loginFailed,
+          message: R.current.moodleNotSignedIn);
+    }
+
+    final handle =
+        TaskUiDelegate.instance.beginProgress(R.current.loginMoodleWebApi);
     MoodleWebApiConnectorStatus value;
     try {
       value = await MoodleWebApiConnector.login(repo.account, repo.password);
     } finally {
-      handle?.dismiss();
+      handle.dismiss();
     }
     if (value == MoodleWebApiConnectorStatus.loginSuccess) return null;
     return const AuthError(AuthFailure.loginFailed);
   }
-
 }

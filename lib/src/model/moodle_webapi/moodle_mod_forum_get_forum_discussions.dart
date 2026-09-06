@@ -12,7 +12,15 @@ class MoodleModForumGetForumDiscussions {
   @JsonKey(name: 'discussions')
   late List<Discussions> discussions;
 
-  MoodleModForumGetForumDiscussions({List<Discussions>? discussions}) {
+  /// 這門課有沒有公告討論區。伺服器不回這個欄位——它由 connector 填，
+  /// false 時 discussions 一定是空的，畫面畫「沒有公告區」而不是錯誤。
+  @JsonKey(name: 'forumFound', defaultValue: true)
+  bool forumFound;
+
+  MoodleModForumGetForumDiscussions({
+    List<Discussions>? discussions,
+    this.forumFound = true,
+  }) {
     this.discussions = discussions ?? [];
   }
 
@@ -79,7 +87,9 @@ class Discussions extends Object {
   @JsonKey(name: 'messagetrust')
   int messagetrust;
 
-  @JsonKey(name: 'attachment')
+  /// 伺服器這一欄是 PARAM_RAW，有附件時是字串 `"1"`、沒有時是空字串；
+  /// 直接當 bool 解會讓「有附件的公告」整批解析失敗。
+  @JsonKey(name: 'attachment', fromJson: hasAttachmentFromJson)
   bool attachment;
 
   @JsonKey(name: 'attachments')
@@ -174,3 +184,10 @@ class Attachments extends Object {
 
   Map<String, dynamic> toJson() => _$AttachmentsToJson(this);
 }
+
+bool hasAttachmentFromJson(dynamic value) => switch (value) {
+      bool b => b,
+      num n => n != 0,
+      String s => s.isNotEmpty && s != '0',
+      _ => false,
+    };

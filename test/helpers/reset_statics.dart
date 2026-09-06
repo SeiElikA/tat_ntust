@@ -32,6 +32,8 @@ TestStores resetAppStatics() {
   MoodleWebApiConnector.siteInfo = null;
   MoodleWebApiConnector.clearCoursesCache();
   MoodleWebApiConnector.onApiError = null;
+  // autologin 的節流旗標、假時鐘與 wsPost 注入點也都是 process 級的。
+  MoodleWebApiConnector.resetAutologinState();
   // 課號 → Moodle 內部 id 的併發去重表也是 process 級的，會跨測試外洩。
   MoodleRepository.findIdInFlight.clear();
   // AuthSession.instance 也是可變的 public static，會跨測試外洩。

@@ -1433,6 +1433,501 @@ class S {
       args: [],
     );
   }
+
+  /// `To-do`
+  String get upcomingEvents {
+    return Intl.message('To-do', name: 'upcomingEvents', desc: '', args: []);
+  }
+
+  /// `No upcoming to-do items`
+  String get upcomingEventsEmpty {
+    return Intl.message(
+      'No upcoming to-do items',
+      name: 'upcomingEventsEmpty',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Overdue`
+  String get deadlineOverdue {
+    return Intl.message('Overdue', name: 'deadlineOverdue', desc: '', args: []);
+  }
+
+  /// `Today`
+  String get deadlineToday {
+    return Intl.message('Today', name: 'deadlineToday', desc: '', args: []);
+  }
+
+  /// `This week`
+  String get deadlineThisWeek {
+    return Intl.message(
+      'This week',
+      name: 'deadlineThisWeek',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Later`
+  String get deadlineLater {
+    return Intl.message('Later', name: 'deadlineLater', desc: '', args: []);
+  }
+
+  /// `Failed to load Moodle to-do items`
+  String get getUpcomingEventsError {
+    return Intl.message(
+      'Failed to load Moodle to-do items',
+      name: 'getUpcomingEventsError',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Not signed in to Moodle`
+  String get moodleNotSignedIn {
+    return Intl.message(
+      'Not signed in to Moodle',
+      name: 'moodleNotSignedIn',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Assignments`
+  String get assignment {
+    return Intl.message('Assignments', name: 'assignment', desc: '', args: []);
+  }
+
+  /// `Assignment`
+  String get assignmentDetail {
+    return Intl.message(
+      'Assignment',
+      name: 'assignmentDetail',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `No assignments in this course`
+  String get assignmentEmpty {
+    return Intl.message(
+      'No assignments in this course',
+      name: 'assignmentEmpty',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Failed to load assignments`
+  String get getMoodleAssignmentsError {
+    return Intl.message(
+      'Failed to load assignments',
+      name: 'getMoodleAssignmentsError',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Failed to load submission status`
+  String get getMoodleAssignmentStatusError {
+    return Intl.message(
+      'Failed to load submission status',
+      name: 'getMoodleAssignmentStatusError',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `This assignment was not found on Moodle`
+  String get assignmentNotFound {
+    return Intl.message(
+      'This assignment was not found on Moodle',
+      name: 'assignmentNotFound',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Not submitted`
+  String get assignStatusNotSubmitted {
+    return Intl.message(
+      'Not submitted',
+      name: 'assignStatusNotSubmitted',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Draft`
+  String get assignStatusDraft {
+    return Intl.message('Draft', name: 'assignStatusDraft', desc: '', args: []);
+  }
+
+  /// `Submitted`
+  String get assignStatusSubmitted {
+    return Intl.message(
+      'Submitted',
+      name: 'assignStatusSubmitted',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Graded`
+  String get assignStatusGraded {
+    return Intl.message(
+      'Graded',
+      name: 'assignStatusGraded',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Overdue`
+  String get assignStatusOverdue {
+    return Intl.message(
+      'Overdue',
+      name: 'assignStatusOverdue',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `No submission required`
+  String get assignStatusNoSubmissionRequired {
+    return Intl.message(
+      'No submission required',
+      name: 'assignStatusNoSubmissionRequired',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Not graded yet`
+  String get assignNotGraded {
+    return Intl.message(
+      'Not graded yet',
+      name: 'assignNotGraded',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Due date`
+  String get assignDueDate {
+    return Intl.message('Due date', name: 'assignDueDate', desc: '', args: []);
+  }
+
+  /// `No due date`
+  String get assignNoDueDate {
+    return Intl.message(
+      'No due date',
+      name: 'assignNoDueDate',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Opens`
+  String get assignAllowSubmissionsFrom {
+    return Intl.message(
+      'Opens',
+      name: 'assignAllowSubmissionsFrom',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Cut-off date`
+  String get assignCutoffDate {
+    return Intl.message(
+      'Cut-off date',
+      name: 'assignCutoffDate',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Extension due date`
+  String get assignExtensionDueDate {
+    return Intl.message(
+      'Extension due date',
+      name: 'assignExtensionDueDate',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Due in %s day(s)`
+  String get assignDueInDays {
+    return Intl.message(
+      'Due in %s day(s)',
+      name: 'assignDueInDays',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Due in %s hour(s)`
+  String get assignDueInHours {
+    return Intl.message(
+      'Due in %s hour(s)',
+      name: 'assignDueInHours',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Due within an hour`
+  String get assignDueSoon {
+    return Intl.message(
+      'Due within an hour',
+      name: 'assignDueSoon',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `%s day(s) overdue`
+  String get assignOverdueDays {
+    return Intl.message(
+      '%s day(s) overdue',
+      name: 'assignOverdueDays',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `%s hour(s) overdue`
+  String get assignOverdueHours {
+    return Intl.message(
+      '%s hour(s) overdue',
+      name: 'assignOverdueHours',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Just past due`
+  String get assignOverdueJustNow {
+    return Intl.message(
+      'Just past due',
+      name: 'assignOverdueJustNow',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Submission status`
+  String get assignSubmissionStatus {
+    return Intl.message(
+      'Submission status',
+      name: 'assignSubmissionStatus',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Grading status`
+  String get assignGradingStatus {
+    return Intl.message(
+      'Grading status',
+      name: 'assignGradingStatus',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Submitted on`
+  String get assignSubmittedAt {
+    return Intl.message(
+      'Submitted on',
+      name: 'assignSubmittedAt',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Last modified`
+  String get assignLastModified {
+    return Intl.message(
+      'Last modified',
+      name: 'assignLastModified',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Submitted files`
+  String get assignSubmittedFiles {
+    return Intl.message(
+      'Submitted files',
+      name: 'assignSubmittedFiles',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Online text`
+  String get assignOnlineText {
+    return Intl.message(
+      'Online text',
+      name: 'assignOnlineText',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Description`
+  String get assignIntro {
+    return Intl.message('Description', name: 'assignIntro', desc: '', args: []);
+  }
+
+  /// `The description is hidden until submissions open`
+  String get assignIntroHidden {
+    return Intl.message(
+      'The description is hidden until submissions open',
+      name: 'assignIntroHidden',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Attachments`
+  String get assignAttachments {
+    return Intl.message(
+      'Attachments',
+      name: 'assignAttachments',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Grade`
+  String get assignGrade {
+    return Intl.message('Grade', name: 'assignGrade', desc: '', args: []);
+  }
+
+  /// `Graded on`
+  String get assignGradedAt {
+    return Intl.message(
+      'Graded on',
+      name: 'assignGradedAt',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Feedback`
+  String get assignFeedback {
+    return Intl.message('Feedback', name: 'assignFeedback', desc: '', args: []);
+  }
+
+  /// `Feedback files`
+  String get assignFeedbackFiles {
+    return Intl.message(
+      'Feedback files',
+      name: 'assignFeedbackFiles',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Open in web`
+  String get assignOpenInWeb {
+    return Intl.message(
+      'Open in web',
+      name: 'assignOpenInWeb',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Grade & feedback`
+  String get assignSectionGradeFeedback {
+    return Intl.message(
+      'Grade & feedback',
+      name: 'assignSectionGradeFeedback',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `This course has no announcements forum`
+  String get announcementNoForum {
+    return Intl.message(
+      'This course has no announcements forum',
+      name: 'announcementNoForum',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `%s replies`
+  String get forumReplies {
+    return Intl.message('%s replies', name: 'forumReplies', desc: '', args: []);
+  }
+
+  /// `Attachments`
+  String get forumAttachments {
+    return Intl.message(
+      'Attachments',
+      name: 'forumAttachments',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `This post has been deleted`
+  String get forumPostDeleted {
+    return Intl.message(
+      'This post has been deleted',
+      name: 'forumPostDeleted',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Unknown author`
+  String get forumUnknownAuthor {
+    return Intl.message(
+      'Unknown author',
+      name: 'forumUnknownAuthor',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Failed to load the discussion`
+  String get getMoodleForumPostsError {
+    return Intl.message(
+      'Failed to load the discussion',
+      name: 'getMoodleForumPostsError',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `This folder is empty`
+  String get folderEmpty {
+    return Intl.message(
+      'This folder is empty',
+      name: 'folderEmpty',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `%s file(s)`
+  String get folderFileCount {
+    return Intl.message(
+      '%s file(s)',
+      name: 'folderFileCount',
+      desc: '',
+      args: [],
+    );
+  }
 }
 
 class AppLocalizationDelegate extends LocalizationsDelegate<S> {

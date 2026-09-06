@@ -3,85 +3,14 @@ import 'package:flutter_app/src/repository/result.dart';
 import 'package:flutter_app/src/repository/retry.dart';
 import 'package:flutter_app/src/repository/run.dart';
 import 'package:flutter_app/src/service/connectivity_probe.dart';
-import 'package:flutter_app/src/service/error_dialog_parameter.dart';
 import 'package:flutter_app/src/service/task_ui_delegate.dart';
 import 'package:flutter_app/src/store/cache_store.dart';
-import 'package:flutter_app/src/model/course/course_class_json.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../helpers/fake_auth_session.dart';
+import '../helpers/recording_ui.dart';
 import '../helpers/reset_statics.dart';
 import '../helpers/test_l10n.dart';
-
-/// 記錄互動的 TaskUiDelegate。
-class RecordingUi implements TaskUiDelegate {
-  /// 依序回傳給每一次 confirmRetry 的決定。用完之後一律 giveUp。
-  final List<RetryDecision> decisions;
-
-  final List<String> progressShown = [];
-  final List<String> toasts = [];
-
-  /// handle 被 dismiss 的次數。
-  int dismissCalls = 0;
-
-  /// 全域 hideProgress 被呼叫的次數。run() 不該碰它。
-  int hideProgressCalls = 0;
-  int confirmCalls = 0;
-
-  /// 最後一次 confirmRetry 收到的參數。
-  ErrorDialogParameter? lastParameter;
-
-  RecordingUi({List<RetryDecision>? decisions})
-      : decisions = decisions ?? const [];
-
-  @override
-  ProgressHandle beginProgress(String message) {
-    progressShown.add(message);
-    return _RecordingProgressHandle(this);
-  }
-
-  @override
-  void showProgress(String message) => progressShown.add(message);
-
-  @override
-  void hideProgress() => hideProgressCalls++;
-
-  @override
-  Future<RetryDecision> confirmRetry(ErrorDialogParameter parameter) async {
-    lastParameter = parameter;
-    confirmCalls++;
-    if (confirmCalls <= decisions.length) return decisions[confirmCalls - 1];
-    return RetryDecision.giveUp;
-  }
-
-  @override
-  void toast(String message) => toasts.add(message);
-
-  @override
-  Future<String?> chooseOne(String title, Map<String, String> options) async =>
-      chooseOneResult;
-
-  /// [chooseOne] 要回什麼。null 代表使用者取消。
-  String? chooseOneResult;
-
-  @override
-  Future<void> openLoginScreen() async => openLoginCalls++;
-
-  /// 「帶我去登入設定」被叫了幾次。
-  int openLoginCalls = 0;
-
-  @override
-  Future<SemesterJson?> chooseSemester({bool allowNull = false}) async => null;
-}
-
-class _RecordingProgressHandle implements ProgressHandle {
-  _RecordingProgressHandle(this._ui);
-
-  final RecordingUi _ui;
-
-  @override
-  void dismiss() => _ui.dismissCalls++;
-}
 
 CacheKey<String> demoKey() =>
     CacheKey<String>('cache_demo', 'id', decode: (j) => j as String);
@@ -141,6 +70,23 @@ void main() {
       expect(stale.reason, isA<FetchFailed>());
       // 這條路徑要吐一則「載入快取」的 toast。
       expect(ui.toasts, hasLength(1));
+    });
+
+    test('background: true 時 Stale 不吐 loadingCache toast', () async {
+      // 背景取資料時使用者沒按任何東西；作業清單一次為 N 份作業抓狀態，
+      // 各吐一則會把畫面刷滿。畫面自己用 Stale 標示。
+      await CacheStore.instance.write(demoKey(), 'old');
+      net.online = false;
+
+      final result = await run<String>(
+        requires: {SystemId.ntustSso},
+        cache: demoKey(),
+        background: true,
+        fetch: () async => 'fresh',
+      );
+
+      expect(result, isA<Stale<String>>());
+      expect(ui.toasts, isEmpty);
     });
 
     test('fetch 回 null、使用者放棄、沒有快取 → Failed', () async {
@@ -427,8 +373,8 @@ void main() {
       // 的按鈕，並顯示 AuthError.message；丟掉它的話使用者只看得到一句通用
       // 訊息，而且沒有出口。
       auth = FakeAuthSession(ensureResults: [AuthFailure.loginFailed]);
-      auth.ensureError = const AuthError(AuthFailure.loginFailed,
-          message: '帳號或密碼錯誤');
+      auth.ensureError =
+          const AuthError(AuthFailure.loginFailed, message: '帳號或密碼錯誤');
       AuthSession.instance = auth;
 
       await run<String>(

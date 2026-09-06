@@ -15,7 +15,9 @@ import 'package:flutter_app/ui/routes/route_utils.dart';
 import 'package:flutter_app/src/util/ui_utils.dart';
 import 'package:flutter_app/ui/components/custom_appbar.dart';
 import 'package:flutter_app/ui/components/file_type_icon.dart';
+import 'package:flutter_app/ui/components/page/error_page.dart';
 import 'package:flutter_app/src/util/my_toast.dart';
+import 'package:flutter_app/ui/pages/course_data/screen/sub_page/course_assignment_detail_page.dart';
 import 'package:flutter_app/ui/pages/course_data/screen/sub_page/course_html_page.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_widget_from_html/flutter_widget_from_html.dart';
@@ -96,35 +98,44 @@ class _CourseInfoPageState extends State<CourseInfoPage> {
         openWebView(ap);
         break;
       case "assign":
-        openWebView(ap);
+        // Modules.instance 就是 assign id；ErrorPage 與 RouteUtils 由這裡注入。
+        unawaited(Get.to(() => CourseAssignmentDetailPage(
+              widget.courseInfo,
+              assignId: ap.instance,
+              errorBuilder: (message) => ErrorPage(errorMsg: message),
+              openWebView: RouteUtils.toWebViewPage,
+            )));
         break;
       case "folder":
-        if (ap.contents.isNotEmpty || ap.folderIsNone) {
-          unawaited(RouteUtils.toCourseFolderPage(widget.courseInfo, ap));
-        } else {
-          MyToast.show(R.current.nothingHere);
-        }
+        // 空資料夾也進得去：資料夾頁自己畫空狀態，比一句 toast 清楚。
+        unawaited(RouteUtils.toCourseFolderPage(widget.courseInfo, ap));
         break;
       case "label":
         break;
       case "url":
-        if (ap.contents.isNotEmpty) {
-          unawaited(OpenUtils.launchURL(ap.contents.first.fileurl));
+        if (ap.contents.isEmpty) {
+          MyToast.show(R.current.nothingHere);
+          return;
         }
+        unawaited(OpenUtils.launchURL(ap.contents.first.fileurl));
         break;
       case "page":
         unawaited(Get.to(() => CourseHtmlPage(ap: ap)));
         break;
       case "resource":
       default:
+        // contents 可能是空的（模組沒有檔案或看不到），先前這裡直接取 first，
+        // 例外被 fire-and-forget 吃掉，使用者只看到點了沒反應。
+        final file = ap.contents.isEmpty ? null : ap.contents.first;
+        if (file == null) {
+          MyToast.show(R.current.nothingHere);
+          return;
+        }
         String dirName = widget.courseInfo.main.course.name;
-        // 下載自己有通知列進度與完成提示，這裡不等它結束——不然點一次檔案
-        // 就會卡住這個 handler 直到整份檔案下載完。
-        unawaited(FileDownload.download(
-            context,
-            MoodleWebApiConnector.fileUrlWithToken(ap.contents.first.fileurl),
-            dirName,
-            name: ap.contents.first.filename));
+        // 下載自己有通知列進度，這裡不等它結束才不會卡住 handler。
+        unawaited(FileDownload.download(context,
+            MoodleWebApiConnector.fileUrlWithToken(file.fileurl), dirName,
+            name: file.filename));
     }
   }
 

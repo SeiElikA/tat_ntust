@@ -50,6 +50,76 @@ class MessageLookup extends MessageLookupByLibrary {
     "announcementEmpty": MessageLookupByLibrary.simpleMessage(
       "No Announcement",
     ),
+    "announcementNoForum": MessageLookupByLibrary.simpleMessage(
+      "This course has no announcements forum",
+    ),
+    "assignAllowSubmissionsFrom": MessageLookupByLibrary.simpleMessage("Opens"),
+    "assignAttachments": MessageLookupByLibrary.simpleMessage("Attachments"),
+    "assignCutoffDate": MessageLookupByLibrary.simpleMessage("Cut-off date"),
+    "assignDueDate": MessageLookupByLibrary.simpleMessage("Due date"),
+    "assignDueInDays": MessageLookupByLibrary.simpleMessage("Due in %s day(s)"),
+    "assignDueInHours": MessageLookupByLibrary.simpleMessage(
+      "Due in %s hour(s)",
+    ),
+    "assignDueSoon": MessageLookupByLibrary.simpleMessage("Due within an hour"),
+    "assignExtensionDueDate": MessageLookupByLibrary.simpleMessage(
+      "Extension due date",
+    ),
+    "assignFeedback": MessageLookupByLibrary.simpleMessage("Feedback"),
+    "assignFeedbackFiles": MessageLookupByLibrary.simpleMessage(
+      "Feedback files",
+    ),
+    "assignGrade": MessageLookupByLibrary.simpleMessage("Grade"),
+    "assignGradedAt": MessageLookupByLibrary.simpleMessage("Graded on"),
+    "assignGradingStatus": MessageLookupByLibrary.simpleMessage(
+      "Grading status",
+    ),
+    "assignIntro": MessageLookupByLibrary.simpleMessage("Description"),
+    "assignIntroHidden": MessageLookupByLibrary.simpleMessage(
+      "The description is hidden until submissions open",
+    ),
+    "assignLastModified": MessageLookupByLibrary.simpleMessage("Last modified"),
+    "assignNoDueDate": MessageLookupByLibrary.simpleMessage("No due date"),
+    "assignNotGraded": MessageLookupByLibrary.simpleMessage("Not graded yet"),
+    "assignOnlineText": MessageLookupByLibrary.simpleMessage("Online text"),
+    "assignOpenInWeb": MessageLookupByLibrary.simpleMessage("Open in web"),
+    "assignOverdueDays": MessageLookupByLibrary.simpleMessage(
+      "%s day(s) overdue",
+    ),
+    "assignOverdueHours": MessageLookupByLibrary.simpleMessage(
+      "%s hour(s) overdue",
+    ),
+    "assignOverdueJustNow": MessageLookupByLibrary.simpleMessage(
+      "Just past due",
+    ),
+    "assignSectionGradeFeedback": MessageLookupByLibrary.simpleMessage(
+      "Grade & feedback",
+    ),
+    "assignStatusDraft": MessageLookupByLibrary.simpleMessage("Draft"),
+    "assignStatusGraded": MessageLookupByLibrary.simpleMessage("Graded"),
+    "assignStatusNoSubmissionRequired": MessageLookupByLibrary.simpleMessage(
+      "No submission required",
+    ),
+    "assignStatusNotSubmitted": MessageLookupByLibrary.simpleMessage(
+      "Not submitted",
+    ),
+    "assignStatusOverdue": MessageLookupByLibrary.simpleMessage("Overdue"),
+    "assignStatusSubmitted": MessageLookupByLibrary.simpleMessage("Submitted"),
+    "assignSubmissionStatus": MessageLookupByLibrary.simpleMessage(
+      "Submission status",
+    ),
+    "assignSubmittedAt": MessageLookupByLibrary.simpleMessage("Submitted on"),
+    "assignSubmittedFiles": MessageLookupByLibrary.simpleMessage(
+      "Submitted files",
+    ),
+    "assignment": MessageLookupByLibrary.simpleMessage("Assignments"),
+    "assignmentDetail": MessageLookupByLibrary.simpleMessage("Assignment"),
+    "assignmentEmpty": MessageLookupByLibrary.simpleMessage(
+      "No assignments in this course",
+    ),
+    "assignmentNotFound": MessageLookupByLibrary.simpleMessage(
+      "This assignment was not found on Moodle",
+    ),
     "calendar": MessageLookupByLibrary.simpleMessage("Calendar"),
     "campus_life": MessageLookupByLibrary.simpleMessage("Campus Life"),
     "cancel": MessageLookupByLibrary.simpleMessage("Cancel"),
@@ -100,6 +170,10 @@ class MessageLookup extends MessageLookupByLibrary {
     "courseURL": MessageLookupByLibrary.simpleMessage("course URL"),
     "credit": MessageLookupByLibrary.simpleMessage("Credit"),
     "curriculum": MessageLookupByLibrary.simpleMessage("Curriculum"),
+    "deadlineLater": MessageLookupByLibrary.simpleMessage("Later"),
+    "deadlineOverdue": MessageLookupByLibrary.simpleMessage("Overdue"),
+    "deadlineThisWeek": MessageLookupByLibrary.simpleMessage("This week"),
+    "deadlineToday": MessageLookupByLibrary.simpleMessage("Today"),
     "delete": MessageLookupByLibrary.simpleMessage("Delete"),
     "details": MessageLookupByLibrary.simpleMessage("Details"),
     "developerMode": MessageLookupByLibrary.simpleMessage("Developer Mode"),
@@ -120,6 +194,16 @@ class MessageLookup extends MessageLookupByLibrary {
     "financial_support": MessageLookupByLibrary.simpleMessage(
       "Financial Support",
     ),
+    "folderEmpty": MessageLookupByLibrary.simpleMessage("This folder is empty"),
+    "folderFileCount": MessageLookupByLibrary.simpleMessage("%s file(s)"),
+    "forumAttachments": MessageLookupByLibrary.simpleMessage("Attachments"),
+    "forumPostDeleted": MessageLookupByLibrary.simpleMessage(
+      "This post has been deleted",
+    ),
+    "forumReplies": MessageLookupByLibrary.simpleMessage("%s replies"),
+    "forumUnknownAuthor": MessageLookupByLibrary.simpleMessage(
+      "Unknown author",
+    ),
     "fullRange": MessageLookupByLibrary.simpleMessage("fullRange"),
     "general_dimension": MessageLookupByLibrary.simpleMessage("Dimension"),
     "getCourse": MessageLookupByLibrary.simpleMessage("Get schedule..."),
@@ -132,11 +216,20 @@ class MessageLookup extends MessageLookupByLibrary {
     "getCourseSemester": MessageLookupByLibrary.simpleMessage(
       "Get semester list...",
     ),
+    "getMoodleAssignmentStatusError": MessageLookupByLibrary.simpleMessage(
+      "Failed to load submission status",
+    ),
+    "getMoodleAssignmentsError": MessageLookupByLibrary.simpleMessage(
+      "Failed to load assignments",
+    ),
     "getMoodleCourseAnnouncementError": MessageLookupByLibrary.simpleMessage(
       "get course announcement error",
     ),
     "getMoodleCourseDirectoryError": MessageLookupByLibrary.simpleMessage(
       "Get course directory error",
+    ),
+    "getMoodleForumPostsError": MessageLookupByLibrary.simpleMessage(
+      "Failed to load the discussion",
     ),
     "getMoodleMembersError": MessageLookupByLibrary.simpleMessage(
       "Get Moodle members error",
@@ -145,6 +238,9 @@ class MessageLookup extends MessageLookupByLibrary {
       "get score error",
     ),
     "getScoreError": MessageLookupByLibrary.simpleMessage("get score error"),
+    "getUpcomingEventsError": MessageLookupByLibrary.simpleMessage(
+      "Failed to load Moodle to-do items",
+    ),
     "github": MessageLookupByLibrary.simpleMessage("Github"),
     "hidePassword": MessageLookupByLibrary.simpleMessage("Hide password"),
     "importCourse": MessageLookupByLibrary.simpleMessage("Import course"),
@@ -187,6 +283,9 @@ class MessageLookup extends MessageLookupByLibrary {
       "Are you sure you want to log out? \nAll data will be cleared",
     ),
     "member": MessageLookupByLibrary.simpleMessage("member"),
+    "moodleNotSignedIn": MessageLookupByLibrary.simpleMessage(
+      "Not signed in to Moodle",
+    ),
     "moodle_setting": MessageLookupByLibrary.simpleMessage("Moodle setting"),
     "moodle_setting_description": MessageLookupByLibrary.simpleMessage(
       "Sync NTUST Moodle website settings",
@@ -280,6 +379,10 @@ class MessageLookup extends MessageLookupByLibrary {
     "totalMember": MessageLookupByLibrary.simpleMessage("Total member: "),
     "unknownError": MessageLookupByLibrary.simpleMessage(
       "An unknown error occurred",
+    ),
+    "upcomingEvents": MessageLookupByLibrary.simpleMessage("To-do"),
+    "upcomingEventsEmpty": MessageLookupByLibrary.simpleMessage(
+      "No upcoming to-do items",
     ),
     "update": MessageLookupByLibrary.simpleMessage("Update"),
     "updateBody": MessageLookupByLibrary.simpleMessage(

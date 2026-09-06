@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:math';
 
 import 'package:crypto/crypto.dart';
+import 'package:flutter/foundation.dart' show visibleForTesting;
 
 import 'package:flutter_app/debug/log/log.dart';
 import 'package:flutter_app/src/connector/core/connector.dart';
@@ -11,30 +12,25 @@ import 'package:flutter_app/src/connector/core/dio_connector.dart';
 import 'package:flutter_app/src/service/interactive_login_gateway.dart';
 import 'package:flutter_app/src/model/moodle_token_entity.dart';
 import 'package:flutter_app/src/model/course/course_class_json.dart';
+import 'package:flutter_app/src/model/moodle_webapi/moodle_core_calendar_action_events.dart';
 import 'package:flutter_app/src/model/moodle_webapi/moodle_core_course_get_contents.dart';
 import 'package:flutter_app/src/model/moodle_webapi/moodle_core_enrol_get_users.dart';
 import 'package:flutter_app/src/model/moodle_webapi/moodle_gradereport_get_grade_items.dart';
+import 'package:flutter_app/src/model/moodle_webapi/moodle_mod_assign_get_assignments.dart';
+import 'package:flutter_app/src/model/moodle_webapi/moodle_mod_assign_get_submission_status.dart';
+import 'package:flutter_app/src/model/moodle_webapi/moodle_mod_forum_get_discussion_posts.dart';
 import 'package:flutter_app/src/model/moodle_webapi/moodle_mod_forum_get_forum_discussions.dart';
+import 'package:flutter_app/src/model/moodle_webapi/moodle_mod_forum_get_forums_by_courses.dart';
 import 'package:flutter_app/src/model/moodle_webapi/moodle_profile_entity.dart';
 import 'package:flutter_app/src/model/moodle_webapi/moodle_setting_entity.dart';
 import 'package:flutter_app/src/store/model.dart';
 import 'package:flutter_app/src/util/html_utils.dart';
+import 'package:flutter_app/src/util/moodle_forum_utils.dart';
 
 enum MoodleWebApiConnectorStatus { loginSuccess, loginFail }
 
-/// Moodle 在 HTTP 200 底下回報的失敗。
-///
-/// Moodle 的 REST server 幾乎不用 HTTP 狀態碼表達錯誤：token 失效、function
-/// 沒對這個 service 開放、參數不合法，一律是 200 加一包
-/// `{"exception":..,"errorcode":..,"message":..}`；部分成功則是 `warnings[]`。
-/// 而 `core/dio_connector.dart` 的 `validateStatus` 又放行到 500，所以這種
-/// 回應連例外都不會拋，不主動判讀就會變成「無聲失敗」。
-///
-/// 這個例外是九條讀取路徑唯一的錯誤形狀：errorcode / exception / message
-/// 都帶得出來，invalidtoken 的重登入直接掛在 [isInvalidToken] 上。
-///
-/// 刻意只保留這幾個具名欄位，不留整包 body：site_info 之類的回應帶 userid、
-/// fullname 與 userprivateaccesskey，整包進 log 就是把它們寫進 logcat。
+/// Moodle 的失敗一律是 HTTP 200 加 `{exception, errorcode, message}` 或
+/// `warnings[]`，不判讀就是無聲失敗。刻意不留整包 body（裡面有個資）。
 class MoodleApiException implements Exception {
   MoodleApiException({
     required this.wsFunction,
@@ -46,36 +42,25 @@ class MoodleApiException implements Exception {
     this.skippedBeforeRequest = false,
   });
 
-  /// 失敗的那一個 wsfunction 名稱。
   final String wsFunction;
 
-  /// Moodle 的錯誤代碼，例如 `invalidtoken`、`accessexception`。
   /// 部分失敗（warnings[]）時是第一筆 warning 的 `warningcode`。
   final String? errorcode;
 
-  /// Moodle 的例外類別名稱，例如 `moodle_exception`、`webservice_access_exception`。
   final String? exception;
   final String? message;
 
   /// 只有站台開了 debug 才會有；正式站通常是 null。
   final String? debugInfo;
 
-  /// 站台回報的這個 function 的版本（site_info 的 `functions[].version`）。
-  ///
-  /// [MoodleProfileEntity.wsVersion] 的用途就在這裡：Moodle 會在新版加參數
-  /// （例如 `core_enrol_get_users_courses` 的 `returnusercount` 是 3.7 才有），
-  /// 舊站台收到會直接回 `invalidparameter`。把站台實際的版本一起記下來，
-  /// log 才有辦法分辨「參數打錯」與「站台太舊」。
+  /// 站台回報的 function 版本，用來分辨「參數打錯」與「站台太舊」。
   final String? siteFunctionVersion;
 
-  /// 這次是本地在送出前就擋下來的（[MoodleWebApiConnector.wsFunctionBlocked]），
-  /// 不是伺服器回的。
+  /// 本地在送出前就擋下來的（[MoodleWebApiConnector.wsFunctionBlocked]）。
   final bool skippedBeforeRequest;
 
-  /// token 已經失效，重新登入才有救。
-  ///
-  /// 只認 `invalidtoken`：`accessexception` 是「這個 service 沒有這個
-  /// function」，重登入不會變好，拿它去觸發重登入只會變成無限迴圈。
+  /// 只認 `invalidtoken`：`accessexception` 是站台沒開放這個 function，
+  /// 拿它去觸發重登入只會變成無限迴圈。
   bool get isInvalidToken => errorcode == 'invalidtoken';
 
   @override
@@ -104,21 +89,41 @@ class MoodleWebApiConnector {
   /// 這個帳號的全部課程（含歷史學期）的來源。
   static const String enrolledCoursesFunction = "core_enrol_get_users_courses";
 
-  /// 課程成績的來源。
-  ///
-  /// 不是 `gradereport_user_get_grades_table`：那一個回的是渲染好的 HTML
-  /// 表格，欄位增減會讓呼叫端的 DOM 走訪靜靜地壞掉。這一個回結構化欄位。
-  /// 站台實測（moodle2.ntust.edu.tw）site_info 的 functions[] 有列出它。
+  /// 課程成績的來源。不用 `gradereport_user_get_grades_table`：那個回渲染好的
+  /// HTML 表格，欄位一增減 DOM 走訪就靜靜地壞掉。
   static const String gradeItemsFunction = "gradereport_user_get_grade_items";
 
-  /// 一次登入嘗試的 launch 網址與它所使用的 passport。
-  ///
-  /// passport 必須跟著回傳：Moodle 的 signature 是 `md5(wwwroot + passport)`
-  /// （`admin/tool/mobile/launch.php`，純字串相接、沒有分隔符），驗證它才能
-  /// 確定拿到的 token 真的來自我們剛才發出的那次請求。
-  ///
-  /// 亂數刻意比官方 App 強：官方是 `Math.random() * 1000`，這裡是 0 到 999999
-  /// 的密碼學亂數。不要為了對齊官方而縮小值域或換成非密碼學亂數。
+  static const String actionEventsFunction =
+      "core_calendar_get_action_events_by_timesort";
+
+  /// 往前抓幾天，讓逾期未交的還看得到。
+  static const int actionEventsLookbackDays = 14;
+
+  /// 伺服器上限就是 50，超過會直接回錯。
+  static const int actionEventsLimit = 50;
+
+  /// 滿頁時最多再翻幾頁；4 頁 200 筆已遠超一個學期會有的待辦。
+  static const int actionEventsMaxPages = 4;
+
+  static const String assignmentsFunction = "mod_assign_get_assignments";
+
+  static const String forumsByCoursesFunction =
+      "mod_forum_get_forums_by_courses";
+
+  static const String forumDiscussionsFunction =
+      "mod_forum_get_forum_discussions";
+
+  static const String discussionPostsFunction =
+      "mod_forum_get_discussion_posts";
+
+  /// 一頁抓滿；公告很少破百，超過的部分請使用者用網頁看。
+  static const int announcementPerPage = 100;
+
+  static const String submissionStatusFunction =
+      "mod_assign_get_submission_status";
+
+  /// passport 必須跟著回傳：signature 是 `md5(wwwroot + passport)`，驗它才能
+  /// 確定 token 來自我們發出的那次請求。亂數必須維持密碼學等級。
   static ({String url, String passport}) buildLoginLaunch() {
     final passport = Random.secure().nextInt(1000000).toString();
     return (
@@ -129,11 +134,8 @@ class MoodleWebApiConnector {
     );
   }
 
-  /// 驗證 launch.php 回傳的 signature。
-  ///
-  /// 伺服器算的是 `md5($CFG->wwwroot . $passport)`。官方 App 在比對失敗時
-  /// 會把 https 與 http 對調再算一次，因為使用者輸入的網址未必與站台設定的
-  /// wwwroot 同一個 scheme；這裡照做。
+  /// 伺服器算的是 `md5($CFG->wwwroot . $passport)`；wwwroot 的 scheme 未必與
+  /// 這裡的 host 相同，所以 https/http 各算一次。
   static bool verifyLoginSignature(String signature, String passport) {
     for (final base in [host, host.replaceFirst('https://', 'http://')]) {
       final expected = md5.convert(utf8.encode('$base$passport')).toString();
@@ -144,63 +146,39 @@ class MoodleWebApiConnector {
 
   static String? _wsToken;
 
-  /// process 內的 token 快取。持久化由 [MoodleSessionStore] 負責，
-  /// 登出時兩邊都必須清，由 SessionCleaner 統一處理。
+  /// process 內的 token 快取；持久化由 [MoodleSessionStore] 負責，登出時兩邊都要清。
   static String? get wsToken => _wsToken;
 
-  /// 換 token 就等於換身分，所有跟著這個 token 來的快取都要作廢。
-  ///
-  /// 清除掛在 setter 上而不是各個呼叫端，是因為會改 token 的地方有三處
-  /// （[login]、[restoreToken]、SessionCleaner），漏掉任何一個就是跨帳號
-  /// 洩漏：[userId] 會拿去查別人的成績，[siteInfo] 會用別人的 function
-  /// 清單去擋這個帳號的請求。SessionCleaner 另外還會再清一次 userId，
-  /// 那是它的職責，重複清沒有壞處。
+  /// 換 token 等於換身分，跟著這顆 token 的快取全部作廢；清除掛在 setter 上
+  /// 是因為改 token 的地方有三處，漏掉任何一個就是跨帳號洩漏。
   static set wsToken(String? value) {
     if (_wsToken != value) {
       userId = null;
       siteInfo = null;
       _usersCoursesCache = null;
+      // lockout 與 fatal 旗標都是伺服器按使用者算的，換 token 就重來。
+      autologinLastKeyAt = null;
+      autologinDisabled = false;
     }
     _wsToken = value;
   }
 
-  /// 最近一次 site_info 的解析結果，也就是這個 token 的可用 function 清單。
-  ///
-  /// 由 [isMoodleTokenAvailable]、[_ensureUserId] 與 [getProfile] 順手填上——
-  /// 這三個本來就會打 site_info，不會多一次網路往返。connector 自己留一份而
-  /// 不是反向去 `Get.find<MainController>()` 拿 `MainController.profile`：
-  /// connector 不該依賴 controller 層，而且這些方法全是 static，沒有可以
-  /// 注入的地方。
-  ///
+  /// 這顆 token 的可用 function 清單，由打過 site_info 的幾個方法順手填上；
   /// 換 token 時由 [wsToken] 的 setter 清掉。
   static MoodleProfileEntity? siteInfo;
 
-  /// 呼叫端觀察 API 失敗的出口。
-  ///
-  /// 九個讀取路徑對外一律是「失敗回 null」（十幾個呼叫端都靠這個契約），
-  /// 所以錯誤細節走這條旁路送出去：AuthSession 在啟動時裝一個
-  /// `onApiError = (e) { if (e.isInvalidToken) ... }` 就能接上重新登入。
-  ///
-  /// 這裡刻意不在 connector 內部自動重登入：[login] 會 `Get.to` 一個
-  /// WebView 頁面，背景任務失敗時憑空彈出登入畫面比失敗本身更糟。
+  /// 讀取路徑一律「失敗回 null」，錯誤細節走這條旁路給 AuthSession 接重登入。
+  /// 刻意不在 connector 內自動重登入：背景任務憑空彈出登入畫面比失敗更糟。
   static void Function(MoodleApiException error)? onApiError;
 
-  /// tokenpluginfile.php 這條路徑在這個站台通不通。null 代表還沒探測出結果。
-  ///
-  /// 舊路徑 `webservice/pluginfile.php?token=<wsToken>` 會把長效憑證放進
-  /// 圖片的 src、WebView 的歷史紀錄與任何轉址的 Referer。官方 App 優先走
-  /// `tokenpluginfile.php/<userprivateaccesskey>/…`，那把鑰匙是 site_info 的
-  /// `userprivateaccesskey`（不是 wsToken），只能拿檔案、不能呼叫 web service。
-  ///
-  /// 但站台可以停用 tokenpluginfile.php，硬切過去會讓所有附件都打不開，
-  /// 所以跟官方 App 一樣在執行期實際探測一次並記住結果。這是站台層級的性質，
-  /// 換 token 不會改變，所以刻意不掛在 [wsToken] 的 setter 上一起清。
+  /// 舊路徑 `?token=<wsToken>` 會把長效憑證放進 src 與 Referer，所以優先走
+  /// `tokenpluginfile.php/<userprivateaccesskey>/…`；但站台可停用它，故執行期
+  /// 探測一次。null 代表還沒探測；這是站台性質，換 token 不清。
   static bool? tokenPluginFileWorks;
 
   static Future<void>? _tokenPluginFileProbing;
 
-  /// 進行中的探測。測試用來等它結束——正式流程不需要 await，
-  /// [fileUrlWithToken] 是同步的，探測完成之前一律先給舊路徑。
+  /// 進行中的探測，測試用來等它結束；正式流程不 await，探測完成前一律走舊路徑。
   static Future<void>? get tokenPluginFileProbe => _tokenPluginFileProbing;
 
   /// 探測的實作。抽成可替換的欄位，測試才不必真的連網路。
@@ -217,17 +195,13 @@ class MoodleWebApiConnector {
   static final RegExp _pluginFileSegment =
       RegExp(r'(/webservice)?/pluginfile\.php');
 
-  /// 把 pluginfile 網址改寫成 tokenpluginfile 網址。不能改寫時回 null。
-  ///
-  /// 規則跟官方 App 的 `CoreUrl.fixPluginfileURL` 一樣，就是把路徑裡的
-  /// `[/webservice]/pluginfile.php` 換成 `/tokenpluginfile.php/<accessKey>`，
-  /// query 原封不動帶著走（`forcedownload=1` 之類必須留著）。
+  /// 把路徑裡的 `[/webservice]/pluginfile.php` 換成 `/tokenpluginfile.php/<key>`，
+  /// query 原封不動帶著走（`forcedownload=1` 之類必須留著）；不能改寫回 null。
   static String? tokenPluginFileUrl(String fileUrl) {
     final accessKey = siteInfo?.userprivateaccesskey ?? "";
     if (accessKey.isEmpty) return null;
 
-    // 只動 '?' 前面那一段。query 裡也可能出現 pluginfile.php（有些模組會把
-    // 來源網址整條塞進參數），那不是我們要換掉的東西。
+    // 只動 '?' 前面那一段：query 裡也可能出現 pluginfile.php，那不是要換的。
     final queryAt = fileUrl.indexOf('?');
     final path = queryAt < 0 ? fileUrl : fileUrl.substring(0, queryAt);
     final query = queryAt < 0 ? "" : fileUrl.substring(queryAt);
@@ -242,11 +216,8 @@ class MoodleWebApiConnector {
         "${path.substring(match.end)}$query";
   }
 
-  /// 探測 tokenpluginfile 到底能不能用。
-  ///
-  /// 只讀回應標頭、不下載內容（`getHeadersByGet` 用 stream 的 responseType），
-  /// 是這個專案裡最接近官方 App 那一次 HEAD 的做法：附件可能是幾十 MB 的 PDF，
-  /// 為了探測整包抓下來不划算。非 200 會拋，交給呼叫端當成「不支援」。
+  /// 只讀回應標頭、不下載內容：附件可能是幾十 MB 的 PDF。
+  /// 非 200 會拋，交給呼叫端當成「不支援」。
   static Future<bool> _headTokenPluginFile(String url) async {
     await DioConnector.instance.getHeadersByGet(ConnectorParameter(url));
     return true;
@@ -259,30 +230,35 @@ class MoodleWebApiConnector {
       try {
         tokenPluginFileWorks = await tokenPluginFileProber(probeUrl);
       } catch (e) {
-        // 探測失敗（站台停用、斷網、逾時）一律當成不支援。走舊路徑最多是
-        // 多帶一次 token，切過去卻打不開則是每一個附件都開不了；這個 process
-        // 之後不再重試，重開 App 才會重探。
+        // 失敗一律當成不支援：走舊路徑最多多帶一次 token，切過去卻打不開
+        // 則是每個附件都開不了。這個 process 不再重試。
         tokenPluginFileWorks = false;
         Log.e("tokenpluginfile probe failed: $e");
       }
     }();
   }
 
-  /// 產生可以直接取用的 Moodle 檔案網址。
-  ///
-  /// host 不是自家的就原樣回傳，不附任何憑證。fileurl 是伺服器回傳的內容，
-  /// 一旦哪天多一個會帶外部網址的模組，長效的 wsToken 就會被主動送到
-  /// 對方伺服器的 access log。官方 Moodle App 也有做同樣的檢查。這個檢查
-  /// 擋在兩條路徑的前面，所以對 tokenpluginfile 一樣有效。
-  ///
-  /// 站台支援 tokenpluginfile 時走那條（憑證在路徑上、而且是只能取檔案的
-  /// accessKey）；accessKey 為空、還沒探測完、或探測失敗，一律安全地退回
-  /// 舊的 `?token=`。
+  /// [uri] 是不是自家站台（只比 host，不看 scheme）。
+  static bool isOwnHost(Uri? uri) => uri != null && uri.host == _moodleHost;
+
+  /// 自家站台的 pluginfile.php 網址——只有這種圖要 App 自己帶 token 去抓。
+  static bool isOwnPluginFileUrl(String url) {
+    final uri = Uri.tryParse(url.trim());
+    if (uri == null || uri.scheme != "https" || !isOwnHost(uri)) return false;
+    return _pluginFileSegment.hasMatch(uri.path);
+  }
+
+  /// 是不是 autologin.php 本身。成功時它會 303 轉走，停在這裡就代表鑰匙被拒。
+  static bool isAutologinScript(Uri? uri) =>
+      isOwnHost(uri) && uri!.path == autologinScriptPath;
+
+  /// 產生可直接取用的 Moodle 檔案網址。非自家 host 一律原樣回傳、不附憑證，
+  /// 否則 wsToken 會被送進別人的 access log；探測未完成則退回舊的 `?token=`。
   static String fileUrlWithToken(String fileUrl) {
     final token = wsToken;
     if (token == null) return fileUrl;
     final uri = Uri.tryParse(fileUrl);
-    if (uri == null || uri.host != Uri.parse(host).host) {
+    if (!isOwnHost(uri)) {
       Log.e("refuse to attach token to a foreign host: ${uri?.host}");
       return fileUrl;
     }
@@ -290,9 +266,8 @@ class MoodleWebApiConnector {
     final tokenUrl = tokenPluginFileUrl(fileUrl);
     if (tokenUrl != null) {
       if (tokenPluginFileWorks == true) return tokenUrl;
-      // 還沒探測過就順手拿這個真實網址探一次（官方 App 也是拿正在改寫的那個
-      // 網址去 HEAD）。這一次呼叫仍然回舊路徑：探測是非同步的，而這個方法
-      // 會在 build() 裡被呼叫，等不了。
+      // 順手拿這個真實網址探一次。這次仍回舊路徑：探測是非同步的，
+      // 而這個方法會在 build() 裡被呼叫，等不了。
       if (tokenPluginFileWorks == null) {
         unawaited(_probeTokenPluginFile(tokenUrl));
       }
@@ -300,42 +275,202 @@ class MoodleWebApiConnector {
     return Connector.uriAddQuery(fileUrl, {"token": token});
   }
 
-  /// 從本機還原先前存下的 token。由 main.dart 在啟動時呼叫。
-  ///
-  /// 這個入口的存在是為了讓 store 層不必反向 import connector。
-  ///
-  /// **還原回來的 token 是 assumed 而不是 verified**：它只代表磁碟上存過
-  /// 一顆，伺服器端可能早就讓它失效了。帶著它發的第一個請求收到
-  /// invalidtoken 時，`onApiError` 會把它清掉並重登。
+  /// 用 privatetoken 換一把一次性的 autologin 鑰匙（IP 綁定、60 秒後失效）。
+  static const String autologinKeyFunction = "tool_mobile_get_autologin_key";
+
+  static const String autologinScriptPath = "/admin/tool/mobile/autologin.php";
+
+  /// 伺服器以不分大小寫的子字串比對認 Moodle App。
+  static const String moodleAppUserAgentMarker = "MoodleMobile";
+
+  /// 伺服器兩次取鑰匙的最短間隔（autologinmintimebetweenreq 預設 360 秒），
+  /// 期間內一律回 lockout；站台改了設定這裡不會跟著變。
+  static const Duration autologinMinInterval = Duration(minutes: 6);
+
+  static const String autologinLockoutErrorcode =
+      "autologinkeygenerationlockout";
+
+  /// 這個 process 內再試也不會變好的錯誤。
+  static const Set<String> autologinFatalErrorcodes = {
+    "apprequired",
+    "httpsrequired",
+    "autologinnotallowedtoadmins",
+    "invalidprivatetoken",
+    "accessexception",
+    "enablewsdescription",
+  };
+
+  /// 最近一次伺服器有記下時間戳的取鑰匙時間（成功或 lockout）。
+  static DateTime? autologinLastKeyAt;
+
+  static bool autologinDisabled = false;
+
+  @visibleForTesting
+  static DateTime Function() autologinClock = DateTime.now;
+
+  static const Duration _defaultAutologinTimeout = Duration(seconds: 6);
+
+  /// 開 WebView 前最多等這麼久；不能讓一次點擊卡到 Dio 的 100 秒 receiveTimeout。
+  @visibleForTesting
+  static Duration autologinTimeout = _defaultAutologinTimeout;
+
+  /// 所有 wsfunction 的傳輸層；可替換是為了讓測試不必連網路。
+  @visibleForTesting
+  static Future<dynamic> Function(ConnectorParameter parameter) wsPost =
+      Connector.getJsonByPost;
+
+  /// 測試用：把 autologin 的節流狀態與注入點全部還原。
+  @visibleForTesting
+  static void resetAutologinState() {
+    autologinLastKeyAt = null;
+    autologinDisabled = false;
+    autologinClock = DateTime.now;
+    autologinTimeout = _defaultAutologinTimeout;
+    wsPost = Connector.getJsonByPost;
+  }
+
+  static final String _moodleHost = Uri.parse(host).host;
+
+  /// 取鑰匙的請求 User-Agent 必須含 MoodleMobile；只附記號，不假冒版本。
+  static String moodleAppUserAgent(String base) =>
+      "$base $moodleAppUserAgentMarker";
+
+  /// 能交給 autologin.php 轉址的正規化目標，不能就回 null。urltogo 是
+  /// PARAM_LOCALURL：非自家 https、帶 userinfo、非 ASCII 會被清空並靜靜轉到首頁。
+  static String? autologinTarget(String url) {
+    final uri = Uri.tryParse(url.trim());
+    if (uri == null || uri.scheme != "https") return null;
+    if (uri.host != _moodleHost) return null;
+    if (uri.hasPort || uri.userInfo.isNotEmpty) return null;
+    if (isAutologinScript(uri)) return null;
+    return uri.toString();
+  }
+
+  static ({String key, String autologinUrl})? parseAutologinKey(dynamic data) {
+    if (data is! Map) return null;
+    final key = data["key"];
+    final autologinUrl = data["autologinurl"];
+    if (key is! String || key.isEmpty) return null;
+    if (autologinUrl is! String || autologinUrl.isEmpty) return null;
+    return (key: key, autologinUrl: autologinUrl);
+  }
+
+  /// autologinurl 不是自家 https host 就回 null：這個網址會帶著 cookie 開，
+  /// 不能被回應內容指到別處。
+  static String? buildAutologinUrl({
+    required String autologinUrl,
+    required String key,
+    required String userId,
+    required String target,
+  }) {
+    final base = Uri.tryParse(autologinUrl);
+    if (base == null || base.scheme != "https" || base.host != _moodleHost) {
+      return null;
+    }
+    if (key.isEmpty || userId.isEmpty || target.isEmpty) return null;
+    return base.replace(queryParameters: {
+      "userid": userId,
+      "key": key,
+      "urltogo": target,
+    }).toString();
+  }
+
+  /// 把 Moodle 網址換成免登入的 autologin 網址。任何情況都不拋、不開畫面，
+  /// 拿不到鑰匙就原樣回傳 [url]；非 Moodle 的網址不碰網路。
+  static Future<String> autologinUrl(String url) async {
+    final target = autologinTarget(url);
+    if (target == null) return url;
+    try {
+      final wrapped =
+          await _fetchAutologinUrl(target).timeout(autologinTimeout);
+      return wrapped ?? url;
+    } on TimeoutException {
+      // 底下那個請求會自己跑完並記下時間戳；這裡不等它。
+      Log.d("[autologin] 逾時，改以原網址開啟");
+      return url;
+    } catch (e, stack) {
+      Log.eWithStack("[autologin] $e", stack);
+      return url;
+    }
+  }
+
+  /// 真正去換鑰匙；拿不到回 null，自己吞掉所有例外。
+  static Future<String?> _fetchAutologinUrl(String target) async {
+    if (wsToken == null || autologinDisabled) return null;
+    final last = autologinLastKeyAt;
+    if (last != null &&
+        autologinClock().difference(last) < autologinMinInterval) {
+      // 伺服器端這段時間內一定回 lockout，省掉這一趟。
+      Log.d("[autologin] 距上次取鑰匙不足 "
+          "${autologinMinInterval.inMinutes} 分鐘，略過");
+      return null;
+    }
+    try {
+      final entity = await Model.instance.getMoodleToken();
+      final privateToken = entity?.privateToken ?? "";
+      // privatetoken 必須是與目前 wsToken 同一列發下來的那一顆。
+      if (entity == null || privateToken.isEmpty || entity.token != wsToken) {
+        Log.d("[autologin] 沒有可用的 privatetoken，略過");
+        return null;
+      }
+      final uid = await _ensureUserId();
+      if (uid == null) return null;
+
+      final result = await _callWs(
+        autologinKeyFunction,
+        {"privatetoken": privateToken},
+        userAgent: moodleAppUserAgent(ConnectorParameter.presetUserAgent),
+      );
+      // 走到這裡伺服器已記下時間戳。
+      autologinLastKeyAt = autologinClock();
+
+      final parsed = parseAutologinKey(result);
+      if (parsed == null) {
+        Log.e("[autologin] 回應裡沒有 key / autologinurl");
+        return null;
+      }
+      return buildAutologinUrl(
+        autologinUrl: parsed.autologinUrl,
+        key: parsed.key,
+        userId: uid,
+        target: target,
+      );
+    } on MoodleApiException catch (e) {
+      if (e.errorcode == autologinLockoutErrorcode) {
+        // 預期中的狀況（6 分鐘內開了第二頁），不是錯誤，也不送 onApiError。
+        autologinLastKeyAt = autologinClock();
+        Log.d("[autologin] 伺服器 lockout：$e");
+        return null;
+      }
+      if (autologinFatalErrorcodes.contains(e.errorcode)) {
+        autologinDisabled = true;
+      }
+      _reportFailure(autologinKeyFunction, e, StackTrace.current);
+      return null;
+    } catch (e, stack) {
+      _reportFailure(autologinKeyFunction, e, stack);
+      return null;
+    }
+  }
+
+  /// 還原本機存下的 token。它只是 assumed 而非 verified：伺服器端可能早已
+  /// 失效，第一個請求收到 invalidtoken 時由 `onApiError` 清掉並重登。
   static void restoreToken(MoodleTokenEntity token) {
     wsToken = token.token;
   }
 
-  /// Moodle 的使用者 id，從 core_webservice_get_site_info 取得。
-  ///
-  /// 啟動時的 isMoodleTokenAvailable 就會拿到同一份回應，順手記下來，
-  /// getCourseUrl 與 getScore 才不必各自再打一次 site_info。
-  ///
-  /// 這是 process 級的 static，**換帳號時必須清掉**，否則就是又一個
-  /// 跨帳號洩漏。清除由 [wsToken] 的 setter 與 SessionCleaner 一起把關。
+  /// site_info 取得的 Moodle 使用者 id。process 級 static，換帳號必須清掉，
+  /// 否則就是跨帳號洩漏；清除由 [wsToken] 的 setter 與 SessionCleaner 把關。
   static String? userId;
 
-  /// 「HTTP 200 但其實是錯誤」的唯一判讀點。回傳 null 代表這包回應是正常的。
-  ///
-  /// 集中在這裡，才不會每加一個 getter 就要重抄一次同樣的檢查。判斷條件
-  /// 跟著 Moodle 的 `webservice/lib.php`：失敗一定帶 `exception`，
-  /// 通常也帶 `errorcode`。
-  ///
-  /// [treatWarningsAsError] 預設 false。`warnings[]` 在讀取路徑上是常態
-  /// （例如某些單元沒有權限看就會附一筆），把它當成失敗會讓原本能用的頁面
-  /// 整頁消失；只有寫入路徑（[toggleSetting]）才需要「有 warning 就算沒寫成功」。
+  /// 「HTTP 200 但其實是錯誤」的唯一判讀點，正常回應回 null。
+  /// [treatWarningsAsError] 只給寫入路徑用：warnings[] 在讀取路徑上是常態。
   static MoodleApiException? moodleErrorOf(
     dynamic data, {
     required String wsFunction,
     bool treatWarningsAsError = false,
   }) {
-    // 不是 Map 就不是 Moodle 的錯誤包。captive portal 回的 HTML、正常的
-    // List 回應都走這裡；它們是不是合法留給呼叫端自己的轉型去判斷。
+    // 不是 Map 就不是 Moodle 的錯誤包（captive portal 的 HTML、正常的 List）。
     if (data is! Map) return null;
 
     if (data.containsKey("errorcode") || data.containsKey("exception")) {
@@ -366,17 +501,8 @@ class MoodleWebApiConnector {
     return null;
   }
 
-  /// 這次呼叫要不要在送出前就放棄。回傳 null 代表可以送。
-  ///
-  /// site_info 的 `functions[]` 就是站台回報給這個 token 的可用清單。不在
-  /// 清單裡的 function，Moodle 一定回 `accessexception`，所以這裡的跳過與
-  /// 「送出去必定失敗」等價，只是省下一次網路往返，而且用同一個 errorcode
-  /// 讓呼叫端不必分辨是誰擋的。
-  ///
-  /// **[siteInfo] 還沒載入時一律放行**（fail-open）。App 剛啟動、或 getProfile
-  /// 自己失敗時清單就是空的，把「還不知道」當成「站台沒開放」會讓整個功能
-  /// 無聲消失，那比多打一次註定失敗的請求嚴重得多。同理，清單解析出來是空的
-  /// （站台沒送 functions）也一律放行。
+  /// 不在 site_info `functions[]` 裡的 function 送出去必定回 accessexception，
+  /// 這裡先擋下省一次往返。清單還沒載入或是空的一律放行（fail-open）。
   static MoodleApiException? wsFunctionBlocked(String wsFunction) {
     // site_info 是清單本身的來源，擋掉它等於再也拿不到清單，是死結。
     if (wsFunction == siteInfoFunction) return null;
@@ -394,27 +520,26 @@ class MoodleWebApiConnector {
     );
   }
 
-  /// 送出一次 web service 呼叫。
-  ///
-  /// 所有 wsfunction 都經過這裡，於是「送出前檢查可用性」與「200 但其實是
-  /// 錯誤」各只有一份實作，要加 invalidtoken 重試也只有這一個掛點。
-  /// 失敗一律拋 [MoodleApiException]，由各 getter 決定要記什麼、回什麼。
+  /// 所有 wsfunction 的唯一出口，失敗一律拋 [MoodleApiException]。
+  /// [userAgent] 只給這一個請求用（autologin 要帶 MoodleMobile 記號）。
   static Future<dynamic> _callWs(
     String wsFunction,
     Map<String, dynamic> data, {
     bool treatWarningsAsError = false,
+    String? userAgent,
   }) async {
     final blocked = wsFunctionBlocked(wsFunction);
     if (blocked != null) throw blocked;
 
     final parameter = ConnectorParameter(_webAPIUrl);
+    if (userAgent != null) parameter.userAgent = userAgent;
     parameter.data = {
       "moodlewsrestformat": "json",
       "wsfunction": wsFunction,
       "wstoken": wsToken,
       ...data,
     };
-    final result = await Connector.getJsonByPost(parameter);
+    final result = await wsPost(parameter);
     final error = moodleErrorOf(
       result,
       wsFunction: wsFunction,
@@ -424,12 +549,8 @@ class MoodleWebApiConnector {
     return result;
   }
 
-  /// 九個 catch 共用的收尾：記 log，並把伺服器說的錯誤送給 [onApiError]。
-  ///
-  /// [MoodleApiException] 用 [Log.e] 而不是 [Log.eWithStack]：stack 是我們
-  /// 自己 throw 的位置，沒有任何診斷價值，而 eWithStack 會一路送進
-  /// Crashlytics——token 過期、站台維護這種每個人都會遇到的伺服器回應
-  /// 不該被當成當機回報。真正的例外（轉型失敗、斷網）才用 eWithStack。
+  /// 各個 getter 的 catch 共用收尾。[MoodleApiException] 不用 eWithStack：
+  /// 那會送進 Crashlytics，而 token 過期、站台維護不該被當成當機回報。
   static void _reportFailure(String wsFunction, Object e, StackTrace stack) {
     if (e is MoodleApiException) {
       Log.e(e.toString());
@@ -439,10 +560,7 @@ class MoodleWebApiConnector {
     Log.eWithStack("$wsFunction: $e", stack);
   }
 
-  /// 把 site_info 的回應存成 [siteInfo]。解析失敗只是這次快取不到。
-  ///
-  /// 這裡吞掉例外是刻意的：呼叫端（例如 [isMoodleTokenAvailable]）判斷的是
-  /// 「token 還能不能用」，不該因為多做的這一步而變成 false。
+  /// 解析失敗只是這次快取不到，刻意吞掉：呼叫端問的是「token 還能不能用」。
   static void _cacheSiteInfo(dynamic data) {
     if (data is! Map) return;
     try {
@@ -452,17 +570,13 @@ class MoodleWebApiConnector {
     }
   }
 
-  /// 取得 userId，需要時才打 site_info。
-  ///
-  /// 失敗時回 null 或拋 [MoodleApiException]（例如 token 失效），兩者都由
-  /// 呼叫端的 try/catch 處理。
+  /// 取得 userId，需要時才打 site_info；失敗回 null 或拋 [MoodleApiException]。
   static Future<String?> _ensureUserId() async {
     final cached = userId;
     if (cached != null) return cached;
     final result = await _callWs(siteInfoFunction, const {});
     if (result is! Map || result["userid"] == null) {
-      // 不要無聲失敗：這裡回 null 之後 getCourseUrl 與 getScore 也會跟著
-      // 回 null，錯誤原因就整條線消失了。
+      // 不要無聲失敗：回 null 之後上游也跟著回 null，錯誤原因整條線消失。
       _reportFailure(
         siteInfoFunction,
         MoodleApiException(
@@ -498,25 +612,19 @@ class MoodleWebApiConnector {
     return MoodleWebApiConnectorStatus.loginFail;
   }
 
-  /// 檢查本機的 wsToken 在伺服器端是否仍然有效。
-  ///
-  /// 這個方法在 App 啟動路徑上（MainController.onInit），任何例外逸出都會讓
-  /// 主畫面永遠停在載入中，所以這裡一律吞掉例外回 false，由呼叫端決定
-  /// 要不要重新登入。斷網、逾時、captive portal 回傳 HTML 都走這條。
+  /// 檢查 wsToken 在伺服器端是否仍有效。它在 App 啟動路徑上，例外逸出會讓
+  /// 主畫面永遠停在載入中，所以一律吞掉回 false。
   static Future<bool> isMoodleTokenAvailable() async {
     if (wsToken == null) {
       return false;
     }
 
     try {
-      // errorcode（token 失效、站台維護）由 _callWs 統一攔下來變成例外，
-      // 這裡不必再檢查一次。不要印 result：site_info 帶 userid、fullname
-      // 與 userprivateaccesskey。
+      // 不要印 result：site_info 帶 userid、fullname 與 userprivateaccesskey。
       final result = await _callWs(siteInfoFunction, const {});
       // 不要硬轉型：captive portal 會回 200 加一段 HTML，轉型會拋 TypeError。
       if (result is! Map) return false;
-      // 順手把 userid 與 function 清單記下來。這是啟動時本來就會打的一次
-      // site_info，之後的成績頁、課程對照與可用性檢查都不必再各打一次。
+      // 順手記下 userid 與 function 清單，之後的頁面就不必再各打一次 site_info。
       if (result["userid"] != null) userId = result["userid"].toString();
       _cacheSiteInfo(result);
       return true;
@@ -526,34 +634,23 @@ class MoodleWebApiConnector {
     }
   }
 
-  /// 課程的 Moodle 內部 id。缺席時回 null，**不要**用
-  /// `course["id"].toString()`——那會產生字面上的字串 "null"，被上層當成
-  /// 有效的 findId 快取起來，之後每一次載入都拿這個假 id 去問伺服器。
+  /// 課程的 Moodle 內部 id。缺席時回 null，不要用 `course["id"].toString()`：
+  /// 那會產生字面上的 "null" 並被上層當成有效 id 快取起來。
   static String? _courseKeyOf(Map course) {
     final id = course["id"];
     if (id == null) return null;
     return id.toString();
   }
 
-  /// [_getUsersCourses] 的短期記憶。
-  ///
-  /// 課號對照、某學期的課號清單、目前學期三者會在同一次課表更新裡接連呼叫，
-  /// 沒有這個 memo 就是同一份 50 門課的回應抓三次。登出時由 SessionCleaner
-  /// 連同 wsToken 一起清掉（見 wsToken 的 setter）。
+  /// [_getUsersCourses] 的短期記憶：課號對照、學期課號清單、目前學期三者會在
+  /// 同一次課表更新裡接連呼叫。換 token 時由 wsToken 的 setter 清掉。
   static List<dynamic>? _usersCoursesCache;
 
-  /// 清掉課程清單的短期記憶。
-  ///
-  /// wsToken 的 setter 只在「值真的改變」時清，所以已經是 null 的情況
-  /// （測試之間、重複登出）不會觸發。登出與測試重設都要明確呼叫這個。
+  /// wsToken 的 setter 只在值真的改變時清，所以登出與測試重設要明確呼叫這個。
   static void clearCoursesCache() => _usersCoursesCache = null;
 
-  /// 一次拿回這個帳號的全部課程（含已結束的歷史學期）。
-  ///
-  /// 課號對照、某學期的課號清單、目前學期三件事共用這一次往返：實測這個
-  /// function 一次回 50 門課，每一門都帶 `idnumber`、`startdate`、`enddate`。
-  ///
-  /// 拿不到 userid 時回 null（[_ensureUserId] 已經記過 log）；其他失敗照常拋。
+  /// 一次拿回這個帳號的全部課程（含已結束的歷史學期），每門帶 idnumber、
+  /// startdate、enddate。拿不到 userid 回 null；其他失敗照常拋。
   static Future<List<dynamic>?> _getUsersCourses({bool refresh = false}) async {
     if (!refresh && _usersCoursesCache != null) return _usersCoursesCache;
     final uid = await _ensureUserId();
@@ -563,15 +660,13 @@ class MoodleWebApiConnector {
       "moodlewssettingfilter": "true",
       "moodlewssettingfileurl": "true",
       "userid": uid,
-      // Moodle 3.7 起支援。官方文件說在選課人數多的課程上，算這個統計
-      // 可能多花好幾秒，而這裡完全用不到它。官方 App 也一律送 false。
+      // 人數多的課程算這個統計會多花好幾秒，而這裡用不到。
       "returnusercount": "0",
     });
     return _usersCoursesCache = result as List;
   }
 
   /// idnumber 的前綴長度：`<學年3碼><學期1碼>`（例如 1141、114H）。
-  /// 實測 50 門課的 idnumber 長度都是 13、全部非空。
   static const int semesterPrefixLength = 4;
 
   /// 去掉學年學期前綴之後的課號。長度不夠時回 null。
@@ -580,12 +675,8 @@ class MoodleWebApiConnector {
           ? idnumber.substring(semesterPrefixLength)
           : null;
 
-  /// 在課程清單裡找出 [courseId] 對應的 Moodle 內部課程 id。找不到回 null。
-  ///
-  /// **以 idnumber 為準**：那才是放課號的欄位（[courseIdsOfSemester] 用的也是
-  /// 它）。拿 fullname 比對，只要別門課的課名裡剛好含有這個課號就會配到錯的
-  /// 課、開出別人的成績與名單，所以它只留作 fallback——實測 50 門課的
-  /// idnumber 全部非空，但 Moodle 規格上 idnumber 是選填。
+  /// 以 idnumber 為準找出 Moodle 內部課程 id，找不到回 null。fullname 只是
+  /// fallback：課名裡剛好含有課號就會配到錯的課、開出別人的成績與名單。
   static String? matchCourseId(List<dynamic> courses, String courseId) {
     if (courseId.isEmpty) return null;
     for (final course in courses) {
@@ -614,18 +705,13 @@ class MoodleWebApiConnector {
       if (courses == null) return null;
       return matchCourseId(courses, courseId);
     } catch (e, stack) {
-      // 這裡不能吞掉錯誤：使用者只會看到「不支援這門課」，log 裡查不到原因。
       _reportFailure(enrolledCoursesFunction, e, stack);
       return null;
     }
   }
 
-  /// 取得課程目錄。
-  ///
-  /// [modName] 有值時只回傳該種模組（Moodle 的 `options[modname]`）。
-  /// `core_course_get_contents` 會把整門課的所有單元、所有檔案與其中繼資料
-  /// 一次送回來，是這套 API 裡最重的呼叫；只要找特定模組時務必收窄範圍。
-  /// 官方 App 的做法相同，甚至會直接送 `cmid` 只取一個模組。
+  /// 取得課程目錄。`core_course_get_contents` 會把整門課的單元與檔案中繼資料
+  /// 一次送回，是最重的呼叫；只找特定模組時務必用 [modName] 收窄。
   static Future<List<MoodleCoreCourseGetContents>?> getCourseDirectory(
       String courseId,
       {String? modName}) async {
@@ -655,72 +741,160 @@ class MoodleWebApiConnector {
     }
   }
 
+  /// 這門課的公告討論串清單。找不到公告區時回 `forumFound: false` 的空清單，
+  /// 那不是失敗；真的抓不到才回 null。
   static Future<MoodleModForumGetForumDiscussions?> getCourseAnnouncement(
       String id) async {
-    const wsFunction = "mod_forum_get_forum_discussions";
     try {
-      // 只要討論區：為了一個 forum 的 instance id 去抓整門課的內容太重，
-      // 而且「課程目錄」分頁同一次瀏覽還會再抓一次同樣的內容。
-      List<MoodleCoreCourseGetContents>? v =
-          await getCourseDirectory(id, modName: "forum");
-      if (v == null) {
-        throw Exception("List<MoodleCoreCourseGetContents> is null");
-      }
-      String? forumId;
-      for (var i in v) {
-        if (i.name.contains("一般")) {
-          for (var j in i.modules) {
-            // 公告後來改名成「課程公佈欄」，兩種名稱都要認。
-            if (j.name.contains("公告") || j.name.contains("課程公佈欄")) {
-              forumId = j.instance.toString();
-              break;
-            }
-          }
-        }
-        if (forumId != null) {
-          break;
-        }
-      }
+      final forumId = await _findAnnouncementForumId(id);
+      // 沒有公告區不是錯誤：有些課真的沒開，畫面要說清楚而不是叫人重試。
       if (forumId == null) {
-        throw Exception("forumId is null");
+        return MoodleModForumGetForumDiscussions(forumFound: false);
       }
-
-      final result = await _callWs(wsFunction, {
+      final result = await _callWs(forumDiscussionsFunction, {
         "moodlewssettingfilter": "true",
         "moodlewssettingfileurl": "true",
-        "forumid": forumId,
+        "forumid": forumId.toString(),
         "page": 0,
-        "perpage": 100,
+        "perpage": announcementPerPage,
         "sortorder": 1,
         "groupid": 0,
       });
-      return MoodleModForumGetForumDiscussions.fromJson(
-          result as Map<String, dynamic>);
+      return announcementsOf(result);
     } catch (e, stack) {
-      _reportFailure(wsFunction, e, stack);
+      _reportFailure(forumDiscussionsFunction, e, stack);
       return null;
     }
   }
 
-  /// Moodle 內建的「這門課的老師」角色 shortname。
-  ///
-  /// Moodle 的 archetype 裡 editingteacher 是授課老師、teacher 是不能編輯的
-  /// 老師／助教。manager、coursecreator 是站台層級的管理角色，不是這門課的
-  /// 老師，刻意不列進來——這份名單的用途是找同學，寧可多顯示一個人，
-  /// 也不要把真的同學藏起來。
+  /// 公告區的 forum instance id。找到回 id；「這門課沒有公告區」回 null；
+  /// 兩條路都問不出來就拋，由呼叫端當成取得失敗。
+  static Future<int?> _findAnnouncementForumId(String courseId) async {
+    Object? forumsError;
+    try {
+      final forums = forumsOf(await _callWs(forumsByCoursesFunction, {
+        "moodlewssettingfilter": "true",
+        "courseids[0]": courseId,
+      }));
+      if (forums != null) return pickAnnouncementForum(forums)?.id;
+    } catch (e) {
+      // 這裡吞掉是為了「站台沒開這支 function」那條名稱比對的退路，但 token
+      // 過期、站台維護也會走到；原因留著，退路也失敗時要照原樣往上拋。
+      Log.d("[announcement] $forumsByCoursesFunction 不可用，改用名稱比對：$e");
+      forumsError = e;
+    }
+    final contents = await getCourseDirectory(courseId, modName: "forum");
+    if (contents == null) {
+      // 換成 Exception 會讓 MoodleApiException 被當成當機送進 Crashlytics。
+      throw forumsError ?? Exception("course contents is null");
+    }
+    return legacyAnnouncementForumId(contents);
+  }
+
+  /// 回的是 forum 陣列本身，不是 `{forums: []}`；形狀不對回 null。
+  static List<MoodleForum>? forumsOf(dynamic result) {
+    if (result is! List) return null;
+    return [
+      for (final e in result)
+        if (e is Map) MoodleForum.fromJson(Map<String, dynamic>.from(e)),
+    ];
+  }
+
+  static const String newsForumType = 'news';
+
+  /// 公告區的判斷。type 是結構欄位，課程改課名、改討論區名稱都不影響它。
+  static MoodleForum? pickAnnouncementForum(List<MoodleForum> forums) {
+    for (final f in forums) {
+      if (f.type == newsForumType) return f;
+    }
+    // 退路：站台把公告區改成一般討論區時只剩名稱可以認。
+    for (final f in forums) {
+      if (looksLikeAnnouncementName(f.name)) return f;
+    }
+    return null;
+  }
+
+  /// 公告後來改名成「課程公佈欄」，英文站台是 Announcements / News forum。
+  static const List<String> announcementNameHints = [
+    '公告',
+    '課程公佈欄',
+    'Announcements',
+    'News forum',
+  ];
+
+  static bool looksLikeAnnouncementName(String name) =>
+      announcementNameHints.any(name.contains);
+
+  /// 站台沒開 get_forums_by_courses 時，照舊從整門課的內容比對名稱。
+  static int? legacyAnnouncementForumId(
+      List<MoodleCoreCourseGetContents> contents) {
+    for (final section in contents) {
+      if (!section.name.contains("一般")) continue;
+      for (final m in section.modules) {
+        if (looksLikeAnnouncementName(m.name)) return m.instance;
+      }
+    }
+    return null;
+  }
+
+  /// 形狀不對回 null。`name` 與 `subject` 都是 format_string 過的，在這裡還原
+  /// 成純文字（清單列、AppBar 標題與抓不到回覆時的退路子標題都是純文字 sink）。
+  static MoodleModForumGetForumDiscussions? announcementsOf(dynamic result) {
+    if (result is! Map) return null;
+    final parsed = MoodleModForumGetForumDiscussions.fromJson(
+        Map<String, dynamic>.from(result));
+    for (final d in parsed.discussions) {
+      d.name = HtmlUtils.clean(d.name);
+      d.subject = HtmlUtils.clean(d.subject);
+    }
+    return parsed;
+  }
+
+  /// 一個討論串的全部貼文。`sortby=created&sortdirection=ASC` 讓第一篇一定在
+  /// 最前面；`includeinlineattachments` 一定要開，否則 message 裡的
+  /// `@@PLUGINFILE@@` 沒有對應的檔案可以換（post_exporter 不跑 format_text）。
+  static Future<List<MoodleForumPost>?> getDiscussionPosts(
+      int discussionId) async {
+    try {
+      return discussionPostsOf(await _callWs(discussionPostsFunction, {
+        "moodlewssettingfilter": "true",
+        "moodlewssettingfileurl": "true",
+        "discussionid": discussionId.toString(),
+        "sortby": "created",
+        "sortdirection": "ASC",
+        "includeinlineattachments": "1",
+      }));
+    } catch (e, stack) {
+      _reportFailure(discussionPostsFunction, e, stack);
+      return null;
+    }
+  }
+
+  /// 形狀不對或空清單回 null（討論串一定至少有一篇，空的代表這次沒問到）。
+  /// subject 進子標題（純文字 sink）所以還原實體；message 的 `@@PLUGINFILE@@`
+  /// 也在這裡換掉，快取存的就是可以直接算繪的 HTML。
+  static List<MoodleForumPost>? discussionPostsOf(dynamic result) {
+    if (result is! Map) return null;
+    final parsed = MoodleModForumGetDiscussionPosts.fromJson(
+        Map<String, dynamic>.from(result));
+    if (parsed.posts.isEmpty) return null;
+    for (final p in parsed.posts) {
+      p.subject = HtmlUtils.clean(p.subject);
+      p.message = MoodleForumUtils.resolveInlinePluginFiles(
+          p.message, p.messageinlinefiles);
+    }
+    return parsed.posts;
+  }
+
+  /// manager、coursecreator 是站台層級角色、不是這門課的老師，刻意不列：
+  /// 這份名單的用途是找同學，寧可多顯示一個人也不要藏起真的同學。
   static const Set<String> teacherRoleShortNames = {
     'editingteacher',
     'teacher',
   };
 
-  /// 這個人要不要留在「修課同學」名單裡。
-  ///
-  /// 以 roles 判斷，不要退回比對名字裡有沒有「老師」：那會藏掉名字裡剛好
-  /// 有這兩個字的同學，也留下名字裡沒有的老師。
-  ///
-  /// **roles 為空時回 true（顯示）**。roles 拿不拿得到取決於權限，實測學生
-  /// token 拿得到但規格沒有保證；拿不到時若反過來全部藏起來，名單會變成空的
-  /// 而上層對空名單是直接報錯。保守的方向是多顯示，不是全部消失。
+  /// 以 roles 判斷，不要退回比對名字裡有沒有「老師」。roles 為空時回 true：
+  /// 規格沒保證拿得到，全部藏起來會讓名單變空而上層對空名單直接報錯。
   static bool isCourseMember(MoodleCoreEnrolGetUsers user) {
     if (user.roles.isEmpty) return true;
     return !user.roles
@@ -753,15 +927,9 @@ class MoodleWebApiConnector {
     }
   }
 
-  /// 從 Moodle 取得某學期的課號清單。失敗回 null。
-  ///
-  /// 這裡刻意不回空清單代表失敗：空清單會被上游當成「這學期真的沒有課」，
-  /// 組出一張零課程的課表並覆蓋掉磁碟上原本正確的快取。所以「抓取失敗」
-  /// 一律是 null，空清單只代表這學期真的一門 Moodle 課都沒有，兩者不能混。
-  ///
-  /// 資料來源是 `core_enrol_get_users_courses` 加本機過濾，歷史學期才撈得到。
-  /// 不要換成 timeline classification 端點：它只回 `inprogress`，過去的學期
-  /// 根本不在回應裡，結果會是把當前學期的課號當成歷史學期的課表回傳。
+  /// 某學期的課號清單。失敗一律 null，不能回空清單：空清單會被上游當成
+  /// 「這學期真的沒有課」而覆蓋掉磁碟上正確的快取。歷史學期只有
+  /// `core_enrol_get_users_courses` 撈得到，timeline 端點只回 inprogress。
   static Future<List<String>?> getCourseIds(SemesterJson semester) async {
     try {
       final courses = await _getUsersCourses();
@@ -774,14 +942,10 @@ class MoodleWebApiConnector {
   }
 
   /// 從全部課程裡挑出屬於 [semester] 的課號（去掉學年學期前綴）。
-  ///
-  /// 官方 Moodle App 也是這樣做的：它只有在 classification 是 customfield
-  /// 時才會去打 timeline 那個端點。
   static List<String> courseIdsOfSemester(
       List<dynamic> courses, SemesterJson semester) {
     final prefix = "${semester.year}${semester.semester}";
-    // 前綴長度不對就代表這個 SemesterJson 根本不是 <學年3碼><學期1碼>，
-    // 硬比會把整份清單都配上去。回空清單，交給上游當成沒有課。
+    // 前綴長度不對就不是 <學年3碼><學期1碼>，硬比會把整份清單都配上去。
     if (prefix.length != semesterPrefixLength) return [];
 
     final ids = <String>[];
@@ -795,15 +959,8 @@ class MoodleWebApiConnector {
     return ids;
   }
 
-  /// 沒有 token 就先登入一次。
-  ///
-  /// **它與這個檔案自己的政策矛盾。** [onApiError] 的說明寫著「刻意不在
-  /// connector 內部自動重登入：login 會開一個 WebView 頁面，背景任務失敗時
-  /// 憑空彈出登入畫面比失敗本身更糟」——而這裡做的正是那件事。
-  ///
-  /// 集中成一處是為了讓那個矛盾只有一個位置可以修。真正的解法是讓呼叫端用
-  /// `AuthSession.tryEnsure` 決定要不要登入，但那會改變「什麼時候會彈出
-  /// 登入畫面」，需要實機驗證。
+  /// 沒有 token 就先登入一次。與 [onApiError] 的「不在 connector 內自動重登入」
+  /// 政策矛盾；集中成一處是為了讓那個矛盾只有一個位置可以修。
   static Future<void> _ensureToken() async {
     if (wsToken != null) return;
     await login(Model.instance.getAccount(), Model.instance.getPassword());
@@ -821,12 +978,8 @@ class MoodleWebApiConnector {
     }
   }
 
-  /// 從全部課程推出「目前學期」。推不出來回 null。
-  ///
-  /// 清單裡含歷史學期，所以自己判斷：先照 Moodle 對 inprogress 的定義
-  /// （startdate 已到，且 enddate 是 0 或還沒到）挑出進行中的課，取其中最新
-  /// 的學期；學期之間的空檔可能一門進行中的課都沒有，那就退回清單裡最新的
-  /// 那個學期，而不是回 null。
+  /// 取進行中課程裡最新的學期（startdate 已到且 enddate 為 0 或未到）；
+  /// 學期空檔可能一門進行中的課都沒有，那就退回清單裡最新的那個學期。
   static SemesterJson? currentSemesterOf(List<dynamic> courses,
       {DateTime? now}) {
     // Moodle 的 startdate / enddate 是 Unix 秒。
@@ -845,8 +998,7 @@ class MoodleWebApiConnector {
 
       final start = _asUnixSeconds(course["startdate"]);
       final end = _asUnixSeconds(course["enddate"]);
-      // 沒有 startdate 就不當成「還沒開始」；enddate 是 0 是 Moodle 表示
-      // 「沒有結束日」的方式。
+      // enddate 是 0 是 Moodle 表示「沒有結束日」的方式。
       final started = start == null || start <= at;
       final ended = end != null && end != 0 && end <= at;
       if (started && !ended && _isLaterSemester(inProgress, prefix)) {
@@ -862,10 +1014,8 @@ class MoodleWebApiConnector {
     );
   }
 
-  /// `<學年><學期>` 前綴誰比較新。
-  ///
-  /// 直接比字串：學年固定 3 碼且補零（"099" < "100"），學期是 1、2、H，
-  /// 而 '1' < '2' < 'H' 剛好就是上學期、下學期、暑期的先後。
+  /// 直接比字串：學年固定 3 碼補零（"099" < "100"），而 '1' < '2' < 'H'
+  /// 剛好就是上學期、下學期、暑期的先後。
   static bool _isLaterSemester(String? current, String candidate) =>
       current == null || candidate.compareTo(current) > 0;
 
@@ -874,11 +1024,8 @@ class MoodleWebApiConnector {
     return int.tryParse("$value");
   }
 
-  /// 一門課的成績項目。抓不到回 null（呼叫端會顯示錯誤頁）。
-  ///
-  /// 帶 `userid` 呼叫，所以 `usergrades` 只會有自己那一筆，這裡直接把它剝出來
-  /// 給快取與畫面用。`moodlewssettingfileurl` 要留著：回饋欄位裡的 `<img>`
-  /// 需要 Moodle 幫忙把 pluginfile 換成可以帶 token 取用的網址。
+  /// 一門課的成績項目，抓不到回 null。`moodlewssettingfileurl` 要留著：
+  /// 回饋欄位裡的 `<img>` 要靠它換成可帶 token 取用的網址。
   static Future<MoodleUserGradesEntity?> getScore(String id) async {
     try {
       final uid = await _ensureUserId();
@@ -892,9 +1039,8 @@ class MoodleWebApiConnector {
       });
       final grades = userGradesOf(result);
       if (grades == null) {
-        // 不要無聲成功。usergrades 是空的代表這門課對這個 token 沒有成績可看
-        // （課號對錯人、或站台沒開放），回一個 gradeItems 為空的物件會讓畫面
-        // 顯示一片空白的「成功」，而且那個空物件還會被寫進快取。
+        // 不要無聲成功：usergrades 為空回一個空物件會顯示空白的「成功」，
+        // 而且那個空物件還會被寫進快取。
         _reportFailure(
           gradeItemsFunction,
           MoodleApiException(
@@ -912,14 +1058,8 @@ class MoodleWebApiConnector {
     }
   }
 
-  /// 從 `gradereport_user_get_grade_items` 的回應剝出第一筆 usergrades。
-  ///
-  /// 形狀不對就回 null，而不是讓 `result["usergrades"][0]` 拋 TypeError 之後
+  /// 剝出第一筆 usergrades；形狀不對回 null，不要讓它拋 TypeError 之後
   /// 被 catch 吞成「抓不到」。
-  ///
-  /// 與 moodleErrorOf / matchCourseId / currentSemesterOf 一樣是公開的純函式：
-  /// 九個 getter 走 static 的 Connector.getJsonByPost，沒有注入假回應的地方，
-  /// 所以「怎麼判讀」一律抽成公開純函式單獨測。
   static MoodleUserGradesEntity? userGradesOf(dynamic result) {
     if (result is! Map) return null;
     final entity =
@@ -928,13 +1068,177 @@ class MoodleWebApiConnector {
     return entity.userGrades.first;
   }
 
+  /// [now] 當天 00:00 往前推 [actionEventsLookbackDays] 天的 Unix 秒。
+  static int actionEventsTimesortFrom(DateTime now) =>
+      DateTime(now.year, now.month, now.day - actionEventsLookbackDays)
+          .millisecondsSinceEpoch ~/
+      1000;
+
+  /// 所有課程的待辦事件。失敗回 null；空清單是合法結果，不要映成 null。
+  /// 回滿一頁就帶 `aftereventid` 再翻；第一頁失敗才算失敗，後面失敗就用手上的。
+  static Future<List<MoodleActionEvent>?> getActionEvents({
+    int? timesortFrom,
+    int limitnum = actionEventsLimit,
+  }) async {
+    final from =
+        (timesortFrom ?? actionEventsTimesortFrom(DateTime.now())).toString();
+    final all = <MoodleActionEvent>[];
+    int? after;
+    for (var page = 0; page < actionEventsMaxPages; page++) {
+      final MoodleCoreCalendarActionEvents? parsed;
+      try {
+        final result = await _callWs(actionEventsFunction, {
+          "moodlewssettingfilter": "true",
+          "moodlewssettingfileurl": "true",
+          "timesortfrom": from,
+          "limitnum": limitnum.toString(),
+          // 只要還在修的課。
+          "limittononsuspendedevents": "1",
+          if (after != null) "aftereventid": after.toString(),
+        });
+        parsed = actionEventsPageOf(result);
+        if (parsed == null) {
+          throw MoodleApiException(
+            wsFunction: actionEventsFunction,
+            message: '回應裡沒有 events',
+          );
+        }
+      } catch (e, stack) {
+        _reportFailure(actionEventsFunction, e, stack);
+        return page == 0 ? null : all;
+      }
+      all.addAll(parsed.events);
+      after = nextActionEventsPage(parsed, limitnum);
+      if (after == null) break;
+    }
+    return all;
+  }
+
+  /// 下一頁的 `aftereventid`；沒有下一頁回 null。「回滿一頁」是唯一的訊號：
+  /// 伺服器不回總數，也不回 has-more。
+  static int? nextActionEventsPage(
+      MoodleCoreCalendarActionEvents page, int limitnum) {
+    if (page.events.length < limitnum) return null;
+    return page.lastid;
+  }
+
+  /// 同 [actionEventsPageOf]，只回 events。
+  static List<MoodleActionEvent>? actionEventsOf(dynamic result) =>
+      actionEventsPageOf(result)?.events;
+
+  /// 一頁回應剝成模型（含翻頁用的 lastid）；形狀不對回 null。名稱欄位都是
+  /// format_string 過的（`&` 會是 `&amp;`），在這裡過 [HtmlUtils.clean]。
+  static MoodleCoreCalendarActionEvents? actionEventsPageOf(dynamic result) {
+    if (result is! Map || result["events"] is! List) return null;
+    final parsed = MoodleCoreCalendarActionEvents.fromJson(
+        Map<String, dynamic>.from(result));
+    for (final event in parsed.events) {
+      event.name = HtmlUtils.clean(event.name);
+      final activityname = event.activityname;
+      if (activityname != null) {
+        event.activityname = HtmlUtils.clean(activityname);
+      }
+      final course = event.course;
+      if (course != null) {
+        course.fullname = HtmlUtils.clean(course.fullname);
+        course.shortname = HtmlUtils.clean(course.shortname);
+      }
+    }
+    return parsed;
+  }
+
+  /// 這門課（Moodle 內部 id）的全部作業，抓不到回 null。回的日期已套過 override；
+  /// `moodlewssettingfileurl` 要留著，intro 的 `@@PLUGINFILE@@` 才會換成網址。
+  static Future<List<MoodleAssignment>?> getAssignments(String courseId) async {
+    try {
+      final result = await _callWs(assignmentsFunction, {
+        "moodlewssettingfilter": "true",
+        "moodlewssettingfileurl": "true",
+        "courseids[0]": courseId,
+      });
+      final assignments = assignmentsOf(result);
+      if (assignments == null) {
+        // courses 為空是站台用 warnings 說「未選課或無權限」，不是「沒有作業」。
+        _reportFailure(
+          assignmentsFunction,
+          MoodleApiException(
+            wsFunction: assignmentsFunction,
+            message: 'courses 為空：${_firstWarningMessage(result)}',
+          ),
+          StackTrace.current,
+        );
+        return null;
+      }
+      return assignments;
+    } catch (e, stack) {
+      _reportFailure(assignmentsFunction, e, stack);
+      return null;
+    }
+  }
+
+  /// `courses` 為空回 null（warnings：未選課或無權限）；有課但沒作業回空清單。
+  /// `name` 是 format_string 過的，在這裡 [HtmlUtils.clean]，快取存的才是還原後的。
+  static List<MoodleAssignment>? assignmentsOf(dynamic result) {
+    if (result is! Map) return null;
+    final entity = MoodleModAssignGetAssignments.fromJson(
+        Map<String, dynamic>.from(result));
+    if (entity.courses.isEmpty) return null;
+    final list = [for (final c in entity.courses) ...c.assignments];
+    for (final a in list) {
+      a.name = HtmlUtils.clean(a.name);
+    }
+    return list;
+  }
+
+  /// 一份作業對自己的繳交狀態、成績與回饋，抓不到回 null。
+  /// `lastattempt.submission` 缺席代表還沒繳交，是正常回應。
+  static Future<MoodleAssignSubmissionStatus?> getSubmissionStatus(
+      int assignId) async {
+    try {
+      final uid = await _ensureUserId();
+      if (uid == null) return null;
+
+      final result = await _callWs(submissionStatusFunction, {
+        "moodlewssettingfilter": "true",
+        "moodlewssettingfileurl": "true",
+        "assignid": assignId.toString(),
+        "userid": uid,
+      });
+      return submissionStatusOf(result);
+    } catch (e, stack) {
+      _reportFailure(submissionStatusFunction, e, stack);
+      return null;
+    }
+  }
+
+  /// 形狀不對回 null。`gradefordisplay` 是 HTML 片段（如 `85.00&nbsp;/&nbsp;100.00`），
+  /// 在這裡 [HtmlUtils.clean] 成純文字，下游只進 Text。
+  static MoodleAssignSubmissionStatus? submissionStatusOf(dynamic result) {
+    if (result is! Map) return null;
+    final status = MoodleAssignSubmissionStatus.fromJson(
+        Map<String, dynamic>.from(result));
+    final feedback = status.feedback;
+    if (feedback != null) {
+      feedback.gradefordisplay = HtmlUtils.clean(feedback.gradefordisplay);
+    }
+    return status;
+  }
+
+  /// 作業的網頁位址。[cmid] 是 course module id，不是 assign id。
+  static String assignViewUrl(int cmid) => "$host/mod/assign/view.php?id=$cmid";
+
+  static String _firstWarningMessage(dynamic result) {
+    if (result is! Map) return "";
+    final warnings = result["warnings"];
+    if (warnings is! List || warnings.isEmpty) return "";
+    final first = warnings.first;
+    return first is Map ? (first["message"]?.toString() ?? "") : "";
+  }
+
   static Future<MoodleProfileEntity?> getProfile() async {
     try {
-      // 這個 fromJson 之前一定要先判錯：MoodleProfileEntity 每個欄位都有
-      // JsonKey.defaultValue，把 {"errorcode": "invalidtoken", ...} 丟進去
-      // 不會拋，會得到一個欄位全空、看起來完全合法的物件——呼叫端當成
-      // 「成功」，而這份空 profile 還會被存進 siteInfo 變成「站台什麼
-      // function 都沒開」。攔截點在 _callWs（moodleErrorOf）。
+      // fromJson 之前一定要先判錯（_callWs 已做）：每個欄位都有
+      // defaultValue，錯誤包丟進去會得到一個看起來完全合法的空 profile。
       final result = await _callWs(siteInfoFunction, const {});
       final profile =
           MoodleProfileEntity.fromJson(result as Map<String, dynamic>);
@@ -958,14 +1262,8 @@ class MoodleWebApiConnector {
     }
   }
 
-  /// 切換 Moodle 通知設定。成功回 true。
-  ///
-  /// 一定要把成敗回報給呼叫端：Moodle 對 core_user_update_user_preferences
-  /// 的失敗是回 HTTP 200 帶 exception 或 errorcode、部分失敗回 warnings[]，
-  /// 連例外都不會拋，忽略它就是使用者看到開關切過去了、伺服器沒有改。
-  ///
-  /// 這裡是唯一送 `treatWarningsAsError: true` 的呼叫：寫入只要有一筆
-  /// warning 就代表偏好設定沒有真的存進去，讀取路徑則不然。
+  /// 切換 Moodle 通知設定，成功回 true。唯一送 `treatWarningsAsError: true`
+  /// 的呼叫：寫入只要有一筆 warning 就代表偏好設定沒有真的存進去。
   static Future<bool> toggleSetting(String key, List<String> values) async {
     const wsFunction = "core_user_update_user_preferences";
     await _ensureToken();

@@ -5,9 +5,9 @@ import 'package:flutter_test/flutter_test.dart';
 /// 「Moodle 回 HTTP 200 但其實是錯誤」這條路徑的規格。
 ///
 /// 測的是 connector 的兩個判斷點（[MoodleWebApiConnector.moodleErrorOf] 與
-/// [MoodleWebApiConnector.wsFunctionBlocked]），兩者都是純函式、不需要網路；
-/// 九個讀取 getter 本身走 static 的 `Connector.getJsonByPost`，沒有可以注入
-/// 假回應的地方。
+/// [MoodleWebApiConnector.wsFunctionBlocked]），兩者都是純函式、不需要網路。
+/// 要走完整條 `_callWs` 的測試用 [MoodleWebApiConnector.wsPost] 換掉傳輸層
+/// （見 moodle_autologin_url_test.dart）。
 void main() {
   void resetConnectorStatics() {
     MoodleWebApiConnector.siteInfo = null;

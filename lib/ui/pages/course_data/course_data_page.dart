@@ -8,9 +8,12 @@ import 'package:flutter_app/src/R.dart';
 import 'package:flutter_app/src/model/course/course_class_json.dart';
 import 'package:flutter_app/src/model/course_table/course_table_json.dart';
 import 'package:flutter_app/ui/components/custom_appbar.dart';
+import 'package:flutter_app/ui/components/page/error_page.dart';
 import 'package:flutter_app/ui/pages/course_data/screen/course_announcement_page.dart';
+import 'package:flutter_app/ui/pages/course_data/screen/course_assignment_page.dart';
 import 'package:flutter_app/ui/pages/course_data/screen/course_directory_page.dart';
 import 'package:flutter_app/ui/pages/course_data/screen/course_score_page.dart';
+import 'package:flutter_app/ui/routes/route_utils.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get/get.dart';
 
@@ -40,19 +43,30 @@ class _CourseDataPageState extends State<CourseDataPage>
   void initState() {
     super.initState();
     _controller = CourseDataController(widget.courseInfo.main.course.id);
-    // 三個分頁一起抓，不等使用者滑過去：PageView(children:) 是懶載入的
-    // （cacheExtent 0），分頁各自在 initState 發請求的話，每換一個分頁就要
-    // 從頭等一次。
+    // 四個分頁一起抓，不等使用者滑過去；見 CourseDataController。
     unawaited(_controller.loadAll());
     _pages = [
       CourseDirectoryPage(widget.courseInfo, controller: _controller),
-      CourseAnnouncementPage(widget.courseInfo, controller: _controller),
-      CourseScorePage(widget.courseInfo, controller: _controller)
+      // 公告與作業分頁不能 import ErrorPage / RouteUtils，所以由這裡注入。
+      CourseAnnouncementPage(
+        widget.courseInfo,
+        controller: _controller,
+        errorBuilder: (message) => ErrorPage(errorMsg: message),
+        openWebView: RouteUtils.toWebViewPage,
+      ),
+      CourseScorePage(widget.courseInfo, controller: _controller),
+      CourseAssignmentPage(
+        widget.courseInfo,
+        controller: _controller,
+        errorBuilder: (message) => ErrorPage(errorMsg: message),
+        openWebView: RouteUtils.toWebViewPage,
+      ),
     ];
     _tabItems = [
       {"name": R.current.file, "icon": "img_file.svg"},
       {"name": R.current.announcement, "icon": "img_message.svg"},
-      {"name": R.current.score, "icon": "img_education.svg"}
+      {"name": R.current.score, "icon": "img_education.svg"},
+      {"name": R.current.assignment, "icon": "img_clipboard.svg"},
     ];
     _tabController = TabController(vsync: this, length: _tabItems.length);
   }

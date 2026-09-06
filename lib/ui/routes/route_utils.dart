@@ -1,13 +1,13 @@
 import 'dart:io';
 
 import 'package:flutter_app/src/R.dart';
+import 'package:flutter_app/src/connector/moodle_webapi_connector.dart';
 import 'package:flutter_app/src/util/my_toast.dart';
 import 'package:flutter_app/src/util/remote_config_utils.dart';
 import 'package:flutter_app/ui/pages/announcement/announcement_page.dart';
 import 'package:flutter_app/src/model/course/course_class_json.dart';
 import 'package:flutter_app/src/model/course_table/course_table_json.dart';
 import 'package:flutter_app/ui/pages/course_data/course_data_page.dart';
-import 'package:flutter_app/ui/pages/course_data/screen/sub_page/course_announcement_detail_page.dart';
 import 'package:flutter_app/ui/pages/course_data/screen/sub_page/course_folder_page.dart';
 import 'package:flutter_app/ui/pages/course_data/screen/sub_page/course_info_page.dart';
 import 'package:flutter_app/ui/pages/course_detail/course_detail_page.dart';
@@ -76,14 +76,6 @@ class RouteUtils {
     );
   }
 
-  static Future toAnnouncementDetailPage(
-      CourseInfoJson courseInfo, dynamic value) async {
-    return await Get.to(
-      () => CourseAnnouncementDetailPage(courseInfo, value),
-      transition: transition,
-    );
-  }
-
   static Future toCourseDetailPage(
       SemesterJson semester, CourseInfoJson courseInfo) async {
     return await Get.to(
@@ -125,10 +117,14 @@ class RouteUtils {
       Function(Uri)? onWebViewDownload,
       Function(InAppWebViewController)? loadDone}) async {
     loadDone ??= (controller) {};
+    // Moodle 的頁面先換成 autologin 網址，WebView 才不會停在登入頁；換不到
+    // 就原樣回來。有換到時把原網址一起帶著，鑰匙被拒時 WebView 才有地方退。
+    final target = await MoodleWebApiConnector.autologinUrl(url);
     return await Get.to(
       () => InAppWebViewPage(
         title: title,
-        url: WebUri(url),
+        url: WebUri(target),
+        fallbackUrl: target == url ? null : WebUri(url),
         openWithExternalWebView: openWithExternalWebView,
         onWebViewDownload: onWebViewDownload,
         loadDone: loadDone!,

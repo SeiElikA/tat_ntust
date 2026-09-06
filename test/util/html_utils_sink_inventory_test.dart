@@ -29,8 +29,22 @@ void main() {
   String normalize(String path) => path.replaceAll(r'\', '/');
 
   test('HtmlUtils.clean 的呼叫端清單沒有變動', () {
-    // 盤點結果：只有這一個呼叫端，它把 Moodle 課程模組名（Modules.name）
-    // 的 HTML 實體還原成純文字。
+    // 盤點結果：只有這一個檔案在呼叫，七處——
+    // - 課程模組名（Modules.name，getCourseDirectory）
+    // - 行事曆待辦的事件名與課名（MoodleActionEvent.name / activityname、
+    //   MoodleActionEventCourse.fullname / shortname，actionEventsPageOf）
+    // - 作業名（MoodleAssignment.name，assignmentsOf）
+    // - 作業成績的顯示字串（MoodleAssignFeedback.gradefordisplay，
+    //   submissionStatusOf）
+    // - 公告標題（Discussions.name，announcementsOf）
+    // - 公告的第一篇貼文標題（Discussions.subject，announcementsOf；抓不到
+    //   回覆時 rootPostOf 會把它當成貼文標題畫出來）
+    // - 貼文標題（MoodleForumPost.subject，discussionPostsOf）
+    // 下游全是 Text 與 AppBar / WebView 標題（upcoming_events_section 的
+    // tile、course_assignment_page 的列、course_assignment_detail_page 的
+    // AppBar 與成績列、course_announcement_page 的清單卡片與討論串頁的
+    // AppBar、course_announcement_detail_page 的卡片子標題、
+    // InAppWebViewPage 的 title）。
     const expected = {'lib/src/connector/moodle_webapi_connector.dart'};
 
     final actual = <String>{
@@ -55,14 +69,16 @@ clean() 是 escape 的反向操作：它會把 `&lt;script&gt;` 還原成 `<scri
 
   test('HtmlWidget（HTML sink）出現的檔案清單沒有變動', () {
     // 盤點結果，這四個檔案吃的分別是：
+    // - moodle_html_view：共用的 Moodle 原文 HTML 算繪元件，被作業詳情頁的
+    //   說明 intro / 線上文字 onlinetext / 老師回饋 comments 與公告討論串頁的
+    //   貼文 message 餵，全是未經 clean 的原文
     // - course_info_page：ap.description（未經 clean 的 Moodle 原文）
     // - course_html_page：遠端 HTML 教材原文
     // - course_score_page：成績項目的老師回饋（gradeitems[].feedback，帶 <img>）
-    // - course_announcement_detail_page：論壇貼文 HTML
     // 沒有任何一個吃 clean() 的輸出。
     const expected = {
+      'lib/ui/components/html/moodle_html_view.dart',
       'lib/ui/pages/course_data/screen/course_score_page.dart',
-      'lib/ui/pages/course_data/screen/sub_page/course_announcement_detail_page.dart',
       'lib/ui/pages/course_data/screen/sub_page/course_html_page.dart',
       'lib/ui/pages/course_data/screen/sub_page/course_info_page.dart',
     };
