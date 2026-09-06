@@ -77,6 +77,39 @@ class MoodleAssignment {
   @JsonKey(name: 'teamsubmission', defaultValue: 0)
   int teamsubmission;
 
+  /// 1 = 有草稿階段：`save_submission` 只存成草稿，還要再送出評分。
+  /// 0 = 存檔就是繳交（伺服器直接標成 submitted 並寄出繳交回條）。
+  @JsonKey(name: 'submissiondrafts', defaultValue: 0)
+  int submissiondrafts;
+
+  /// 1 = 要學生同意繳交聲明。`save_submission` 路徑伺服器**不驗**，只有
+  /// `submit_for_grading` 會擋，所以沒有草稿階段的作業必須由 App 自己要求勾選。
+  @JsonKey(name: 'requiresubmissionstatement', defaultValue: 0)
+  int requiresubmissionstatement;
+
+  /// 只有 [requiresubmissionstatement] 為真時才在；是站台層級的 admin 設定
+  /// 過 `format_text` 的 HTML，可能是空字串（空字串＝伺服器端不會擋）。
+  @JsonKey(name: 'submissionstatement')
+  String? submissionstatement;
+
+  /// -1 = 不限次數。
+  @JsonKey(name: 'maxattempts', defaultValue: -1)
+  int maxattempts;
+
+  @JsonKey(name: 'attemptreopenmethod', defaultValue: "")
+  String attemptreopenmethod;
+
+  /// 秒，> 0 代表有作答時限，要走 `mod_assign_start_submission`，本功能不支援。
+  @JsonKey(name: 'timelimit', defaultValue: 0)
+  int timelimit;
+
+  @JsonKey(name: 'blindmarking', defaultValue: 0)
+  int blindmarking;
+
+  /// 只收錄 enabled 且 visible 的外掛，見 [MoodleAssignConfig]。
+  @JsonKey(name: 'configs', defaultValue: [])
+  List<MoodleAssignConfig> configs;
+
   /// null = 伺服器沒送（尚未開放繳交），空字串 = 老師真的沒寫，兩者畫面不同。
   @JsonKey(name: 'intro')
   String? intro;
@@ -93,11 +126,29 @@ class MoodleAssignment {
     this.cutoffdate = 0,
     this.nosubmissions = 0,
     this.teamsubmission = 0,
+    this.submissiondrafts = 0,
+    this.requiresubmissionstatement = 0,
+    this.submissionstatement,
+    this.maxattempts = -1,
+    this.attemptreopenmethod = "",
+    this.timelimit = 0,
+    this.blindmarking = 0,
+    List<MoodleAssignConfig>? configs,
     this.intro,
     List<MoodleAssignFile>? introattachments,
-  }) : introattachments = introattachments ?? <MoodleAssignFile>[];
+  })  : configs = configs ?? <MoodleAssignConfig>[],
+        introattachments = introattachments ?? <MoodleAssignFile>[];
 
   bool get hasDueDate => duedate > 0;
+
+  /// 有草稿階段：那顆鈕叫「儲存草稿」，還要再送出評分。
+  bool get tracksDrafts => submissiondrafts != 0;
+
+  bool get requiresStatement => requiresubmissionstatement != 0;
+
+  bool get hasTimeLimit => timelimit > 0;
+
+  bool get isBlindMarking => blindmarking != 0;
 
   /// 不要用 `isNotEmpty`：null 與空字串語意不同，見 [intro]。
   bool get hasIntro => intro != null;
@@ -116,6 +167,41 @@ class MoodleAssignment {
   String toString() => jsonEncode(this);
 }
 
+/// `configs[]` 的一個元素。只有 enabled 且 visible 的外掛才會出現在這裡，
+/// 所以「有沒有這個 plugin 的任何一列」就是「這個繳交外掛有沒有開」。
+@JsonSerializable(explicitToJson: true)
+class MoodleAssignConfig {
+  /// file / onlinetext / comments ……
+  @JsonKey(name: 'plugin', defaultValue: "")
+  String plugin;
+
+  /// assignsubmission / assignfeedback。同名外掛兩邊都有，一定要一起比對。
+  @JsonKey(name: 'subtype', defaultValue: "")
+  String subtype;
+
+  @JsonKey(name: 'name', defaultValue: "")
+  String name;
+
+  /// 伺服器一律送字串，數字也是。
+  @JsonKey(name: 'value', defaultValue: "")
+  String value;
+
+  MoodleAssignConfig({
+    this.plugin = "",
+    this.subtype = "",
+    this.name = "",
+    this.value = "",
+  });
+
+  factory MoodleAssignConfig.fromJson(Map<String, dynamic> json) =>
+      _$MoodleAssignConfigFromJson(json);
+
+  Map<String, dynamic> toJson() => _$MoodleAssignConfigToJson(this);
+
+  @override
+  String toString() => jsonEncode(this);
+}
+
 /// `external_files` 的一個元素（intro 附件、繳交檔案、回饋檔案共用）。
 @JsonSerializable(explicitToJson: true)
 class MoodleAssignFile {
@@ -129,10 +215,16 @@ class MoodleAssignFile {
   @JsonKey(name: 'mimetype', defaultValue: "")
   String mimetype;
 
+  /// 位元組。`external_files` 的這一欄是 VALUE_OPTIONAL，缺席是 0＝未知；
+  /// 重傳舊繳交檔案時用它驗下載回來的那一份，見 `_buildDraftArea`。
+  @JsonKey(name: 'filesize', defaultValue: 0)
+  int filesize;
+
   MoodleAssignFile({
     this.filename = "",
     this.fileurl = "",
     this.mimetype = "",
+    this.filesize = 0,
   });
 
   factory MoodleAssignFile.fromJson(Map<String, dynamic> json) =>

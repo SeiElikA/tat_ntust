@@ -114,6 +114,9 @@ class _CourseAssignmentPageState extends State<CourseAssignmentPage>
             initialStatus: widget.controller.statusOf(a.id).value,
             errorBuilder: widget.errorBuilder,
             openWebView: widget.openWebView,
+            // 詳情頁交完之後，這一列的狀態籤要跟著換。
+            onStatusChanged: (s) =>
+                widget.controller.statusOf(a.id).value = Ok(s),
           ))),
       child: Container(
         color: UIUtils.getListColor(index),

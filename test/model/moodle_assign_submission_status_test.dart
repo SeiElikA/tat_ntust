@@ -199,6 +199,13 @@ void main() {
         'teamsubmission',
         'extensionduedate',
         'gradingstatus',
+        'canedit',
+        'cansubmit',
+        'locked',
+        'graded',
+        'submissionsenabled',
+        'blindmarking',
+        'timelimit',
       });
       expect(s.lastattempt!.submission!.toJson().keys,
           {'timemodified', 'status', 'plugins'});
@@ -209,7 +216,7 @@ void main() {
           {'name', 'text'});
     });
 
-    test('舊快取 blob 多出來的 key（例如 warnings、submissionsenabled）照樣解得開', () {
+    test('舊快取 blob 多出來的 key（例如 warnings）照樣解得開', () {
       final s = MoodleAssignSubmissionStatus.fromJson({
         'lastattempt': {
           'submissionsenabled': true,
@@ -221,6 +228,92 @@ void main() {
       });
       expect(s.isGraded, isTrue);
       expect(s.submissionFor(solo)!.isSubmitted, isTrue);
+    });
+  });
+
+  /// 這幾個旗標是「能不能交」的唯一依據，`submissions_open()` 已經把 cutoffdate、
+  /// 延長期限、鎖定全部算完，所以解析錯了就等於畫錯入口。
+  group('繳交閘門旗標', () {
+    test('PARAM_BOOL 吃 true / 1 / "1" 三種寫法', () {
+      for (final raw in [true, 1, '1']) {
+        final s = MoodleAssignSubmissionStatus.fromJson({
+          'lastattempt': {
+            'canedit': raw,
+            'cansubmit': raw,
+            'locked': raw,
+            'graded': raw,
+            'submissionsenabled': raw,
+            'blindmarking': raw,
+          },
+        });
+        expect(s.canEdit, isTrue, reason: '$raw');
+        expect(s.canSubmit, isTrue, reason: '$raw');
+        expect(s.isLocked, isTrue, reason: '$raw');
+        expect(s.lastattempt!.graded, isTrue, reason: '$raw');
+        expect(s.submissionsEnabled, isTrue, reason: '$raw');
+        expect(s.isBlindMarking, isTrue, reason: '$raw');
+      }
+    });
+
+    test('false / 0 / "0" 與缺席一律是 false', () {
+      for (final raw in [false, 0, '0', null]) {
+        final s = MoodleAssignSubmissionStatus.fromJson({
+          'lastattempt': {'canedit': raw, 'cansubmit': raw},
+        });
+        expect(s.canEdit, isFalse, reason: '$raw');
+        expect(s.canSubmit, isFalse, reason: '$raw');
+      }
+    });
+
+    test('timelimit 是 VALUE_OPTIONAL，缺席是 0', () {
+      expect(
+          MoodleAssignSubmissionStatus.fromJson(
+              {'lastattempt': <String, dynamic>{}}).timeLimit,
+          0);
+      expect(
+          MoodleAssignSubmissionStatus.fromJson({
+            'lastattempt': {'timelimit': 900},
+          }).timeLimit,
+          900);
+    });
+
+    test('lastattempt 缺席（沒有 viewownsubmissionsummary）時全部回 false / 0', () {
+      final s = MoodleAssignSubmissionStatus.fromJson({});
+
+      expect(s.lastattempt, isNull);
+      expect(s.canEdit, isFalse);
+      expect(s.canSubmit, isFalse);
+      expect(s.isLocked, isFalse);
+      expect(s.submissionsEnabled, isFalse);
+      expect(s.isBlindMarking, isFalse);
+      expect(s.timeLimit, 0);
+    });
+
+    test('fixture：status_can_edit 可編輯但不能送出評分', () {
+      final s = rawFixtureStatus('status_can_edit');
+
+      expect(s.canEdit, isTrue);
+      expect(s.submissionsEnabled, isTrue);
+      expect(s.isLocked, isFalse);
+      expect(s.canSubmit, isFalse);
+    });
+
+    test('fixture：status_can_submit 有草稿，兩顆鈕都在', () {
+      final s = rawFixtureStatus('status_can_submit');
+
+      expect(s.canEdit, isTrue);
+      expect(s.canSubmit, isTrue);
+    });
+
+    test('fixture：status_locked 被老師鎖住', () {
+      final s = rawFixtureStatus('status_locked');
+
+      expect(s.isLocked, isTrue);
+      expect(s.canEdit, isFalse);
+    });
+
+    test('fixture：status_timed 有作答時限', () {
+      expect(rawFixtureStatus('status_timed').timeLimit, greaterThan(0));
     });
   });
 }

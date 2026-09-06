@@ -46,6 +46,19 @@ MoodleAssignment _$MoodleAssignmentFromJson(Map<String, dynamic> json) =>
       cutoffdate: (json['cutoffdate'] as num?)?.toInt() ?? 0,
       nosubmissions: (json['nosubmissions'] as num?)?.toInt() ?? 0,
       teamsubmission: (json['teamsubmission'] as num?)?.toInt() ?? 0,
+      submissiondrafts: (json['submissiondrafts'] as num?)?.toInt() ?? 0,
+      requiresubmissionstatement:
+          (json['requiresubmissionstatement'] as num?)?.toInt() ?? 0,
+      submissionstatement: json['submissionstatement'] as String?,
+      maxattempts: (json['maxattempts'] as num?)?.toInt() ?? -1,
+      attemptreopenmethod: json['attemptreopenmethod'] as String? ?? '',
+      timelimit: (json['timelimit'] as num?)?.toInt() ?? 0,
+      blindmarking: (json['blindmarking'] as num?)?.toInt() ?? 0,
+      configs: (json['configs'] as List<dynamic>?)
+              ?.map(
+                  (e) => MoodleAssignConfig.fromJson(e as Map<String, dynamic>))
+              .toList() ??
+          [],
       intro: json['intro'] as String?,
       introattachments: (json['introattachments'] as List<dynamic>?)
               ?.map((e) => MoodleAssignFile.fromJson(e as Map<String, dynamic>))
@@ -63,9 +76,33 @@ Map<String, dynamic> _$MoodleAssignmentToJson(MoodleAssignment instance) =>
       'cutoffdate': instance.cutoffdate,
       'nosubmissions': instance.nosubmissions,
       'teamsubmission': instance.teamsubmission,
+      'submissiondrafts': instance.submissiondrafts,
+      'requiresubmissionstatement': instance.requiresubmissionstatement,
+      'submissionstatement': instance.submissionstatement,
+      'maxattempts': instance.maxattempts,
+      'attemptreopenmethod': instance.attemptreopenmethod,
+      'timelimit': instance.timelimit,
+      'blindmarking': instance.blindmarking,
+      'configs': instance.configs.map((e) => e.toJson()).toList(),
       'intro': instance.intro,
       'introattachments':
           instance.introattachments.map((e) => e.toJson()).toList(),
+    };
+
+MoodleAssignConfig _$MoodleAssignConfigFromJson(Map<String, dynamic> json) =>
+    MoodleAssignConfig(
+      plugin: json['plugin'] as String? ?? '',
+      subtype: json['subtype'] as String? ?? '',
+      name: json['name'] as String? ?? '',
+      value: json['value'] as String? ?? '',
+    );
+
+Map<String, dynamic> _$MoodleAssignConfigToJson(MoodleAssignConfig instance) =>
+    <String, dynamic>{
+      'plugin': instance.plugin,
+      'subtype': instance.subtype,
+      'name': instance.name,
+      'value': instance.value,
     };
 
 MoodleAssignFile _$MoodleAssignFileFromJson(Map<String, dynamic> json) =>
@@ -73,6 +110,7 @@ MoodleAssignFile _$MoodleAssignFileFromJson(Map<String, dynamic> json) =>
       filename: json['filename'] as String? ?? '',
       fileurl: json['fileurl'] as String? ?? '',
       mimetype: json['mimetype'] as String? ?? '',
+      filesize: (json['filesize'] as num?)?.toInt() ?? 0,
     );
 
 Map<String, dynamic> _$MoodleAssignFileToJson(MoodleAssignFile instance) =>
@@ -80,4 +118,5 @@ Map<String, dynamic> _$MoodleAssignFileToJson(MoodleAssignFile instance) =>
       'filename': instance.filename,
       'fileurl': instance.fileurl,
       'mimetype': instance.mimetype,
+      'filesize': instance.filesize,
     };

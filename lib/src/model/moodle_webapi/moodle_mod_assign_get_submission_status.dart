@@ -46,6 +46,25 @@ class MoodleAssignSubmissionStatus {
   /// 延長期限（Unix 秒），0 = 沒有延長。
   int get extensionDueDate => lastattempt?.extensionduedate ?? 0;
 
+  /// 「新增／編輯繳交」那顆鈕該不該出現。伺服器已經把 cutoffdate、
+  /// allowsubmissionsfromdate、延長期限、鎖定與是否選課全部算完，
+  /// App 不可以自己再用日期推一次。
+  bool get canEdit => lastattempt?.canedit ?? false;
+
+  /// 「送出評分」那顆鈕該不該出現。沒開草稿的作業永遠是 false
+  /// （`show_submit_button` 最後一行就是 `return submissiondrafts`）。
+  bool get canSubmit => lastattempt?.cansubmit ?? false;
+
+  /// 老師鎖了這位學生。
+  bool get isLocked => lastattempt?.locked ?? false;
+
+  bool get submissionsEnabled => lastattempt?.submissionsenabled ?? false;
+
+  /// 秒；> 0 要走 `mod_assign_start_submission`。
+  int get timeLimit => lastattempt?.timelimit ?? 0;
+
+  bool get isBlindMarking => lastattempt?.blindmarking ?? false;
+
   factory MoodleAssignSubmissionStatus.fromJson(Map<String, dynamic> json) =>
       _$MoodleAssignSubmissionStatusFromJson(json);
 
@@ -53,6 +72,15 @@ class MoodleAssignSubmissionStatus {
 
   @override
   String toString() => jsonEncode(this);
+}
+
+/// PARAM_BOOL 正常是 JSON bool；容忍 1/0 與 "1"/"0"，同
+/// moodle_core_calendar_action_events.dart 的慣例。
+bool _boolFromJson(dynamic v) {
+  if (v is bool) return v;
+  if (v is num) return v != 0;
+  if (v is String) return v == '1' || v.toLowerCase() == 'true';
+  return false;
 }
 
 @JsonSerializable(explicitToJson: true)
@@ -74,11 +102,42 @@ class MoodleAssignLastAttempt {
   @JsonKey(name: 'gradingstatus', defaultValue: "")
   String gradingstatus;
 
+  @JsonKey(name: 'canedit', fromJson: _boolFromJson, defaultValue: false)
+  bool canedit;
+
+  @JsonKey(name: 'cansubmit', fromJson: _boolFromJson, defaultValue: false)
+  bool cansubmit;
+
+  @JsonKey(name: 'locked', fromJson: _boolFromJson, defaultValue: false)
+  bool locked;
+
+  @JsonKey(name: 'graded', fromJson: _boolFromJson, defaultValue: false)
+  bool graded;
+
+  /// 站台／作業把 file 與 onlinetext 都關掉時是 false。
+  @JsonKey(
+      name: 'submissionsenabled', fromJson: _boolFromJson, defaultValue: false)
+  bool submissionsenabled;
+
+  @JsonKey(name: 'blindmarking', fromJson: _boolFromJson, defaultValue: false)
+  bool blindmarking;
+
+  /// VALUE_OPTIONAL，缺席是 0。
+  @JsonKey(name: 'timelimit', defaultValue: 0)
+  int timelimit;
+
   MoodleAssignLastAttempt({
     this.submission,
     this.teamsubmission,
     this.extensionduedate = 0,
     this.gradingstatus = "",
+    this.canedit = false,
+    this.cansubmit = false,
+    this.locked = false,
+    this.graded = false,
+    this.submissionsenabled = false,
+    this.blindmarking = false,
+    this.timelimit = 0,
   });
 
   factory MoodleAssignLastAttempt.fromJson(Map<String, dynamic> json) =>

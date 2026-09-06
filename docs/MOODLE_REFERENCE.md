@@ -26,8 +26,10 @@
 | `core_user_update_user_preferences` | 切換通知設定 | `toggleSetting` |
 | `tool_mobile_get_autologin_key` | 用 privatetoken 換 autologin.php 的一次性鑰匙，讓 WebView 免登入 | `autologinUrl` |
 | `core_calendar_get_action_events_by_timesort` | 行事曆頁的待辦：所有課程的截止事項（只回 action event；`timesortfrom` 往前 14 天，`limitnum` 上限 50，不送 `timesortto`；回滿一頁就帶 `aftereventid`＝上一頁的 `lastid` 翻頁，最多 4 頁，與官方 App 同一套判斷；`name` / `activityname` / `course.fullname` / `course.shortname` 都是 format_string 過的，App 還原實體） | `getActionEvents` |
-| `mod_assign_get_assignments` | 課程頁「作業」分頁的作業清單（只送 `courseids[0]`；duedate 等已含使用者與群組的 override；`name` 是 format_string 過的——`&` 會是 `&amp;`——App 在 `assignmentsOf` 還原；模型只宣告畫面在讀的欄位，`configs`、`gradingduedate`、`introfiles` 等不落地） | `getAssignments` |
-| `mod_assign_get_submission_status` | 單一作業對自己的繳交狀態、成績與回饋（帶 `userid`；`lastattempt.submission` 缺席 = 還沒繳交；團隊作業**兩筆都回**，學生頁看的是 `teamsubmission`，非團隊作業才看 `submission`，見 `submissionFor`；`feedback` 缺席 = 學生看不到任何成績或回饋；`feedback.gradefordisplay` 是 PARAM_RAW 的 HTML 片段，數值成績在預設 Real 顯示型態下是 `85.00&nbsp;/&nbsp;100.00`，App 在 `submissionStatusOf` 還原；`feedback.grade` 在只有評語時也在，分數是 `-1.00000`；外掛以 `type` 分辨，不看本地化的 `name`） | `getSubmissionStatus` |
+| `mod_assign_get_assignments` | 課程頁「作業」分頁的作業清單（只送 `courseids[0]`；duedate 等已含使用者與群組的 override；`name` 是 format_string 過的——`&` 會是 `&amp;`——App 在 `assignmentsOf` 還原；模型只宣告畫面在讀的欄位，`gradingduedate`、`introfiles` 等不落地；`submissiondrafts`、`requiresubmissionstatement`、`submissionstatement`、`timelimit`、`blindmarking` 與 `configs` 是繳交入口的判準所以有落地——`configs[]` **只收錄 enabled 且 visible 的外掛**，「有沒有 `subtype == assignsubmission` 且 `plugin == file` 的任何一列」就是「檔案繳交有沒有開」；`submissionstatement` 只有 `requiresubmissionstatement` 為真時才在，而且是**站台層級**的 admin 設定，可能是空字串） | `getAssignments` |
+| `mod_assign_get_submission_status` | 單一作業對自己的繳交狀態、成績與回饋（帶 `userid`；`lastattempt.submission` 缺席 = 還沒繳交；團隊作業**兩筆都回**，學生頁看的是 `teamsubmission`，非團隊作業才看 `submission`，見 `submissionFor`；`feedback` 缺席 = 學生看不到任何成績或回饋；`feedback.gradefordisplay` 是 PARAM_RAW 的 HTML 片段，數值成績在預設 Real 顯示型態下是 `85.00&nbsp;/&nbsp;100.00`，App 在 `submissionStatusOf` 還原；`feedback.grade` 在只有評語時也在，分數是 `-1.00000`；外掛以 `type` 分辨，不看本地化的 `name`；`lastattempt.canedit` / `cansubmit` 是「能不能交」的唯一依據——`submissions_open()` 已經把 cutoffdate、allowsubmissionsfromdate、延長期限、鎖定與是否選課全部算完，App 不可以自己再用日期推一次，而且 `cansubmit` 在沒開草稿的作業上**永遠是 false**） | `getSubmissionStatus` |
+| `mod_assign_save_submission` | 存一次繳交（type=write；`plugindata` 是扁平鍵 `plugindata[onlinetext_editor][text]` / `[format]` / `[itemid]` 與 `plugindata[files_filemanager]`，同 `toggleSetting` 的 `preferences[0][type]`；**回的是裸的 warnings 陣列不是物件**，見下方〈交作業那條路〉；`submissiondrafts == 0` 時這一支就是繳交，沒有第二步） | `saveSubmission` |
+| `mod_assign_submit_for_grading` | 把已存好的草稿送出評分（type=write；`acceptsubmissionstatement` 只在使用者真的勾了才送 1——那會在伺服器留下 `statement_accepted` 稽核事件；回傳形狀同上，唯一的 warningcode 是 `couldnotsubmitforgrading`，**不會說原因**） | `submitForGrading` |
 | `mod_quiz_get_quizzes_by_courses` | 課程頁測驗詳情的測驗本體（只送 `courseids[0]`；`timeopen` / `timeclose` / `timelimit` / `attempts` 已含使用者與群組的 override（`quiz_update_effective_access`），App 不再算；**測驗是最上層的平坦陣列，沒有 `courses[]` 那一層**——所以「空清單」的判讀改看 warnings，見下方「會咬人的地方」；`name` 是 format_string 過的，App 在 `quizzesOf` 還原；模型只宣告畫面在讀的欄位） | `getQuizzes` |
 | `mod_quiz_get_user_attempts` | 自己在這個測驗的作答紀錄（`status=all`、`includepreviews=0`，不送 `userid`；伺服器排序是 `attempt ASC`，App 自己倒過來）。**Moodle 5.0 起改名為 `mod_quiz_get_user_quiz_attempts`**，判準與官方 App 相同：site_info 的 `functions[]` 有新名就用新的（`preferredQuizAttemptsFunction`） | `getQuizAttempts` |
 | `mod_quiz_get_user_best_grade` | 這個測驗的最佳成績與及格分數（只送 `quizid`，不送 `userid`；`hasgrade == false` 是正常回應——沒作答、老師關掉分數顯示、評分為 null 三者伺服器不區分；`gradetopass` 缺席代表站台沒設，不是 0） | `getQuizBestGrade` |
@@ -36,7 +38,7 @@
 | `core_message_get_unread_notification_count` | 同上的退路（@since 4.0，算的是全部 notifications，不只 popup，所以可能高估） | `getUnreadNotificationCount` |
 | `core_message_mark_notification_read` | 點開一則通知時標記已讀（參數叫 `notificationid`；`warnings` 在伺服器端永遠是空的） | `markNotificationRead` |
 | `core_user_update_picture` | 「其他」頁換／移除 Moodle 頭貼（@since 3.2；只送 `draftitemid` 與 `delete`，**不送 `userid`**——這一支真的把 0 當成自己；`draftitemid` 沒有 `VALUE_DEFAULT`，移除時也要送，送 0；`warnings` 伺服器端寫死是空陣列，唯一的訊號是 `success`；`profileimageurl` 是 `VALUE_OPTIONAL`，只有 `success` 為 true 才在） | `updateProfilePicture` |
-| `webservice/upload.php`（不是 wsfunction） | 把選到的圖送進自己的 draft 檔案區，換一個 `itemid` 給上一列用（只送 `token` 與一個檔案欄位；`itemid` 與 `filepath` 都不送，讓伺服器開新的 draft 區；**沒有 `filearea` 參數**，那是寫死的 `draft`） | `uploadDraftFile` |
+| `webservice/upload.php`（不是 wsfunction） | 把檔案送進自己的 draft 檔案區，換一個 `itemid` 給上一列用（只送 `token` 與一個檔案欄位；`filepath` 不送，預設就是 `/`；**沒有 `filearea` 參數**，那是寫死的 `draft`。第一趟不送 `itemid`，伺服器會 `file_get_unused_draft_itemid()` 開一個新的；**要把多個檔案放進同一個 draft 區，第二個以後必須把第一趟拿到的 `itemid` 送回來**，而同一區裡檔名重複會回 `filenameexist`，所以呼叫端要先擋重名） | `uploadDraftFile` |
 | `core_message_mark_all_notifications_as_read` | 「全部標為已讀」（回**裸 bool**；標的是 `{notifications}` 全部，不只 popup——所以確認框刻意不寫數字，畫面上的未讀數只算 popup，寫上去會少報這次寫入的範圍） | `markAllNotificationsRead` |
 
 ## 與官方 Moodle App 的差異
@@ -145,6 +147,76 @@ POST 欄位。TAT 用 `parameter.data` 加 `getJsonByPost`，行為相同，
     要的是 `moodle/user:editownprofile`，site_info 根本沒報那一項。能事先看的
     只有 `uploadfiles == 1` 與 `functions[]` 裡有沒有這支；權限的答案要等
     回應的 `nopermissions`，SSO 綁定的個人資料則是 `noprofileedit`。
+- **交作業那條路有七個坑，每一個都會把失敗變成看起來像成功。**
+  - **兩支寫入函式回的是裸陣列，`treatWarningsAsError` 對它們無效。**
+    `save_submission_returns()` 回的是 `new external_warnings()`，而
+    `external_warnings extends external_multiple_structure`——成功是 `[]`，
+    失敗是 `[{item, itemid, warningcode, message}]`。共用的 `moodleErrorOf`
+    第一行就是 `if (data is! Map) return null`，照抄 `toggleSetting` 的寫法會
+    100% 把失敗當成功，所以另有一個吃 List 的 `writeWarningOf`。warning 的
+    `message` 是寫死的英文，`item` 帶著使用者 id 而且跟著**伺服器帳號語言**，
+    兩個都不可以直接顯示；`couldnotsavesubmission` 又一碼多因（逾期／內容為空／
+    外掛回錯），所以只能對映成一句涵蓋性的中文，真正的原因由重抓回來的狀態卡說。
+    **而「不是 List」本身就是失敗**：`external_warnings` 只可能是 `[]` 或
+    `[{...}]`，回 String / null / Map 代表這一趟根本沒到 Moodle（captive portal
+    的 HTML、代理的錯誤頁，還有被 `validateStatus: status <= 500` 放行的 500）。
+    讀取路徑 fail-open 是因為它有快取可以退，寫入路徑不行——`writeShapeErrorOf`
+    就是為了這件事，回 `badresponse`。
+  - **`files_filemanager` 是同步不是附加。** `assignsubmission_file::save()` 走
+    `file_save_draft_area_files()`，它會把繳交區裡「不在這個 draft 區」的舊檔案
+    `delete()` 掉。所以：清單沒變就**完全不送**這個鍵（不送＝保留現有檔案，這也是
+    「只改線上文字」的正確作法）；要送就必須是「繳交區最後應該長的樣子」的完整
+    清單，要保留的舊檔案得先下載再重傳（官方 App 的 `fileuploader.ts` 就是這樣
+    做的，而且一次傳一個避免伺服器端競態）。**下載回來的那一份一定要驗長度**：
+    共用的 `validateStatus` 放行到 500，一頁錯誤 HTML 會被原封寫成 `report.pdf`
+    再傳上去，而同步語意會刪掉真的那一份——這是整條路上唯一會毀掉使用者沒動過
+    的東西的地方。`external_files` 的 `filesize` 是 VALUE_OPTIONAL，缺席時退成
+    「非空即可」。
+  - **超過 `maxfilesubmissions` / `maxsubmissionsizebytes` 的檔案伺服器不會抱怨，
+    只會不見。** `file_save_draft_area_files` 對它們是 `continue`，
+    `save_submission` 照樣回 `[]`——不本地擋就會出現「App 說繳交成功、Moodle 上
+    只有兩個檔案」。同理 `filetypeslist` **伺服器端根本不驗**（`accepted_types`
+    只餵給網頁表單的 filepicker），只有客戶端擋得住；但 Moodle 的群組名
+    （`document`、`archive`、`web_image`）要整張 file types 表才解得開，遇到就
+    整份降級成「無法判讀」，只顯示原始字串不擋——寧可讓老師看到一個格式不對的
+    檔案，也不要讓學生交不出來。
+  - **`submissiondrafts == 0` 時「存檔」就是「繳交」，而 `requiresubmissionstatement`
+    在 `save_submission` 路徑上沒有伺服器端把關。** 前者 `save_submission` 直接
+    把 status 設成 SUBMITTED 並寄出繳交回條（而且 `cansubmit` 在這種作業上永遠是
+    false，因為 `show_submit_button` 最後一行就是 `return submissiondrafts`），
+    所以按鈕文案跟著它走、還要多一道確認框；後者只有 `submit_for_grading` 會擋，
+    而且是 `return false` 沒有 notice，只能由 App 自己要求勾選，**而且只有真的
+    勾了才送 `acceptsubmissionstatement=1`**——替使用者代勾等於偽造那筆
+    `statement_accepted` 稽核事件。
+  - **`onlinetext_editor` 沒有 `files_filemanager` 那個對稱：不送不是保留，是
+    覆蓋。** `file_postupdate_standard_filemanager` 開頭就是
+    `if (empty($data->{$field.'_filemanager'})) return $data;`，所以省略檔案那
+    個鍵真的等於「不動」；但 `file_postupdate_standard_editor` 是無條件的
+    `$editor = $data->{$field.'_editor'}; $data->$field = $editor['text'];`，而
+    `assign::save_submission` 對**每一個 enabled 且 visible 的外掛**都呼叫
+    `save()`，`assign_submission_onlinetext::save()` 又沒有 isset 把關（只有它的
+    `submission_is_empty()` 有）。結果是：作業同時開了檔案與線上文字、學生只改
+    檔案時，只送 `files_filemanager` 會把現有的線上文字寫成 null。**外掛開著就
+    一定要送這個鍵**，沒動過也要把伺服器原本那一份原樣送回去（不能用
+    `htmlToPlain` → `plainToHtml` 重組，那會弄丟粗體之類的標記）。
+  - **`check_word_count` 是唯一會擋下整趟 `save_submission` 的內容限制，而它不
+    說自己是誰。** `assign_submission_onlinetext::save()` 超過 `wordlimit` 就
+    `return false`，externallib 把它變成同一句 `couldnotsavesubmission`——使用者
+    會看到「可能已經超過期限」。而且 `assign::save_submission` 的外掛迴圈是
+    `$pluginerror = true` 之後**繼續跑**，檔案那半照樣已經同步進去了。所以字數
+    必須本地先算，分隔符照 `count_words` 的 `~[\p{Z}\p{Cc}—–]+~u`。
+  - **`save_submission` 不是原子的，所以被拒絕之後一定要重抓狀態。** 一個外掛
+    成功、另一個失敗，回的還是一則 `couldnotsavesubmission`。寫入路徑的失敗因此
+    不能走 `Failed`（它帶不了資料），要回帶著 `error` 的 `Ok` 加上重抓回來的
+    狀態；重抓不到就把 `cache_moodle_assign_status/<id>` **刪掉**，留著的是寫入
+    前的快照，離線再開會理直氣壯地畫成「未繳交」。
+  - 附帶：`onlinetext_editor.itemid` 送 0 是安全的（`file_postupdate_standard_editor`
+    的 `empty($editor['itemid'])` 分支會整段跳過 draft 同步），代價是原本內文若有
+    內嵌圖片，用純文字覆蓋會留下孤兒檔案且圖片連結失效——所以現有的 onlinetext
+    一旦含 `<img>` / `@@PLUGINFILE@@`，**整份作業都不給在 App 內存**（不是只有
+    文字框不給編：只送檔案那半會踩到上面那一條），導網頁。而且
+    `getSubmissionStatus` 帶了 `moodlewssettingfileurl`，拿到的 HTML 裡
+    `@@PLUGINFILE@@` 已經被換成絕對網址，也不能原樣送回去。
 - **通知相關的三支不能送 `useridto: 0`。**
   `message_popup_get_unread_popup_notification_count`、
   `core_message_get_unread_notification_count` 與

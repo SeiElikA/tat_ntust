@@ -14,7 +14,7 @@ class MoodleFileTile extends StatelessWidget {
     this.subtitle,
     this.leading,
     this.trailing,
-    required this.onTap,
+    this.onTap,
   });
 
   final String filename;
@@ -31,7 +31,8 @@ class MoodleFileTile extends StatelessWidget {
   /// 預設是下載提示。
   final Widget? trailing;
 
-  final VoidCallback onTap;
+  /// null 時整列不吃點擊，也不會有漣漪——沒有事情可做的列不該假裝可以按。
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {

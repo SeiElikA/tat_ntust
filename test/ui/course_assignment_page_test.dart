@@ -270,4 +270,35 @@ void main() {
     expect(find.byType(CircularProgressIndicator), findsNothing);
     expect(find.text('85.00\u00a0/\u00a0100.00'), findsOneWidget);
   });
+
+  testWidgets('詳情頁回報新狀態時，清單那一列的籤跟著換', (tester) async {
+    await seedAssignments(twoFromFixture());
+    // 快取裡是「還沒繳交」，籤是未繳交（而且帶時鐘，因為離線）。
+    await seedStatus(4101, fixtureStatus('status_none'));
+
+    await pump(tester);
+    expect(find.widgetWithText(AssignStatusChip, '已逾期'), findsOneWidget);
+
+    await tester.tap(find.text('HW1 & Report'));
+    await tester.pumpAndSettle();
+
+    // 交完之後詳情頁會呼叫這個回呼；這裡直接觸發它，驗的是「線真的接上了」。
+    final detail = tester.widget<CourseAssignmentDetailPage>(
+        find.byType(CourseAssignmentDetailPage));
+    expect(detail.onStatusChanged, isNotNull);
+    detail.onStatusChanged!(fixtureStatus('status_graded'));
+
+    Get.back();
+    await tester.pumpAndSettle();
+
+    expect(find.widgetWithText(AssignStatusChip, '已評分'), findsOneWidget);
+    // 這一顆是剛剛從伺服器回來的，不是快取，所以不該再帶時鐘。
+    expect(
+      find.descendant(
+        of: find.byType(AssignStatusChip),
+        matching: find.byIcon(LucideIcons.history),
+      ),
+      findsNothing,
+    );
+  });
 }

@@ -11,9 +11,9 @@ TAT 把學校的單一登入、課程查詢、成績系統與 Moodle 包成一�
 | 項目 | 數值 |
 | --- | --- |
 | Flutter SDK | 3.38.5（鎖在 `.fvmrc`，fvm 與 Puro 都讀得到） |
-| `lib/` Dart 檔案 | 252（其中 27 個 `*.g.dart`），import 邊 930 |
+| `lib/` Dart 檔案 | 256（其中 27 個 `*.g.dart`），import 邊 962 |
 | GetxController | 7，另有 1 個 GetxService（`AppService`） |
-| 測試 | 1187 個，121 個測試檔 |
+| 測試 | 1304 個，126 個測試檔 |
 | analyzer | `dart analyze --fatal-infos` 零問題 |
 | 外部系統 | 校內 6 台主機，校外 Firebase、GitHub API、Google Forms、Google Fonts、App Store / Google Play |
 | CI | GitHub Actions 三個 job：`analyze-and-test`、`build-android`、`build-ios` |
@@ -201,7 +201,7 @@ nullable：**「讀不到」不等於「沒登入」**。Android 從備份還原
 | 教務處行事曆<br>`www.academic.ntust.edu.tw` | 公開頁爬 `.ics` 連結後下載成 `calendar.ics`。這台主機少送一張中介憑證，由 `twca_intermediate.dart` 補上 | `NTUSTConnector.getCalendarUrl`<br>`calendar_repository.dart` |
 | 課程查詢 API<br>`querycourse.ntust.edu.tw` | 公開 JSON API，**不需登入**：關鍵字搜尋、課程詳細、用課號反查課表 | `course_connector.dart` |
 | 成績查詢系統<br>`stuinfosys.ntust.edu.tw` | 不走 Dio。HeadlessInAppWebView 載入頁面取 HTML 再解析 | `score_connector.dart` |
-| Moodle<br>`moodle2.ntust.edu.tw` | WebView 走 `admin/tool/mobile/launch.php` 取 wstoken，之後 POST wsfunction：`core_webservice_get_site_info`、`core_enrol_get_users_courses`、`core_course_get_contents`、`core_enrol_get_enrolled_users`、`mod_forum_get_forum_discussions`、`gradereport_user_get_grade_items`、通知偏好兩支、`tool_mobile_get_autologin_key`（WebView 免登入）、`core_calendar_get_action_events_by_timesort`（行事曆頁的待辦）、`gradereport_overview_get_course_grades`（成績分頁的「Moodle 目前成績」：這學期每一門課的即時總分，只在使用者開那一頁時發——伺服器會先把所有課重算一次成績）、`mod_assign_get_assignments` 與 `mod_assign_get_submission_status`（課程頁「作業」分頁與作業詳情：截止日期、繳交狀態、成績與回饋，唯讀）、`mod_quiz_get_quizzes_by_courses`、`mod_quiz_get_user_attempts`（Moodle 5.0 起改名 `mod_quiz_get_user_quiz_attempts`，依 site_info 的 `functions[]` 擇一）與 `mod_quiz_get_user_best_grade`（課程目錄點測驗進去的唯讀資訊頁：開放時間、作答時限與剩餘次數、最佳成績與作答紀錄；作答一律導到網頁）、`mod_forum_get_forums_by_courses`（用 `type == 'news'` 找公告區）與 `mod_forum_get_discussion_posts`（公告討論串的回覆）、站內通知五支（`message_popup_get_popup_notifications` 的清單、兩支未讀數與兩支標記已讀，見 docs/MOODLE_REFERENCE.md：三支的 `useridto` 不能送 0）、換頭貼兩趟（`webservice/upload.php` 把圖送進 draft 區換一個 itemid，再由 `core_user_update_picture` 套用或移除；前者不是 wsfunction，回的是 `text/plain`，見 docs/MOODLE_REFERENCE.md） | `moodle_webapi_connector.dart`<br>`moodle_login_page.dart` |
+| Moodle<br>`moodle2.ntust.edu.tw` | WebView 走 `admin/tool/mobile/launch.php` 取 wstoken，之後 POST wsfunction：`core_webservice_get_site_info`、`core_enrol_get_users_courses`、`core_course_get_contents`、`core_enrol_get_enrolled_users`、`mod_forum_get_forum_discussions`、`gradereport_user_get_grade_items`、通知偏好兩支、`tool_mobile_get_autologin_key`（WebView 免登入）、`core_calendar_get_action_events_by_timesort`（行事曆頁的待辦）、`gradereport_overview_get_course_grades`（成績分頁的「Moodle 目前成績」：這學期每一門課的即時總分，只在使用者開那一頁時發——伺服器會先把所有課重算一次成績）、`mod_assign_get_assignments` 與 `mod_assign_get_submission_status`（課程頁「作業」分頁與作業詳情：截止日期、繳交狀態、成績與回饋）、`mod_assign_save_submission` 與 `mod_assign_submit_for_grading`（在 App 內交作業：檔案與線上文字；團隊／有時限／匿名評分的作業一律導網頁。這兩支回的是**裸的 warnings 陣列**，`treatWarningsAsError` 看不到，見 docs/MOODLE_REFERENCE.md〈交作業那條路〉）、`mod_quiz_get_quizzes_by_courses`、`mod_quiz_get_user_attempts`（Moodle 5.0 起改名 `mod_quiz_get_user_quiz_attempts`，依 site_info 的 `functions[]` 擇一）與 `mod_quiz_get_user_best_grade`（課程目錄點測驗進去的唯讀資訊頁：開放時間、作答時限與剩餘次數、最佳成績與作答紀錄；作答一律導到網頁）、`mod_forum_get_forums_by_courses`（用 `type == 'news'` 找公告區）與 `mod_forum_get_discussion_posts`（公告討論串的回覆）、站內通知五支（`message_popup_get_popup_notifications` 的清單、兩支未讀數與兩支標記已讀，見 docs/MOODLE_REFERENCE.md：三支的 `useridto` 不能送 0）、換頭貼與交作業共用的 `webservice/upload.php`（把檔案送進 draft 區換一個 itemid，再由 `core_user_update_picture` 套用或移除；前者不是 wsfunction，回的是 `text/plain`，見 docs/MOODLE_REFERENCE.md） | `moodle_webapi_connector.dart`<br>`moodle_login_page.dart` |
 | Firebase<br>`projectId ntust-tat` | Crashlytics 接 `FlutterError` 與 `runZonedGuarded`；Analytics 掛 navigatorObservers；Remote Config 讀公告；FCM 轉本地通知 | `lib/src/util/*_utils.dart` |
 | GitHub API | 貢獻者頁，`github` 套件 | `contributors_page.dart` |
 | App Store / Google Play | 啟動時問商店有沒有新版：Android 走 Play 的 in-app update（Play 自己的下載提示），iOS 用 `upgrader` 查 App Store 後跳對話框。兩邊都可以按「稍後」，沒有強制更新 | `store_update.dart`<br>`update_prompt.dart` |
@@ -241,7 +241,16 @@ WebMail（`mail.ntust.edu.tw`）與舊版 SSO 頁（`ssoam.ntust.edu.tw/nidp/app
   進入頁面時就把分頁的請求一起發出去，因為 `PageView(children:)` 是懶載入的。
   作業詳情頁、測驗詳情頁、公告討論串頁與公告與通知頁同理
   （`CourseAssignmentController`、`CourseQuizController`、
-  `CourseAnnouncementController`、`AnnouncementCenterController`）。
+  `CourseAnnouncementController`、`AnnouncementCenterController`）。交作業的
+  編輯頁也是（`CourseAssignSubmitController`）：作業與繳交狀態是值傳進去的，
+  那一頁不做 `ResultView`。
+- 寫入路徑（換頭貼、標記已讀、切換通知設定、交作業）一律 `treatWarningsAsError: true`：
+  `warnings[]` 有一筆就代表那次寫入沒有發生，絕對不可以回報成功，畫面也不可以停在
+  樂觀狀態。`mod_assign_save_submission` 與 `mod_assign_submit_for_grading` 是例外
+  中的例外——它們回的是**裸陣列**，共用的 `moodleErrorOf` 看不到，所以另有
+  `MoodleWebApiConnector.writeWarningOf`。交作業成功與否都會重抓一次
+  `mod_assign_get_submission_status` 並寫回同一把快取鍵，使用者看到的是伺服器的
+  真相而不是 App 的推測。
 - 新頁面**不可以** import `route_utils.dart` / `error_page.dart` / `base_page.dart`
   （lib/ui 那個環已經卡在 `MAX_SCC` 的門檻上）：錯誤畫面與 WebView 開啟器由
   在環裡的呼叫端注入，公告分頁、公告討論串頁、作業分頁、作業詳情頁、測驗詳情頁、公告與通知頁與「Moodle 目前成績」頁就是這樣接的（公告與通知頁的兩半、以及「Moodle 目前成績」的清單都是頁面中段的區塊，所以它們只注入開啟器／導頁，錯誤畫面一律 `InlineErrorView`）。嵌在頁面中段、周圍
@@ -282,7 +291,7 @@ WebMail（`mail.ntust.edu.tw`）與舊版 SSO 頁（`ssoam.ntust.edu.tw/nidp/app
 ```bash
 flutter pub get --enforce-lockfile   # 安裝依賴，並確認 pubspec.lock 未被更動
 dart analyze --fatal-infos           # 零 error / warning / info
-flutter test                         # 1187 個測試
+flutter test                         # 1304 個測試
 python3 tool/deps.py                 # 分層與匯入環度量
 python3 tool/deps.py --check         # CI 模式，超過棘輪門檻時失敗
 ```

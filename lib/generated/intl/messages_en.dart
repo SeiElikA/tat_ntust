@@ -65,21 +65,75 @@ class MessageLookup extends MessageLookupByLibrary {
     "appAnnouncementEmpty": MessageLookupByLibrary.simpleMessage(
       "No TAT announcements right now",
     ),
+    "assignAcceptStatement": MessageLookupByLibrary.simpleMessage(
+      "I have read and accept the statement above",
+    ),
+    "assignAddFiles": MessageLookupByLibrary.simpleMessage("Add files"),
+    "assignAddSubmission": MessageLookupByLibrary.simpleMessage(
+      "Add submission",
+    ),
     "assignAllowSubmissionsFrom": MessageLookupByLibrary.simpleMessage("Opens"),
+    "assignAttachmentSection": MessageLookupByLibrary.simpleMessage(
+      "Files to submit",
+    ),
     "assignAttachments": MessageLookupByLibrary.simpleMessage("Attachments"),
     "assignCutoffDate": MessageLookupByLibrary.simpleMessage("Cut-off date"),
+    "assignDiscardChanges": MessageLookupByLibrary.simpleMessage(
+      "Discard your unsaved changes?",
+    ),
+    "assignDraftSaved": MessageLookupByLibrary.simpleMessage("Draft saved"),
     "assignDueDate": MessageLookupByLibrary.simpleMessage("Due date"),
     "assignDueInDays": MessageLookupByLibrary.simpleMessage("Due in %s day(s)"),
     "assignDueInHours": MessageLookupByLibrary.simpleMessage(
       "Due in %s hour(s)",
     ),
     "assignDueSoon": MessageLookupByLibrary.simpleMessage("Due within an hour"),
+    "assignEditSubmission": MessageLookupByLibrary.simpleMessage(
+      "Edit submission",
+    ),
     "assignExtensionDueDate": MessageLookupByLibrary.simpleMessage(
       "Extension due date",
     ),
     "assignFeedback": MessageLookupByLibrary.simpleMessage("Feedback"),
     "assignFeedbackFiles": MessageLookupByLibrary.simpleMessage(
       "Feedback files",
+    ),
+    "assignFileCountExceeded": MessageLookupByLibrary.simpleMessage(
+      "This assignment accepts at most %s files",
+    ),
+    "assignFileDuplicateName": MessageLookupByLibrary.simpleMessage(
+      "Two files share the same name; Moodle would keep only the first. Rename one first.",
+    ),
+    "assignFileLimit": MessageLookupByLibrary.simpleMessage("Up to %s files"),
+    "assignFilePickerDenied": MessageLookupByLibrary.simpleMessage(
+      "No permission to read files; enable it in system settings and try again",
+    ),
+    "assignFilePickerUnavailable": MessageLookupByLibrary.simpleMessage(
+      "The file picker is unavailable right now; try again later",
+    ),
+    "assignFileSizeLimit": MessageLookupByLibrary.simpleMessage(
+      "Up to %s per file",
+    ),
+    "assignFileTooLarge": MessageLookupByLibrary.simpleMessage(
+      "\"%s\" is larger than the %s limit",
+    ),
+    "assignFileTooLargeUnknown": MessageLookupByLibrary.simpleMessage(
+      "The file exceeds the Moodle upload size limit",
+    ),
+    "assignFileTypeRejected": MessageLookupByLibrary.simpleMessage(
+      "\"%s\" is not an allowed file type for this assignment",
+    ),
+    "assignFileTypes": MessageLookupByLibrary.simpleMessage(
+      "Allowed file types: %s",
+    ),
+    "assignFileVirusFound": MessageLookupByLibrary.simpleMessage(
+      "The site\'s antivirus scan rejected this file",
+    ),
+    "assignFilesEmptiedWebOnly": MessageLookupByLibrary.simpleMessage(
+      "Removing every submitted file has to be done on the web",
+    ),
+    "assignFilesEmpty": MessageLookupByLibrary.simpleMessage(
+      "No files selected yet",
     ),
     "assignGrade": MessageLookupByLibrary.simpleMessage("Grade"),
     "assignGradedAt": MessageLookupByLibrary.simpleMessage("Graded on"),
@@ -93,7 +147,16 @@ class MessageLookup extends MessageLookupByLibrary {
     "assignLastModified": MessageLookupByLibrary.simpleMessage("Last modified"),
     "assignNoDueDate": MessageLookupByLibrary.simpleMessage("No due date"),
     "assignNotGraded": MessageLookupByLibrary.simpleMessage("Not graded yet"),
+    "assignNothingToSubmit": MessageLookupByLibrary.simpleMessage(
+      "There is nothing to submit",
+    ),
     "assignOnlineText": MessageLookupByLibrary.simpleMessage("Online text"),
+    "assignOnlineTextHint": MessageLookupByLibrary.simpleMessage(
+      "What you type here is submitted as plain text",
+    ),
+    "assignOnlineTextNotEditable": MessageLookupByLibrary.simpleMessage(
+      "The current online text contains images or formatting that in-app editing would destroy. Edit it on the web.",
+    ),
     "assignOpenInWeb": MessageLookupByLibrary.simpleMessage("Open in web"),
     "assignOverdueDays": MessageLookupByLibrary.simpleMessage(
       "%s day(s) overdue",
@@ -103,6 +166,14 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "assignOverdueJustNow": MessageLookupByLibrary.simpleMessage(
       "Just past due",
+    ),
+    "assignPreparingFile": MessageLookupByLibrary.simpleMessage("Preparing %s"),
+    "assignRemoveFile": MessageLookupByLibrary.simpleMessage(
+      "Remove this file",
+    ),
+    "assignSaveDraft": MessageLookupByLibrary.simpleMessage("Save draft"),
+    "assignSavedNotSubmitted": MessageLookupByLibrary.simpleMessage(
+      "Your work was saved but the submit for grading failed; refresh and submit again",
     ),
     "assignSectionGradeFeedback": MessageLookupByLibrary.simpleMessage(
       "Grade & feedback",
@@ -116,13 +187,76 @@ class MessageLookup extends MessageLookupByLibrary {
       "Not submitted",
     ),
     "assignStatusOverdue": MessageLookupByLibrary.simpleMessage("Overdue"),
+    "assignStatusRefreshFailed": MessageLookupByLibrary.simpleMessage(
+      "Sent, but the latest status could not be loaded; refresh to confirm",
+    ),
     "assignStatusSubmitted": MessageLookupByLibrary.simpleMessage("Submitted"),
+    "assignSubmissionStatement": MessageLookupByLibrary.simpleMessage(
+      "Submission statement",
+    ),
     "assignSubmissionStatus": MessageLookupByLibrary.simpleMessage(
       "Submission status",
+    ),
+    "assignSubmit": MessageLookupByLibrary.simpleMessage("Submit"),
+    "assignSubmitAgainWarning": MessageLookupByLibrary.simpleMessage(
+      "Re-submitting replaces the files you have already submitted with this list",
+    ),
+    "assignSubmitBlockedByOnlineText": MessageLookupByLibrary.simpleMessage(
+      "The existing online text cannot be safely overwritten in the app; submit this assignment on the web",
+    ),
+    "assignSubmitCancelled": MessageLookupByLibrary.simpleMessage(
+      "Upload cancelled",
+    ),
+    "assignSubmitDirectConfirm": MessageLookupByLibrary.simpleMessage(
+      "This assignment has no draft stage: saving submits it. Submit now?",
+    ),
+    "assignSubmitError": MessageLookupByLibrary.simpleMessage(
+      "Could not submit",
+    ),
+    "assignSubmitForGrading": MessageLookupByLibrary.simpleMessage(
+      "Submit for grading",
+    ),
+    "assignSubmitForGradingConfirm": MessageLookupByLibrary.simpleMessage(
+      "Once submitted for grading you can no longer edit it. Submit now?",
+    ),
+    "assignSubmitForGradingRejected": MessageLookupByLibrary.simpleMessage(
+      "Moodle did not accept the submit for grading; refresh and try again",
+    ),
+    "assignSubmitLocked": MessageLookupByLibrary.simpleMessage(
+      "This submission has been locked by your teacher",
+    ),
+    "assignSubmitNeedsFresh": MessageLookupByLibrary.simpleMessage(
+      "Submitting needs up-to-date assignment data; refresh first",
+    ),
+    "assignSubmitNoPermission": MessageLookupByLibrary.simpleMessage(
+      "Your Moodle account cannot submit this assignment",
+    ),
+    "assignSubmitRejected": MessageLookupByLibrary.simpleMessage(
+      "Moodle did not accept this submission; the deadline may have passed or submissions are closed",
+    ),
+    "assignSubmitWebOnlyBlind": MessageLookupByLibrary.simpleMessage(
+      "This assignment uses blind marking; submit it on the web",
+    ),
+    "assignSubmitWebOnlyTeam": MessageLookupByLibrary.simpleMessage(
+      "This is a group assignment; submit it on the web",
+    ),
+    "assignSubmitWebOnlyTimed": MessageLookupByLibrary.simpleMessage(
+      "This assignment has a time limit; submit it on the web",
     ),
     "assignSubmittedAt": MessageLookupByLibrary.simpleMessage("Submitted on"),
     "assignSubmittedFiles": MessageLookupByLibrary.simpleMessage(
       "Submitted files",
+    ),
+    "assignSubmittedToast": MessageLookupByLibrary.simpleMessage(
+      "Assignment submitted",
+    ),
+    "assignUploadDisabled": MessageLookupByLibrary.simpleMessage(
+      "File upload is disabled on the school\'s Moodle",
+    ),
+    "assignUploadingFile": MessageLookupByLibrary.simpleMessage("Uploading %s"),
+    "assignWordCount": MessageLookupByLibrary.simpleMessage("Words: %s of %s"),
+    "assignWordCountExceeded": MessageLookupByLibrary.simpleMessage(
+      "Over the word limit; shorten your text before submitting",
     ),
     "assignment": MessageLookupByLibrary.simpleMessage("Assignments"),
     "assignmentDetail": MessageLookupByLibrary.simpleMessage("Assignment"),

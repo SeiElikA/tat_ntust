@@ -28,3 +28,22 @@ MoodleAssignSubmissionStatus fixtureStatus(String name) =>
 /// 原始 fromJson，沒有經過 connector 的還原。給模型的解析契約用。
 MoodleAssignSubmissionStatus rawFixtureStatus(String name) =>
     MoodleAssignSubmissionStatus.fromJson(loadMoodleAssignFixture(name));
+
+/// 陣列形狀的 fixture（`save_submission_*`）。這兩支的回傳形狀跟其他 function
+/// 不一樣：`external_warnings` 是 external_multiple_structure，回的是裸陣列。
+List<dynamic> loadMoodleAssignListFixture(String name) => json.decode(
+        File('test/fixtures/moodle_assign/$name.json').readAsStringSync())
+    as List<dynamic>;
+
+/// `get_assignments_submittable.json` 的那一份作業：有草稿階段、要同意聲明、
+/// file 與 onlinetext 都開著。
+MoodleAssignment fixtureSubmittableAssignment() =>
+    MoodleWebApiConnector.assignmentsOf(
+            loadMoodleAssignFixture('get_assignments_submittable'))!
+        .single;
+
+/// `get_assignments_no_drafts.json`：`submissiondrafts == 0`，存檔就是繳交。
+MoodleAssignment fixtureNoDraftsAssignment() =>
+    MoodleWebApiConnector.assignmentsOf(
+            loadMoodleAssignFixture('get_assignments_no_drafts'))!
+        .single;

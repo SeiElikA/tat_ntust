@@ -39,6 +39,18 @@ MoodleAssignLastAttempt _$MoodleAssignLastAttemptFromJson(
               json['teamsubmission'] as Map<String, dynamic>),
       extensionduedate: (json['extensionduedate'] as num?)?.toInt() ?? 0,
       gradingstatus: json['gradingstatus'] as String? ?? '',
+      canedit: json['canedit'] == null ? false : _boolFromJson(json['canedit']),
+      cansubmit:
+          json['cansubmit'] == null ? false : _boolFromJson(json['cansubmit']),
+      locked: json['locked'] == null ? false : _boolFromJson(json['locked']),
+      graded: json['graded'] == null ? false : _boolFromJson(json['graded']),
+      submissionsenabled: json['submissionsenabled'] == null
+          ? false
+          : _boolFromJson(json['submissionsenabled']),
+      blindmarking: json['blindmarking'] == null
+          ? false
+          : _boolFromJson(json['blindmarking']),
+      timelimit: (json['timelimit'] as num?)?.toInt() ?? 0,
     );
 
 Map<String, dynamic> _$MoodleAssignLastAttemptToJson(
@@ -48,6 +60,13 @@ Map<String, dynamic> _$MoodleAssignLastAttemptToJson(
       'teamsubmission': instance.teamsubmission?.toJson(),
       'extensionduedate': instance.extensionduedate,
       'gradingstatus': instance.gradingstatus,
+      'canedit': instance.canedit,
+      'cansubmit': instance.cansubmit,
+      'locked': instance.locked,
+      'graded': instance.graded,
+      'submissionsenabled': instance.submissionsenabled,
+      'blindmarking': instance.blindmarking,
+      'timelimit': instance.timelimit,
     };
 
 MoodleAssignSubmission _$MoodleAssignSubmissionFromJson(

@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:dio/dio.dart' show CancelToken;
 import 'package:flutter/material.dart';
 import 'package:flutter_app/src/R.dart';
 import 'package:flutter_app/src/auth/auth_session.dart';
@@ -12,6 +13,7 @@ import 'package:flutter_app/src/repository/moodle_repository.dart';
 import 'package:flutter_app/src/repository/result.dart';
 import 'package:flutter_app/src/service/connectivity_probe.dart';
 import 'package:flutter_app/src/service/task_ui_delegate.dart';
+import 'package:flutter_app/src/util/moodle_assign_submit_utils.dart';
 import 'package:flutter_app/ui/pages/course_data/screen/sub_page/course_assignment_detail_page.dart';
 import 'package:flutter_app/ui/pages/course_data/screen/widgets/assign_status_chip.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -450,6 +452,250 @@ void main() {
     expect(title.maxLines, 2);
     expect(title.overflow, TextOverflow.ellipsis);
   });
+
+  /// 繳交入口的可見性矩陣。這是整個交作業功能最重要的一段畫面守門：伺服器說
+  /// 不能交的時候，入口必須根本不存在，而且不對著沒權限的人喊話。
+  group('繳交入口', () {
+    MoodleAssignment submittable() => fixtureSubmittableAssignment();
+
+    void expectNoSubmitEntry() {
+      expect(find.text(R.current.assignAddSubmission), findsNothing);
+      expect(find.text(R.current.assignEditSubmission), findsNothing);
+      expect(find.text(R.current.assignSubmitForGrading), findsNothing);
+    }
+
+    testWidgets('canedit 為 false：三顆鈕都沒有，也沒有任何理由文字', (tester) async {
+      await pump(tester, submittable(),
+          status: Ok(fixtureStatus('status_locked')));
+
+      expectNoSubmitEntry();
+      expect(find.text(R.current.assignSubmitWebOnlyTeam), findsNothing);
+      expect(find.text(R.current.assignSubmitWebOnlyTimed), findsNothing);
+      expect(find.text(R.current.assignSubmitWebOnlyBlind), findsNothing);
+      expect(find.text(R.current.assignSubmitNeedsFresh), findsNothing);
+      // 唯一的出口還是在網頁開啟。
+      expect(find.text(R.current.assignOpenInWeb), findsOneWidget);
+    });
+
+    testWidgets('canedit 為 true 而且還沒交過：新增繳交，沒有送出評分', (tester) async {
+      await pump(tester, submittable(),
+          status: Ok(fixtureStatus('status_can_edit')));
+
+      expect(find.text(R.current.assignAddSubmission), findsOneWidget);
+      expect(find.text(R.current.assignEditSubmission), findsNothing);
+      expect(find.text(R.current.assignSubmitForGrading), findsNothing);
+    });
+
+    testWidgets('已經有繳交紀錄：字樣變編輯繳交；cansubmit 為 true 時多一顆送出評分', (tester) async {
+      await pump(tester, submittable(),
+          status: Ok(fixtureStatus('status_can_submit')));
+
+      expect(find.text(R.current.assignEditSubmission), findsOneWidget);
+      expect(find.text(R.current.assignAddSubmission), findsNothing);
+      expect(find.text(R.current.assignSubmitForGrading), findsOneWidget);
+    });
+
+    testWidgets('團隊作業：沒有繳交鈕，但網頁那顆上面有理由', (tester) async {
+      await pump(tester, submittable()..teamsubmission = 1,
+          status: Ok(fixtureStatus('status_can_edit')));
+
+      expectNoSubmitEntry();
+      expect(find.text(R.current.assignSubmitWebOnlyTeam), findsOneWidget);
+    });
+
+    testWidgets('有作答時限（lastattempt.timelimit）：導網頁', (tester) async {
+      await pump(tester, submittable(),
+          status: Ok(fixtureStatus('status_timed')));
+
+      expectNoSubmitEntry();
+      expect(find.text(R.current.assignSubmitWebOnlyTimed), findsOneWidget);
+    });
+
+    testWidgets('匿名評分：導網頁', (tester) async {
+      await pump(tester, submittable()..blindmarking = 1,
+          status: Ok(fixtureStatus('status_can_edit')));
+
+      expectNoSubmitEntry();
+      expect(find.text(R.current.assignSubmitWebOnlyBlind), findsOneWidget);
+    });
+
+    testWidgets('狀態是 Stale：不給交，改說要先重新整理', (tester) async {
+      await pump(tester, submittable(),
+          status: Stale(fixtureStatus('status_can_edit'), const Offline()));
+
+      expectNoSubmitEntry();
+      expect(find.text(R.current.assignSubmitNeedsFresh), findsOneWidget);
+    });
+
+    testWidgets('狀態還在載入時什麼都不畫，不會先閃一顆鈕', (tester) async {
+      final repo = _PendingStatusRepository();
+      MoodleRepository.instance = repo;
+
+      await pump(tester, submittable(), settle: false);
+
+      expectNoSubmitEntry();
+      expect(find.text(R.current.assignSubmitNeedsFresh), findsNothing);
+      repo.pending.complete(Ok(fixtureStatus('status_can_edit')));
+      await tester.pumpAndSettle();
+      expect(find.text(R.current.assignAddSubmission), findsOneWidget);
+    });
+  });
+
+  group('送出評分', () {
+    MoodleAssignment submittable() => fixtureSubmittableAssignment();
+
+    Future<void> tapSubmitForGrading(WidgetTester tester) async {
+      await tester.tap(find.text(R.current.assignSubmitForGrading));
+      await tester.pumpAndSettle();
+      // 這份 fixture 要求同意繳交聲明，沒勾就按不了確定。
+      await tester.tap(find.byType(CheckboxListTile));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(R.current.sure));
+      await tester.pump();
+    }
+
+    testWidgets('進行中那顆鈕是 disabled：第二趟必定被伺服器判成失敗', (tester) async {
+      final repo = _PendingSubmitRepository();
+      MoodleRepository.instance = repo;
+      await pump(tester, submittable(),
+          status: Ok(fixtureStatus('status_can_submit')));
+
+      await tapSubmitForGrading(tester);
+
+      final button = tester.widget<FilledButton>(find.ancestor(
+          of: find.text(R.current.assignSubmitForGrading),
+          matching: find.byType(FilledButton)));
+      expect(button.onPressed, isNull);
+
+      repo.pending.complete(Ok(MoodleAssignSubmitResult(
+          status: fixtureStatus('status_graded'), submitted: true)));
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('成功但重抓不到狀態：說出來並自己再抓一次，不留著送出評分那顆鈕', (tester) async {
+      final ui = RecordingUi();
+      TaskUiDelegate.instance = ui;
+      final repo = _PendingSubmitRepository();
+      MoodleRepository.instance = repo;
+      await pump(tester, submittable(),
+          status: Ok(fixtureStatus('status_can_submit')));
+
+      await tapSubmitForGrading(tester);
+      repo.pending.complete(
+          const Ok(MoodleAssignSubmitResult(status: null, submitted: true)));
+      await tester.pumpAndSettle();
+
+      expect(ui.toasts, contains(R.current.assignSubmittedToast));
+      expect(ui.toasts, contains(R.current.assignStatusRefreshFailed));
+      // loadStatus 把 status 清成 null 再抓，離線就落到 Failed。
+      expect(find.text(R.current.assignSubmitForGrading), findsNothing);
+    });
+
+    testWidgets('被拒絕：toast 原因而不是「已送出」，並套上重抓到的狀態', (tester) async {
+      final ui = RecordingUi();
+      TaskUiDelegate.instance = ui;
+      final repo = _PendingSubmitRepository();
+      MoodleRepository.instance = repo;
+      await pump(tester, submittable(),
+          status: Ok(fixtureStatus('status_can_submit')));
+
+      await tapSubmitForGrading(tester);
+      repo.pending.complete(Ok(MoodleAssignSubmitResult(
+        status: fixtureStatus('status_graded'),
+        submitted: false,
+        error: R.current.assignSubmitForGradingRejected,
+      )));
+      await tester.pumpAndSettle();
+
+      expect(ui.toasts.last, R.current.assignSubmitForGradingRejected);
+      expect(ui.toasts, isNot(contains(R.current.assignSubmittedToast)));
+      // 拒絕之後仍然要套上重抓到的狀態：那顆「送出評分」不可以留在畫面上。
+      expect(find.text(R.current.assignSubmitForGrading), findsNothing);
+      expect(find.text(R.current.assignStatusGraded), findsWidgets);
+    });
+  });
+
+  /// 從詳情頁一路開到繳交頁再存檔。這一段守的是「伺服器已經被寫過了，畫面
+  /// 不可以停在寫入前」——`save_submission` 不是原子的。
+  group('繳交頁回來之後', () {
+    MoodleAssignment submittable() => fixtureSubmittableAssignment();
+
+    Future<void> openAndSave(WidgetTester tester) async {
+      await tester.tap(find.text(R.current.assignAddSubmission));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField), '報告內容');
+      await tester.pump();
+      await tester.tap(find.text(R.current.assignSaveDraft));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('存檔成功但重抓不到狀態：說出來並自己再抓一次', (tester) async {
+      final ui = RecordingUi();
+      TaskUiDelegate.instance = ui;
+      MoodleRepository.instance = _StubSaveRepository(
+          const Ok(MoodleAssignSubmitResult(status: null, submitted: false)));
+      await pump(tester, submittable(),
+          status: Ok(fixtureStatus('status_can_edit')));
+
+      await openAndSave(tester);
+
+      expect(ui.toasts, contains(R.current.assignDraftSaved));
+      // 不補這一句，那顆鈕會一直寫著「新增繳交」，邀請使用者再交一次。
+      expect(ui.toasts, contains(R.current.assignStatusRefreshFailed));
+    });
+
+    testWidgets('被拒絕但已經送出去了：toast 原因，而且套上重抓到的狀態', (tester) async {
+      final ui = RecordingUi();
+      TaskUiDelegate.instance = ui;
+      MoodleRepository.instance = _StubSaveRepository(Ok(
+        MoodleAssignSubmitResult(
+          status: fixtureStatus('status_draft'),
+          submitted: false,
+          error: R.current.assignSubmitRejected,
+        ),
+      ));
+      await pump(tester, submittable(),
+          status: Ok(fixtureStatus('status_can_edit')));
+
+      await openAndSave(tester);
+
+      expect(ui.toasts.last, R.current.assignSubmitRejected);
+      expect(ui.toasts, isNot(contains(R.current.assignDraftSaved)));
+      // 回到詳情頁，而且看到的是伺服器的真相不是寫入前那一份。
+      expect(find.byType(CourseAssignmentDetailPage), findsOneWidget);
+      expect(find.text(R.current.assignEditSubmission), findsOneWidget);
+    });
+  });
+}
+
+/// 存檔永遠回同一個結果，不碰網路。
+class _StubSaveRepository extends MoodleRepository {
+  _StubSaveRepository(this.result);
+
+  final Result<MoodleAssignSubmitResult> result;
+
+  @override
+  Future<Result<MoodleAssignSubmitResult>> saveAssignSubmission({
+    required MoodleAssignment assignment,
+    required MoodleAssignSubmissionStatus status,
+    required AssignSubmissionDraft draft,
+    void Function(AssignTransferProgress progress)? onProgress,
+    CancelToken? cancelToken,
+  }) async =>
+      result;
+}
+
+/// 讓送出評分一直停在進行中。
+class _PendingSubmitRepository extends MoodleRepository {
+  final pending = Completer<Result<MoodleAssignSubmitResult>>();
+
+  @override
+  Future<Result<MoodleAssignSubmitResult>> submitAssignForGrading({
+    required MoodleAssignment assignment,
+    required MoodleAssignSubmissionStatus status,
+    required bool acceptStatement,
+  }) =>
+      pending.future;
 }
 
 /// 讓繳交狀態一直停在「載入中」：離線時真的去抓會在第一幀之前就落到

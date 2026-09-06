@@ -30,6 +30,14 @@ void main() {
     'cutoffdate',
     'nosubmissions',
     'teamsubmission',
+    'submissiondrafts',
+    'requiresubmissionstatement',
+    'submissionstatement',
+    'maxattempts',
+    'attemptreopenmethod',
+    'timelimit',
+    'blindmarking',
+    'configs',
     'intro',
     'introattachments',
   };
@@ -76,6 +84,70 @@ void main() {
       expect(a2.isTeamSubmission, isTrue);
     });
 
+    test('第一份：繳交規則欄位與 configs 都解得出來', () {
+      final a1 = parsed.courses.single.assignments[0];
+
+      expect(a1.submissiondrafts, 1);
+      expect(a1.tracksDrafts, isTrue);
+      expect(a1.requiresubmissionstatement, 0);
+      expect(a1.requiresStatement, isFalse);
+      // requiresubmissionstatement 為假時伺服器根本不送這一欄。
+      expect(a1.submissionstatement, isNull);
+      expect(a1.timelimit, 0);
+      expect(a1.hasTimeLimit, isFalse);
+      expect(a1.blindmarking, 0);
+      expect(a1.isBlindMarking, isFalse);
+      expect(a1.maxattempts, -1);
+      expect(a1.attemptreopenmethod, 'none');
+      expect(a1.configs, hasLength(3));
+      expect(a1.configs.first.plugin, 'file');
+      expect(a1.configs.first.subtype, 'assignsubmission');
+      expect(a1.configs.first.name, 'enabled');
+      // value 一律是字串，數字也是。
+      expect(a1.configs[1].value, '3');
+    });
+
+    test('第二份：沒有草稿階段、要同意聲明，聲明是站台層級的 HTML', () {
+      final a2 = parsed.courses.single.assignments[1];
+
+      expect(a2.submissiondrafts, 0);
+      expect(a2.tracksDrafts, isFalse);
+      expect(a2.requiresStatement, isTrue);
+      expect(a2.submissionstatement, '<p>本作業為本人完成</p>');
+      expect(a2.maxattempts, 3);
+      expect(a2.attemptreopenmethod, 'manual');
+      expect(a2.configs, isEmpty);
+    });
+
+    test('舊 blob 沒有新欄位時全部退回預設值，tracksDrafts 為 false', () {
+      final a = MoodleAssignment.fromJson({'id': 1, 'cmid': 2, 'name': 'x'});
+
+      expect(a.submissiondrafts, 0);
+      expect(a.tracksDrafts, isFalse);
+      expect(a.requiresubmissionstatement, 0);
+      expect(a.submissionstatement, isNull);
+      expect(a.maxattempts, -1);
+      expect(a.attemptreopenmethod, '');
+      expect(a.timelimit, 0);
+      expect(a.blindmarking, 0);
+      expect(a.configs, isEmpty);
+    });
+
+    test('MoodleAssignConfig：空 map 退回預設，未建模的 key 被忽略', () {
+      expect(MoodleAssignConfig.fromJson({}).plugin, '');
+      expect(MoodleAssignConfig.fromJson({}).value, '');
+
+      final c = MoodleAssignConfig.fromJson({
+        'plugin': 'onlinetext',
+        'subtype': 'assignsubmission',
+        'name': 'wordlimit',
+        'value': '300',
+        'somethingelse': 1,
+      });
+      expect(c.name, 'wordlimit');
+      expect(c.toJson().keys, {'plugin', 'subtype', 'name', 'value'});
+    });
+
     test('老師真的沒寫說明是空字串，hasIntro 仍為 true', () {
       final a = MoodleAssignment.fromJson({'id': 1, 'intro': ''});
       expect(a.intro, '');
@@ -93,20 +165,20 @@ void main() {
   });
 
   group('快取形狀', () {
-    test('toJson 只有宣告過的 key：configs、grade、introfiles 這些沒人讀的都不進快取', () {
+    test('toJson 只有宣告過的 key：grade、introfiles 這些沒人讀的都不進快取', () {
       final keys = parsed.courses.single.assignments[0].toJson().keys.toSet();
 
       expect(keys, declaredKeys);
-      expect(keys, isNot(contains('configs')));
-      expect(keys, isNot(contains('submissionstatement')));
       expect(keys, isNot(contains('hidegrader')));
       expect(keys, isNot(contains('introfiles')));
       expect(keys, isNot(contains('gradingduedate')));
+      expect(keys, isNot(contains('grade')));
     });
 
-    test('附件只留 filename / fileurl / mimetype', () {
+    test('附件只留 filename / fileurl / mimetype / filesize', () {
+      // filesize 有落地是因為重傳舊繳交檔案時要拿它驗下載回來的那一份。
       final f = parsed.courses.single.assignments[0].introattachments.single;
-      expect(f.toJson().keys, {'filename', 'fileurl', 'mimetype'});
+      expect(f.toJson().keys, {'filename', 'fileurl', 'mimetype', 'filesize'});
     });
 
     test('toJson → jsonEncode → jsonDecode → fromJson 保留畫面要用的欄位', () {
@@ -121,6 +193,12 @@ void main() {
       expect(back.introattachments.single.filename, 'hw1.pdf');
       expect(back.introattachments.single.fileurl,
           a1.introattachments.single.fileurl);
+      // 繳交規則也要活過快取：blob 解出來是預設值就會拿錯規則去寫入。
+      expect(back.submissiondrafts, a1.submissiondrafts);
+      expect(back.tracksDrafts, isTrue);
+      expect(back.configs.map((c) => '${c.subtype}/${c.plugin}/${c.name}'),
+          a1.configs.map((c) => '${c.subtype}/${c.plugin}/${c.name}'));
+      expect(back.configs.first.value, '1');
     });
 
     test('第二份 roundtrip 之後 intro 仍是 null', () {
@@ -175,13 +253,18 @@ void main() {
     test('MoodleAssignFile：空 map 退回預設，未建模的 key 被忽略', () {
       expect(MoodleAssignFile.fromJson({}).filename, '');
 
+      // filesize 是 VALUE_OPTIONAL，缺席退回 0＝未知，不是 0 位元組。
+      expect(MoodleAssignFile.fromJson({}).filesize, 0);
+
       final f = MoodleAssignFile.fromJson({
         'filename': 'a.pdf',
+        'filesize': 4096,
         'isexternalfile': false,
         'repositorytype': null,
         'icon': 'f/pdf',
       });
       expect(f.filename, 'a.pdf');
+      expect(f.filesize, 4096);
       expect(f.toJson().keys, isNot(contains('icon')));
       expect(f.toJson().keys, isNot(contains('isexternalfile')));
     });

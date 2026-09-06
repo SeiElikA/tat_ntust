@@ -1844,6 +1844,501 @@ class S {
     );
   }
 
+  /// `Add submission`
+  String get assignAddSubmission {
+    return Intl.message(
+      'Add submission',
+      name: 'assignAddSubmission',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Edit submission`
+  String get assignEditSubmission {
+    return Intl.message(
+      'Edit submission',
+      name: 'assignEditSubmission',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Submit`
+  String get assignSubmit {
+    return Intl.message('Submit', name: 'assignSubmit', desc: '', args: []);
+  }
+
+  /// `Save draft`
+  String get assignSaveDraft {
+    return Intl.message(
+      'Save draft',
+      name: 'assignSaveDraft',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Submit for grading`
+  String get assignSubmitForGrading {
+    return Intl.message(
+      'Submit for grading',
+      name: 'assignSubmitForGrading',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Once submitted for grading you can no longer edit it. Submit now?`
+  String get assignSubmitForGradingConfirm {
+    return Intl.message(
+      'Once submitted for grading you can no longer edit it. Submit now?',
+      name: 'assignSubmitForGradingConfirm',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `This assignment has no draft stage: saving submits it. Submit now?`
+  String get assignSubmitDirectConfirm {
+    return Intl.message(
+      'This assignment has no draft stage: saving submits it. Submit now?',
+      name: 'assignSubmitDirectConfirm',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Re-submitting replaces the files you have already submitted with this list`
+  String get assignSubmitAgainWarning {
+    return Intl.message(
+      'Re-submitting replaces the files you have already submitted with this list',
+      name: 'assignSubmitAgainWarning',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Draft saved`
+  String get assignDraftSaved {
+    return Intl.message(
+      'Draft saved',
+      name: 'assignDraftSaved',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Assignment submitted`
+  String get assignSubmittedToast {
+    return Intl.message(
+      'Assignment submitted',
+      name: 'assignSubmittedToast',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Files to submit`
+  String get assignAttachmentSection {
+    return Intl.message(
+      'Files to submit',
+      name: 'assignAttachmentSection',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Add files`
+  String get assignAddFiles {
+    return Intl.message(
+      'Add files',
+      name: 'assignAddFiles',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Remove this file`
+  String get assignRemoveFile {
+    return Intl.message(
+      'Remove this file',
+      name: 'assignRemoveFile',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `No files selected yet`
+  String get assignFilesEmpty {
+    return Intl.message(
+      'No files selected yet',
+      name: 'assignFilesEmpty',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Removing every submitted file has to be done on the web`
+  String get assignFilesEmptiedWebOnly {
+    return Intl.message(
+      'Removing every submitted file has to be done on the web',
+      name: 'assignFilesEmptiedWebOnly',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Up to %s files`
+  String get assignFileLimit {
+    return Intl.message(
+      'Up to %s files',
+      name: 'assignFileLimit',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Up to %s per file`
+  String get assignFileSizeLimit {
+    return Intl.message(
+      'Up to %s per file',
+      name: 'assignFileSizeLimit',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Allowed file types: %s`
+  String get assignFileTypes {
+    return Intl.message(
+      'Allowed file types: %s',
+      name: 'assignFileTypes',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `This assignment accepts at most %s files`
+  String get assignFileCountExceeded {
+    return Intl.message(
+      'This assignment accepts at most %s files',
+      name: 'assignFileCountExceeded',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `"%s" is larger than the %s limit`
+  String get assignFileTooLarge {
+    return Intl.message(
+      '"%s" is larger than the %s limit',
+      name: 'assignFileTooLarge',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `The file exceeds the Moodle upload size limit`
+  String get assignFileTooLargeUnknown {
+    return Intl.message(
+      'The file exceeds the Moodle upload size limit',
+      name: 'assignFileTooLargeUnknown',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `"%s" is not an allowed file type for this assignment`
+  String get assignFileTypeRejected {
+    return Intl.message(
+      '"%s" is not an allowed file type for this assignment',
+      name: 'assignFileTypeRejected',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Two files share the same name; Moodle would keep only the first. Rename one first.`
+  String get assignFileDuplicateName {
+    return Intl.message(
+      'Two files share the same name; Moodle would keep only the first. Rename one first.',
+      name: 'assignFileDuplicateName',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `The site's antivirus scan rejected this file`
+  String get assignFileVirusFound {
+    return Intl.message(
+      'The site\'s antivirus scan rejected this file',
+      name: 'assignFileVirusFound',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `What you type here is submitted as plain text`
+  String get assignOnlineTextHint {
+    return Intl.message(
+      'What you type here is submitted as plain text',
+      name: 'assignOnlineTextHint',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Words: %s of %s`
+  String get assignWordCount {
+    return Intl.message(
+      'Words: %s of %s',
+      name: 'assignWordCount',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Over the word limit; shorten your text before submitting`
+  String get assignWordCountExceeded {
+    return Intl.message(
+      'Over the word limit; shorten your text before submitting',
+      name: 'assignWordCountExceeded',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `The current online text contains images or formatting that in-app editing would destroy. Edit it on the web.`
+  String get assignOnlineTextNotEditable {
+    return Intl.message(
+      'The current online text contains images or formatting that in-app editing would destroy. Edit it on the web.',
+      name: 'assignOnlineTextNotEditable',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Submission statement`
+  String get assignSubmissionStatement {
+    return Intl.message(
+      'Submission statement',
+      name: 'assignSubmissionStatement',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `I have read and accept the statement above`
+  String get assignAcceptStatement {
+    return Intl.message(
+      'I have read and accept the statement above',
+      name: 'assignAcceptStatement',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `There is nothing to submit`
+  String get assignNothingToSubmit {
+    return Intl.message(
+      'There is nothing to submit',
+      name: 'assignNothingToSubmit',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Discard your unsaved changes?`
+  String get assignDiscardChanges {
+    return Intl.message(
+      'Discard your unsaved changes?',
+      name: 'assignDiscardChanges',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Could not submit`
+  String get assignSubmitError {
+    return Intl.message(
+      'Could not submit',
+      name: 'assignSubmitError',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Moodle did not accept this submission; the deadline may have passed or submissions are closed`
+  String get assignSubmitRejected {
+    return Intl.message(
+      'Moodle did not accept this submission; the deadline may have passed or submissions are closed',
+      name: 'assignSubmitRejected',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Moodle did not accept the submit for grading; refresh and try again`
+  String get assignSubmitForGradingRejected {
+    return Intl.message(
+      'Moodle did not accept the submit for grading; refresh and try again',
+      name: 'assignSubmitForGradingRejected',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Your work was saved but the submit for grading failed; refresh and submit again`
+  String get assignSavedNotSubmitted {
+    return Intl.message(
+      'Your work was saved but the submit for grading failed; refresh and submit again',
+      name: 'assignSavedNotSubmitted',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `This submission has been locked by your teacher`
+  String get assignSubmitLocked {
+    return Intl.message(
+      'This submission has been locked by your teacher',
+      name: 'assignSubmitLocked',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Your Moodle account cannot submit this assignment`
+  String get assignSubmitNoPermission {
+    return Intl.message(
+      'Your Moodle account cannot submit this assignment',
+      name: 'assignSubmitNoPermission',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `File upload is disabled on the school's Moodle`
+  String get assignUploadDisabled {
+    return Intl.message(
+      'File upload is disabled on the school\'s Moodle',
+      name: 'assignUploadDisabled',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Submitting needs up-to-date assignment data; refresh first`
+  String get assignSubmitNeedsFresh {
+    return Intl.message(
+      'Submitting needs up-to-date assignment data; refresh first',
+      name: 'assignSubmitNeedsFresh',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `This is a group assignment; submit it on the web`
+  String get assignSubmitWebOnlyTeam {
+    return Intl.message(
+      'This is a group assignment; submit it on the web',
+      name: 'assignSubmitWebOnlyTeam',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `This assignment has a time limit; submit it on the web`
+  String get assignSubmitWebOnlyTimed {
+    return Intl.message(
+      'This assignment has a time limit; submit it on the web',
+      name: 'assignSubmitWebOnlyTimed',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `This assignment uses blind marking; submit it on the web`
+  String get assignSubmitWebOnlyBlind {
+    return Intl.message(
+      'This assignment uses blind marking; submit it on the web',
+      name: 'assignSubmitWebOnlyBlind',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `No permission to read files; enable it in system settings and try again`
+  String get assignFilePickerDenied {
+    return Intl.message(
+      'No permission to read files; enable it in system settings and try again',
+      name: 'assignFilePickerDenied',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `The file picker is unavailable right now; try again later`
+  String get assignFilePickerUnavailable {
+    return Intl.message(
+      'The file picker is unavailable right now; try again later',
+      name: 'assignFilePickerUnavailable',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Uploading %s`
+  String get assignUploadingFile {
+    return Intl.message(
+      'Uploading %s',
+      name: 'assignUploadingFile',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Preparing %s`
+  String get assignPreparingFile {
+    return Intl.message(
+      'Preparing %s',
+      name: 'assignPreparingFile',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Upload cancelled`
+  String get assignSubmitCancelled {
+    return Intl.message(
+      'Upload cancelled',
+      name: 'assignSubmitCancelled',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `The existing online text cannot be safely overwritten in the app; submit this assignment on the web`
+  String get assignSubmitBlockedByOnlineText {
+    return Intl.message(
+      'The existing online text cannot be safely overwritten in the app; submit this assignment on the web',
+      name: 'assignSubmitBlockedByOnlineText',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Sent, but the latest status could not be loaded; refresh to confirm`
+  String get assignStatusRefreshFailed {
+    return Intl.message(
+      'Sent, but the latest status could not be loaded; refresh to confirm',
+      name: 'assignStatusRefreshFailed',
+      desc: '',
+      args: [],
+    );
+  }
+
   /// `Quiz`
   String get quizDetail {
     return Intl.message('Quiz', name: 'quizDetail', desc: '', args: []);

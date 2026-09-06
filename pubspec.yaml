@@ -99,6 +99,9 @@ dependencies:
   # 只為了 ImagePickerPlatform.instance：image_picker 的 export 清單裡沒有它，
   # 不明確宣告就會被 depend_on_referenced_packages 擋下。
   image_picker_platform_interface: ^2.11.1
+  # 交作業要挑 PDF / docx，image_picker 只挑得到圖。
+  # 卡在 ^11：12.x 要求更新的 Dart SDK，同 image_picker_android 的理由。
+  file_picker: ^11.0.3
   github: ^9.11.0
   #----------Widget----------#
   get: ^4.6.5
