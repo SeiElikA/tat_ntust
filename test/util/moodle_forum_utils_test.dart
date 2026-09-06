@@ -1,4 +1,5 @@
 import 'package:flutter_app/src/model/moodle_webapi/moodle_mod_forum_get_discussion_posts.dart';
+import 'package:flutter_app/src/util/html_utils.dart';
 import 'package:flutter_app/src/util/moodle_forum_utils.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -98,6 +99,114 @@ void main() {
             message, [file('a.png', 'https://x/other.png')]),
         message,
       );
+    });
+  });
+
+  group('plainTextToHtml', () {
+    test('五個字元都 escape，a < b 原樣活下來', () {
+      expect(MoodleForumUtils.plainTextToHtml('a < b & c > d'),
+          'a &lt; b &amp; c &gt; d');
+      expect(MoodleForumUtils.plainTextToHtml('"雙" \'單\''),
+          '&quot;雙&quot; &#39;單&#39;');
+      // & 一定要先換，否則 &lt; 會被二次 escape 成 &amp;lt;
+      expect(MoodleForumUtils.plainTextToHtml('<b>'), '&lt;b&gt;');
+      expect(MoodleForumUtils.plainTextToHtml('&amp;'), '&amp;amp;');
+    });
+
+    test('CRLF、單獨的 CR 與空行都變成 <br>', () {
+      expect(MoodleForumUtils.plainTextToHtml('a\r\nb'), 'a<br>b');
+      expect(MoodleForumUtils.plainTextToHtml('a\rb'), 'a<br>b');
+      expect(MoodleForumUtils.plainTextToHtml('a\n\nb'), 'a<br><br>b');
+    });
+
+    test('空字串 → 空字串', () {
+      expect(MoodleForumUtils.plainTextToHtml(''), '');
+    });
+
+    test('輸出再過 HtmlUtils.clean 會拿回原本那一行字', () {
+      const original = 'a < b & "c" 的 <script> 不是標籤';
+
+      expect(HtmlUtils.clean(MoodleForumUtils.plainTextToHtml(original)),
+          original);
+    });
+  });
+
+  group('messageToDisplayHtml', () {
+    test('FORMAT_PLAIN：escape 加換行', () {
+      expect(
+          MoodleForumUtils.messageToDisplayHtml(
+              'a < b\nc', MoodleForumUtils.formatPlain),
+          'a &lt; b<br>c');
+    });
+
+    test('FORMAT_MOODLE：只換行、不 escape（照抄 text_to_html）', () {
+      expect(
+          MoodleForumUtils.messageToDisplayHtml(
+              '<b>粗體</b>\n第二行', MoodleForumUtils.formatMoodle),
+          '<b>粗體</b><br>第二行');
+    });
+
+    test('FORMAT_HTML 與 FORMAT_MARKDOWN 原封不動', () {
+      const html = '<p>已經是 HTML</p>\n<p>第二段</p>';
+
+      expect(MoodleForumUtils.messageToDisplayHtml(html, 1), html);
+      expect(MoodleForumUtils.messageToDisplayHtml(html, 4), html);
+    });
+  });
+
+  group('canReply', () {
+    test('capabilities 是 null（舊快取／站台沒回）→ 不能回覆', () {
+      expect(MoodleForumUtils.canReply(MoodleForumPost(id: 1)), isFalse);
+    });
+
+    test('reply 為 true 但貼文已刪除 → 不能回覆', () {
+      final p = MoodleForumPost(id: 1, isdeleted: true)
+        ..capabilities = MoodleForumPostCapabilities(reply: true);
+
+      expect(MoodleForumUtils.canReply(p), isFalse);
+    });
+
+    test('reply 為 true 且沒被刪除 → 可以回覆；reply 為 false → 不行', () {
+      final ok = MoodleForumPost(id: 1)
+        ..capabilities = MoodleForumPostCapabilities(reply: true);
+      final no = MoodleForumPost(id: 2)
+        ..capabilities = MoodleForumPostCapabilities(reply: false);
+
+      expect(MoodleForumUtils.canReply(ok), isTrue);
+      expect(MoodleForumUtils.canReply(no), isFalse);
+    });
+  });
+
+  group('mergePost', () {
+    test('新的 id 接在最後，buildThread 之後掛在 parentid 底下', () {
+      final posts = fixturePosts();
+      final added = MoodleForumPost(
+          id: 950, hasparent: true, parentid: 901, discussionid: 7701);
+
+      final merged = MoodleForumUtils.mergePost(posts, added);
+
+      expect(merged.map((p) => p.id), [900, 901, 902, 903, 950]);
+      final flat = MoodleForumUtils.buildThread(merged);
+      final index = flat.indexWhere((t) => t.post.id == 950);
+      expect(flat[index].depth, 2, reason: '901 在第 1 層，它的回覆在第 2 層');
+    });
+
+    test('已存在的 id 就地取代，不會變成兩篇', () {
+      final posts = fixturePosts();
+      final replaced = MoodleForumPost(id: 901, message: '改過了');
+
+      final merged = MoodleForumUtils.mergePost(posts, replaced);
+
+      expect(merged, hasLength(posts.length));
+      expect(merged[1].message, '改過了');
+    });
+
+    test('原本的清單不會被就地改動', () {
+      final posts = fixturePosts();
+
+      MoodleForumUtils.mergePost(posts, MoodleForumPost(id: 950));
+
+      expect(posts, hasLength(4));
     });
   });
 

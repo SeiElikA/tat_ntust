@@ -3,12 +3,10 @@ import 'dart:async';
 import 'package:expansion_tile_card/expansion_tile_card.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_app/src/R.dart';
-import 'package:flutter_app/src/connector/core/connector.dart';
 import 'package:flutter_app/src/connector/moodle_webapi_connector.dart';
 import 'package:flutter_app/ui/service/file_download.dart';
 import 'package:flutter_app/src/model/course_table/course_table_json.dart';
 import 'package:flutter_app/src/model/moodle_webapi/moodle_core_course_get_contents.dart';
-import 'package:flutter_app/src/util/language_utils.dart';
 import 'package:flutter_app/src/util/open_utils.dart';
 import 'package:flutter_app/ui/routes/route_utils.dart';
 import 'package:flutter_app/src/util/ui_utils.dart';
@@ -17,6 +15,7 @@ import 'package:flutter_app/ui/components/file_type_icon.dart';
 import 'package:flutter_app/ui/components/page/error_page.dart';
 import 'package:flutter_app/src/util/my_toast.dart';
 import 'package:flutter_app/ui/pages/course_data/screen/sub_page/course_assignment_detail_page.dart';
+import 'package:flutter_app/ui/pages/course_data/screen/sub_page/course_forum_page.dart';
 import 'package:flutter_app/ui/pages/course_data/screen/sub_page/course_html_page.dart';
 import 'package:flutter_app/ui/pages/course_data/screen/sub_page/course_quiz_detail_page.dart';
 import 'package:flutter_widget_from_html/flutter_widget_from_html.dart';
@@ -79,22 +78,18 @@ class _CourseInfoPageState extends State<CourseInfoPage> {
     }
   }
 
-  void openWebView(Modules ap, {openWithExternalWebView = false}) async {
-    unawaited(RouteUtils.toWebViewPage(
-        ap.name,
-        Connector.uriAddQuery(
-          ap.url,
-          (LanguageUtils.getLangIndex() == LangEnum.zh)
-              ? {"lang": "zh_tw"}
-              : {"lang": "en"},
-        ),
-        openWithExternalWebView: openWithExternalWebView));
-  }
-
   void handleTap(Modules ap) async {
     switch (ap.modname) {
       case "forum":
-        openWebView(ap);
+        // Modules.instance 就是 forum id；ErrorPage 與 RouteUtils 由這裡注入。
+        unawaited(Get.to(() => CourseForumPage(
+              widget.courseInfo,
+              forumId: ap.instance,
+              forumName: ap.name,
+              forumUrl: ap.url,
+              errorBuilder: (message) => ErrorPage(errorMsg: message),
+              openWebView: RouteUtils.toWebViewPage,
+            )));
         break;
       case "assign":
         // Modules.instance 就是 assign id；ErrorPage 與 RouteUtils 由這裡注入。

@@ -38,6 +38,21 @@ class MoodleForumPost {
   @JsonKey(name: 'message', defaultValue: "")
   String message;
 
+  /// FORMAT_MOODLE=0 / HTML=1 / PLAIN=2 / MARKDOWN=4。預設 **1** 是刻意的：
+  /// 現行版本寫進 `cache_moodle_forum_posts` 的 blob 沒有這個 key，而它的
+  /// `message` 早就是算繪好的 HTML；預設 0 會讓舊快取讀回來時再被轉一次。
+  @JsonKey(name: 'messageformat', defaultValue: 1)
+  int messageformat;
+
+  /// 伺服器組好的 `"{re} {subject}"`，語系跟著站台。回覆時原樣送回去。
+  @JsonKey(name: 'replysubject', defaultValue: "")
+  String replysubject;
+
+  /// 缺席刻意留 null 而不是「全部 false」：舊快取或不回這一段的站台代表
+  /// 「不知道」，那時不畫回覆鈕（見 `MoodleForumUtils.canReply`）。
+  @JsonKey(name: 'capabilities')
+  MoodleForumPostCapabilities? capabilities;
+
   /// 規格上一定在，但缺席不該讓整份回應解析失敗。
   @JsonKey(name: 'author')
   MoodleForumAuthor? author;
@@ -76,6 +91,9 @@ class MoodleForumPost {
     this.id = 0,
     this.subject = "",
     this.message = "",
+    this.messageformat = 1,
+    this.replysubject = "",
+    this.capabilities,
     this.author,
     this.discussionid = 0,
     this.hasparent = false,
@@ -93,6 +111,28 @@ class MoodleForumPost {
       _$MoodleForumPostFromJson(json);
 
   Map<String, dynamic> toJson() => _$MoodleForumPostToJson(this);
+
+  @override
+  String toString() => jsonEncode(this);
+}
+
+/// post_exporter 的 `capabilities`。只建模 `reply`：其餘（edit / delete /
+/// split / canreplyprivately）沒有任何畫面在讀，宣告出來只會誘人接上一個
+/// 規格上一律導到網頁的功能。
+///
+/// **不要改看 `urls.reply`**：`selfenrol` 為真時那個網址也非 null，
+/// 但使用者其實不能回覆（見 docs/MOODLE_REFERENCE.md）。
+@JsonSerializable()
+class MoodleForumPostCapabilities {
+  @JsonKey(name: 'reply', defaultValue: false)
+  bool reply;
+
+  MoodleForumPostCapabilities({this.reply = false});
+
+  factory MoodleForumPostCapabilities.fromJson(Map<String, dynamic> json) =>
+      _$MoodleForumPostCapabilitiesFromJson(json);
+
+  Map<String, dynamic> toJson() => _$MoodleForumPostCapabilitiesToJson(this);
 
   @override
   String toString() => jsonEncode(this);

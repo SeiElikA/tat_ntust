@@ -19,6 +19,9 @@
 | `mod_forum_get_forums_by_courses` | 用 `type == 'news'` 結構性地找公告區（回的是陣列不是物件；站台沒開這支就退回名稱比對） | `getCourseAnnouncement` |
 | `mod_forum_get_forum_discussions` | 課程公告清單 | `getCourseAnnouncement` |
 | `mod_forum_get_discussion_posts` | 公告討論串的第一篇與全部回覆（`sortby=created&sortdirection=ASC`；`includeinlineattachments=1` 必帶——post_exporter 不跑 format_text，`message` 裡的 `@@PLUGINFILE@@` 要靠 `messageinlinefiles` 自己換，`moodlewssettingfileurl` 對它無效；附件走 stored_file_exporter，網址欄位是 `url` 不是 `fileurl`，也沒有 mimetype；`isdeleted` 的貼文照樣回，內容被換成站台語系的字串、`timecreated` 是 null） | `getDiscussionPosts` |
+| `mod_forum_add_discussion_post` | 回覆一篇貼文（`postid` 是**貼文** id，不是討論串 id；必送 `messageformat=2` 加 `options[topreferredformat]=1`，見下方「會咬人的地方」；`discussionsubscribe` / `private` / `attachmentsid` 一律不送） | `addDiscussionPost` |
+| `mod_forum_add_discussion` | 開新主題，回 `discussionid`（**沒有** `messageformat`，伺服器寫死 FORMAT_HTML，內文要自己 escape；`groupid: 0` 等於「用我目前的群組」） | `addDiscussion` |
+| `mod_forum_can_add_discussion` | 這個討論區現在能不能開新主題（`status`，**不含發文節流**） | `canAddDiscussion` |
 | `gradereport_user_get_grade_items` | 課程成績（結構化，取代先前解析 HTML 表格的 `gradereport_user_get_grades_table`） | `getGradeItems` |
 | `gradereport_overview_get_course_grades` | 「Moodle 目前成績」頁：這個帳號全部課程的目前總分（只送 `userid`；`grades[]` 一定在，可能是空陣列，`warnings` 伺服器端永遠是空的，所以不傳 `treatWarningsAsError`）。**`grade` 是伺服器格式化好的字串**：總分被藏起來或還沒有成績時是字面上的 `"-"`（`grade_format_gradevalue` 對 null 回 `'-'`，兩者從客戶端分不出來），課程總分是無評分／文字型態時是空字串，量尺與等第會過 `format_string`（實體要還原），小數點分隔符跟的是**伺服器上的 Moodle 帳號語言**——一律不解析成數字。`rawgrade` 與 `rank` 刻意不建模：前者是 PARAM_RAW 直傳的 DB 值（字串／float／null 都可能，沒有小數位設定、量尺與等第對照），後者要站台開了 `report_overview_showrank` 才有。**被跳過的課沒有任何 warning**：課程設定關掉「顯示成績」、學生在該課沒有 gradebookrole、課程被隱藏、缺 `moodle/grade:view` 四種情況都是 `continue`，那門課單純不在 `grades[]` 裡。**伺服器端會先把所有課重算一次成績**（`regrade_all_courses_if_needed` 在 WS 路徑上呼叫的是無條件的 `grade_regrade_final_grades`），掛著 `'type' => 'read'` 卻是重呼叫，只在使用者真的開那一頁時發，不預載 | `getCourseGrades` |
 | `core_enrol_get_enrolled_users` | 課程成員 | `getMember` |
@@ -187,6 +190,57 @@ POST 欄位。TAT 用 `parameter.data` 加 `getJsonByPost`，行為相同，
 - pluginfile 網址的每一段是 PHP `rawurlencode`（只留 `A-Za-z0-9-_.~`），比
   Dart 的 `Uri.encodeComponent` 多轉了 `!*'()`。用檔名去反推 `@@PLUGINFILE@@`
   的前綴時兩種都要試，否則 `Lecture (1).png` 這種附件會對不上。
+
+- **`mod_forum_add_discussion_post` 的 `messageformat` 不送就等於宣告 HTML。**
+  它的 VALUE_DEFAULT 是 FORMAT_HTML，所以手機上打的純文字會掉光換行、`a < b`
+  的 `< b` 會被 HTMLPurifier 當成標籤吃掉——而且當下看起來完全正常，幾天後
+  才在網頁版發現。TAT 一律送 `messageformat=2`（FORMAT_PLAIN）加
+  `options[topreferredformat]=1`，後者讓伺服器在寫入前依站台預設編輯器轉成
+  HTML。但那個轉換只在 `editors_get_preferred_format()` 回 FORMAT_HTML
+  （TinyMCE／Atto）時才發生，預設編輯器是 textarea 的站台會原樣存成
+  FORMAT_PLAIN，所以客戶端讀回來時也要照 `messageformat` 自己轉一次
+  （`MoodleForumUtils.messageToDisplayHtml`）。兩條保險，一個結果。
+- **`mod_forum_add_discussion` 連 `messageformat` 參數都沒有**：函式本體寫死
+  `$discussion->messageformat = FORMAT_HTML;`，送什麼位元組就存什麼並當 HTML
+  render。新主題的內文因此必須由客戶端 escape 後把換行換成 `<br>`
+  （`MoodleForumUtils.plainTextToHtml`），否則會變成一整段沒有斷行的字。
+- **兩支的 `subject` 都是 varchar(255)，而且伺服器不截斷。**
+  `forum_discussions.name` 與 `forum_posts.subject` 都是 `char(255)`，
+  `forum_add_discussion()` / `forum_add_new_post()` 一路 insert 到底沒有
+  `shorten_text`，DML 連線又是 `STRICT_ALL_TABLES`——超長是
+  `dmlwriteexception`，那不是 forum 的 errorcode，`forumPostFailureMessage`
+  對不到任何一句話，畫面只會說一句通用的送出失敗。網頁版的表單自己有
+  `maxlength` 規則（post_form.php 的 `addRule('subject', …, 'maxlength', 255)`），
+  所以 App 的標題欄位也要有（`MoodleForumUtils.subjectMaxLength`）。
+  回覆的 subject 是伺服器組的 `replysubject`（`Re: ` 加原標題，同樣不截斷），
+  原標題逼近 255 時客戶端擋不到，這一條目前只能吃下那句通用訊息。
+- **回覆的判準是 `capabilities.reply`，不是 `urls.reply`。** post_exporter 的
+  `$replyurl = $canreply || $canselfenrol ? … : null`，所以在不能回覆的討論串
+  上那個網址照樣非 null。`capabilities.reply` 才是
+  `add_discussion_post` 送出時會再檢查一次的同一個述詞。
+- **`cancreatediscussions` 與 `can_add_discussion.status` 都不含發文節流**
+  （`forum_check_throttling`）。`status == true` 之後照樣可能收到
+  `forumblockingtoomanyposts`，所以發文的入口是樂觀的，伺服器才是最後的答案，
+  每一種拒絕都要對應到一句看得懂的話加上網頁退路。**問不到答案也算一種
+  狀態**：`can_add_discussion` 沒有快取、進頁面只發一次，那一趟失敗時發文入口
+  會整頁消失，所以要有一句「目前無法確認能不能發文」加一顆就地重問的鈕。
+- **這兩支都沒有冪等鍵，所以送出失敗的文案不能寫「請再試一次」。**
+  連線在送出之後斷掉時伺服器可能已經寫入而客戶端看到失敗，客戶端無從分辨；
+  叫使用者再送一次等於叫他在全班看得到的討論區裡貼兩則。`forumSendError`
+  因此寫成「請重新整理確認是否已送出」，明確的拒絕（`nopostforum`、
+  `forumblockingtoomanyposts` ……）才各自對應到自己那一句。
+- **兩支寫入函式的 `warnings[]` 永遠是空的**：`$warnings = array()` 初始化之後
+  從來沒有 append。`treatWarningsAsError` 照寫（寫入路徑的慣例）但它只是保險，
+  真正的成功訊號是 `add_discussion_post` 回得出可解析的 `post`、
+  `add_discussion` 回得出 `discussionid > 0`。**證明不了寫入發生過就是失敗**。
+- **兩支的 `discussionsubscribe` 預設值不一樣**：回覆是
+  `\mod_forum\subscriptions::get_user_default_subscription()`（跟網頁表單同一個
+  預設），新主題是寫死的 `true`。TAT 兩邊都不送，訂閱行為因此與網頁版一致；
+  送 `0` 會把學生從自己開的主題退訂，比不送更糟。
+- `type == 'news'`（公告區）的學生沒有 `mod/forum:replynews` 與
+  `mod/forum:addnews`（db/access.php 只給 teacher／editingteacher），所以公告區
+  的發文入口是靠 `capabilities.reply` 與 `cancreatediscussions` 自然消失的，
+  不需要另外判斷 type。
 
 ### 順帶確認的事實
 

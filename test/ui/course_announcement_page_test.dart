@@ -11,7 +11,7 @@ import 'package:flutter_app/src/service/connectivity_probe.dart';
 import 'package:flutter_app/src/service/task_ui_delegate.dart';
 import 'package:flutter_app/src/store/cache_store.dart';
 import 'package:flutter_app/ui/pages/course_data/screen/course_announcement_page.dart';
-import 'package:flutter_app/ui/pages/course_data/screen/sub_page/course_announcement_detail_page.dart';
+import 'package:flutter_app/ui/pages/course_data/screen/sub_page/course_forum_thread_page.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
 import 'package:intl/date_symbol_data_local.dart';
@@ -161,6 +161,6 @@ void main() {
     await tester.tap(find.text('期中考 & 補考公告'));
     await tester.pumpAndSettle();
 
-    expect(find.byType(CourseAnnouncementDetailPage), findsOneWidget);
+    expect(find.byType(CourseForumThreadPage), findsOneWidget);
   });
 }

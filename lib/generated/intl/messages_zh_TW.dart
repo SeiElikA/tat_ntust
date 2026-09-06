@@ -186,8 +186,50 @@ class MessageLookup extends MessageLookupByLibrary {
     "folderEmpty": MessageLookupByLibrary.simpleMessage("這個資料夾沒有檔案"),
     "folderFileCount": MessageLookupByLibrary.simpleMessage("%s 個檔案"),
     "forumAttachments": MessageLookupByLibrary.simpleMessage("附件"),
+    "forumCannotCheckPosting": MessageLookupByLibrary.simpleMessage(
+      "目前無法確認能不能在這裡發文",
+    ),
+    "forumCannotPost": MessageLookupByLibrary.simpleMessage(
+      "這個討論區不開放在 App 內發文",
+    ),
+    "forumDiscardDraft": MessageLookupByLibrary.simpleMessage("要放棄這則還沒送出的內容嗎？"),
+    "forumEmpty": MessageLookupByLibrary.simpleMessage("這個討論區還沒有主題"),
+    "forumErrorCannotCreateDiscussion": MessageLookupByLibrary.simpleMessage(
+      "這個討論區不接受新主題",
+    ),
+    "forumErrorNoPermission": MessageLookupByLibrary.simpleMessage(
+      "你現在不能在這則討論串發言",
+    ),
+    "forumErrorPostGone": MessageLookupByLibrary.simpleMessage(
+      "找不到要回覆的貼文，討論串可能已經變動",
+    ),
+    "forumErrorTooManyPosts": MessageLookupByLibrary.simpleMessage(
+      "你在這個討論區的發文次數已達上限",
+    ),
+    "forumMessageHint": MessageLookupByLibrary.simpleMessage("寫下你想說的話…"),
+    "forumMessageRequired": MessageLookupByLibrary.simpleMessage("請先寫點內容"),
+    "forumNewDiscussion": MessageLookupByLibrary.simpleMessage("發表新主題"),
+    "forumOpenInWeb": MessageLookupByLibrary.simpleMessage("在網頁開啟討論區"),
+    "forumPlainTextOnly": MessageLookupByLibrary.simpleMessage(
+      "App 內只能發純文字。附件、排版、私訊回覆與編輯請在網頁版操作。",
+    ),
     "forumPostDeleted": MessageLookupByLibrary.simpleMessage("這則貼文已被刪除"),
     "forumReplies": MessageLookupByLibrary.simpleMessage("%s 則回覆"),
+    "forumReply": MessageLookupByLibrary.simpleMessage("回覆"),
+    "forumReplyingTo": MessageLookupByLibrary.simpleMessage("回覆 %s"),
+    "forumSend": MessageLookupByLibrary.simpleMessage("送出"),
+    "forumSendDone": MessageLookupByLibrary.simpleMessage("已送出"),
+    "forumSendDoneRefreshFailed": MessageLookupByLibrary.simpleMessage(
+      "已送出，但討論串沒有重新載入",
+    ),
+    "forumSendError": MessageLookupByLibrary.simpleMessage(
+      "送出失敗；請重新整理確認是否已送出，不要直接再送一次",
+    ),
+    "forumSending": MessageLookupByLibrary.simpleMessage("送出中…"),
+    "forumSubject": MessageLookupByLibrary.simpleMessage("標題"),
+    "forumSubjectHint": MessageLookupByLibrary.simpleMessage("為這個主題取個標題"),
+    "forumSubjectRequired": MessageLookupByLibrary.simpleMessage("請先填標題"),
+    "forumThreadLocked": MessageLookupByLibrary.simpleMessage("這則討論串目前不開放回覆"),
     "forumUnknownAuthor": MessageLookupByLibrary.simpleMessage("不明的發文者"),
     "fullRange": MessageLookupByLibrary.simpleMessage("全距"),
     "general_dimension": MessageLookupByLibrary.simpleMessage("向度"),

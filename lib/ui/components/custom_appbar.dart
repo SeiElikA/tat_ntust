@@ -35,7 +35,8 @@ AppBar baseAppbar(
     List<Widget>? action,
     BuildContext? context,
     PreferredSizeWidget? bottom,
-    Color? backgroundColor}) {
+    Color? backgroundColor,
+    VoidCallback? onBack}) {
   return AppBar(
     systemOverlayStyle: SystemUiOverlayStyle(
       statusBarIconBrightness: Get.theme.brightness == Brightness.light
@@ -56,9 +57,9 @@ AppBar baseAppbar(
           size: 18,
           color: Get.theme.colorScheme.onSurface,
         ),
-        onPressed: () {
-          Get.back();
-        },
+        // 有未送出的內容要先問的頁面（撰寫頁）會傳 onBack，把這顆鈕接到
+        // `Navigator.maybePop` 上；`Get.back()` 是直接 pop，會跳過 PopScope。
+        onPressed: onBack ?? Get.back,
       ),
     ),
     actions: action,

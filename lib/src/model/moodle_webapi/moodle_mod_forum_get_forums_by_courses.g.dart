@@ -13,6 +13,7 @@ MoodleForum _$MoodleForumFromJson(Map<String, dynamic> json) => MoodleForum(
       name: json['name'] as String? ?? '',
       cmid: (json['cmid'] as num?)?.toInt() ?? 0,
       numdiscussions: (json['numdiscussions'] as num?)?.toInt() ?? 0,
+      cancreatediscussions: json['cancreatediscussions'] as bool?,
     );
 
 Map<String, dynamic> _$MoodleForumToJson(MoodleForum instance) =>
@@ -23,4 +24,5 @@ Map<String, dynamic> _$MoodleForumToJson(MoodleForum instance) =>
       'name': instance.name,
       'cmid': instance.cmid,
       'numdiscussions': instance.numdiscussions,
+      'cancreatediscussions': instance.cancreatediscussions,
     };

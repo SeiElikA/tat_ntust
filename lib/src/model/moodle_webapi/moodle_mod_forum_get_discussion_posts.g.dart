@@ -26,6 +26,12 @@ MoodleForumPost _$MoodleForumPostFromJson(Map<String, dynamic> json) =>
       id: (json['id'] as num?)?.toInt() ?? 0,
       subject: json['subject'] as String? ?? '',
       message: json['message'] as String? ?? '',
+      messageformat: (json['messageformat'] as num?)?.toInt() ?? 1,
+      replysubject: json['replysubject'] as String? ?? '',
+      capabilities: json['capabilities'] == null
+          ? null
+          : MoodleForumPostCapabilities.fromJson(
+              json['capabilities'] as Map<String, dynamic>),
       author: json['author'] == null
           ? null
           : MoodleForumAuthor.fromJson(json['author'] as Map<String, dynamic>),
@@ -51,6 +57,9 @@ Map<String, dynamic> _$MoodleForumPostToJson(MoodleForumPost instance) =>
       'id': instance.id,
       'subject': instance.subject,
       'message': instance.message,
+      'messageformat': instance.messageformat,
+      'replysubject': instance.replysubject,
+      'capabilities': instance.capabilities?.toJson(),
       'author': instance.author?.toJson(),
       'discussionid': instance.discussionid,
       'hasparent': instance.hasparent,
@@ -62,6 +71,18 @@ Map<String, dynamic> _$MoodleForumPostToJson(MoodleForumPost instance) =>
       'attachments': instance.attachments.map((e) => e.toJson()).toList(),
       'messageinlinefiles':
           instance.messageinlinefiles.map((e) => e.toJson()).toList(),
+    };
+
+MoodleForumPostCapabilities _$MoodleForumPostCapabilitiesFromJson(
+        Map<String, dynamic> json) =>
+    MoodleForumPostCapabilities(
+      reply: json['reply'] as bool? ?? false,
+    );
+
+Map<String, dynamic> _$MoodleForumPostCapabilitiesToJson(
+        MoodleForumPostCapabilities instance) =>
+    <String, dynamic>{
+      'reply': instance.reply,
     };
 
 MoodleForumAuthor _$MoodleForumAuthorFromJson(Map<String, dynamic> json) =>

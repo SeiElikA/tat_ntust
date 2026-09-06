@@ -9,10 +9,10 @@ import 'package:flutter_app/src/repository/result.dart';
 import 'package:flutter_app/ui/components/page/empty_state.dart';
 import 'package:flutter_app/ui/components/page/result_view.dart';
 import 'package:flutter_app/ui/components/page/web_view_opener.dart';
-import 'package:flutter_app/ui/pages/course_data/screen/sub_page/course_announcement_detail_page.dart';
+import 'package:flutter_app/ui/pages/course_data/screen/sub_page/course_forum_thread_page.dart';
+import 'package:flutter_app/ui/pages/course_data/screen/widgets/forum_discussion_card.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
-import 'package:sprintf/sprintf.dart';
 import 'package:flutter_app/ui/other/lucide_icons.dart';
 
 /// 課程頁的「公告」分頁。錯誤畫面與 WebView 開啟器由呼叫端注入，
@@ -71,12 +71,15 @@ class _CourseAnnouncementPageState extends State<CourseAnnouncementPage>
       padding: const EdgeInsets.fromLTRB(12, 12, 12, 24),
       itemCount: data.discussions.length,
       separatorBuilder: (context, index) => const SizedBox(height: 10),
-      itemBuilder: (context, index) => _AnnouncementCard(
+      itemBuilder: (context, index) => ForumDiscussionCard(
         discussion: data.discussions[index],
         formatter: formatter,
-        onTap: () => unawaited(Get.to(() => CourseAnnouncementDetailPage(
+        onTap: () => unawaited(Get.to(() => CourseForumThreadPage(
               widget.courseInfo,
-              data.discussions[index],
+              // discussion 才是討論串 id；id 是第一篇貼文的 id。
+              discussionId: data.discussions[index].discussion,
+              title: data.discussions[index].name,
+              fallbackDiscussion: data.discussions[index],
               openWebView: widget.openWebView,
             ))),
       ),
@@ -88,86 +91,4 @@ class _CourseAnnouncementPageState extends State<CourseAnnouncementPage>
 
   @override
   bool get wantKeepAlive => true;
-}
-
-class _AnnouncementCard extends StatelessWidget {
-  const _AnnouncementCard({
-    required this.discussion,
-    required this.formatter,
-    required this.onTap,
-  });
-
-  final Discussions discussion;
-  final DateFormat formatter;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final text = Theme.of(context).textTheme;
-    // 用建立時間：modified 是第一篇貼文被編輯過的時間，詳情頁那邊印的是建立時間。
-    final formatted = formatter
-        .format(DateTime.fromMillisecondsSinceEpoch(discussion.created * 1000));
-    return Material(
-      color: scheme.surfaceContainer,
-      borderRadius: BorderRadius.circular(12),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  if (discussion.pinned) ...[
-                    Icon(LucideIcons.pin,
-                        size: 14, color: scheme.onSurfaceVariant),
-                    const SizedBox(width: 6),
-                  ],
-                  Expanded(
-                    child: Text(
-                      discussion.name,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: text.bodyMedium?.copyWith(
-                          color: scheme.onSurface,
-                          fontWeight: FontWeight.w500,
-                          height: 1.3),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 6),
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      "${discussion.userfullname} · $formatted",
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: text.bodySmall
-                          ?.copyWith(color: scheme.onSurfaceVariant),
-                    ),
-                  ),
-                  if (discussion.numreplies > 0) ...[
-                    const SizedBox(width: 8),
-                    Icon(LucideIcons.messageSquare,
-                        size: 13, color: scheme.onSurfaceVariant),
-                    const SizedBox(width: 4),
-                    Text(
-                      sprintf(R.current.forumReplies, [discussion.numreplies]),
-                      style: text.labelSmall
-                          ?.copyWith(color: scheme.onSurfaceVariant),
-                    ),
-                  ],
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 }

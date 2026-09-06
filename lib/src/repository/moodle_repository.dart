@@ -13,6 +13,7 @@ import 'package:flutter_app/src/model/moodle_webapi/moodle_gradereport_overview_
 import 'package:flutter_app/src/model/moodle_webapi/moodle_message_popup_notifications.dart';
 import 'package:flutter_app/src/model/moodle_webapi/moodle_mod_assign_get_assignments.dart';
 import 'package:flutter_app/src/model/moodle_webapi/moodle_mod_assign_get_submission_status.dart';
+import 'package:flutter_app/src/model/moodle_webapi/moodle_mod_forum_can_add_discussion.dart';
 import 'package:flutter_app/src/model/moodle_webapi/moodle_mod_forum_get_discussion_posts.dart';
 import 'package:flutter_app/src/model/moodle_webapi/moodle_mod_forum_get_forum_discussions.dart';
 import 'package:flutter_app/src/model/moodle_webapi/moodle_mod_quiz_get_quizzes_by_courses.dart';
@@ -26,6 +27,7 @@ import 'package:flutter_app/src/store/cache_store.dart';
 import 'package:flutter_app/src/util/file_utils.dart';
 import 'package:flutter_app/src/util/moodle_assign_utils.dart';
 import 'package:flutter_app/src/util/moodle_avatar_utils.dart';
+import 'package:flutter_app/src/util/moodle_forum_utils.dart';
 import 'package:flutter_app/src/util/moodle_quiz_utils.dart';
 import 'package:sprintf/sprintf.dart';
 
@@ -303,23 +305,135 @@ class MoodleRepository {
         background: background,
       );
 
-  /// 一則公告的討論串（第一篇加回覆）。[discussionId] 是 `Discussions.discussion`，
+  /// 討論串的快取。讀與「樂觀併入之後寫回」共用同一把 key。
+  static CacheKey<List<MoodleForumPost>> discussionPostsKey(int discussionId) =>
+      CacheKey<List<MoodleForumPost>>(
+        "cache_moodle_forum_posts",
+        discussionId.toString(),
+        decode: (json) => (json as List)
+            .map((e) =>
+                MoodleForumPost.fromJson(Map<String, dynamic>.from(e as Map)))
+            .toList(),
+      );
+
+  /// 一則討論串（第一篇加回覆）。[discussionId] 是 `Discussions.discussion`，
   /// 不是 `Discussions.id`——後者是第一篇貼文的 id。
   Future<Result<List<MoodleForumPost>>> getDiscussionPosts(int discussionId) =>
       run<List<MoodleForumPost>>(
         requires: const {SystemId.moodleWebApi},
-        cache: CacheKey<List<MoodleForumPost>>(
-          "cache_moodle_forum_posts",
-          discussionId.toString(),
-          decode: (json) => (json as List)
-              .map((e) =>
-                  MoodleForumPost.fromJson(Map<String, dynamic>.from(e as Map)))
-              .toList(),
-        ),
+        cache: discussionPostsKey(discussionId),
         fetch: () => MoodleWebApiConnector.getDiscussionPosts(discussionId),
         errorMessage: R.current.getMoodleForumPostsError,
         debugLabel: 'moodleForumPosts',
       );
+
+  /// 一個一般討論區的主題清單。[forumId] 是 forum instance id
+  /// （`Modules.instance`），不是 cmid。
+  Future<Result<List<Discussions>>> getForumDiscussions(int forumId) =>
+      run<List<Discussions>>(
+        requires: const {SystemId.moodleWebApi},
+        cache: CacheKey<List<Discussions>>(
+          "cache_moodle_forum_discussions",
+          forumId.toString(),
+          decode: (json) => (json as List)
+              .map((e) => Discussions.fromJson(Map<String, dynamic>.from(e)))
+              .toList(),
+        ),
+        fetch: () => MoodleWebApiConnector.getForumDiscussions(forumId),
+        errorMessage: R.current.getMoodleCourseAnnouncementError,
+        debugLabel: 'moodleForumDiscussions',
+      );
+
+  /// 能不能在這個討論區開新主題。刻意不快取：過期的「你可以發文」比沒有答案
+  /// 更糟——按下去才被伺服器拒絕。[background] 固定為真，這是進頁時的預載。
+  Future<Result<MoodleCanAddDiscussion>> canAddDiscussion(int forumId) =>
+      run<MoodleCanAddDiscussion>(
+        requires: const {SystemId.moodleWebApi},
+        background: true,
+        retry: RetryPolicy.none,
+        errorMessage: R.current.forumCannotPost,
+        debugLabel: 'moodleCanAddDiscussion',
+        fetch: () => MoodleWebApiConnector.canAddDiscussion(forumId),
+      );
+
+  @visibleForTesting
+  Future<MoodleForumPost> writeReply({
+    required int postId,
+    required String subject,
+    required String message,
+  }) =>
+      MoodleWebApiConnector.addDiscussionPost(
+          postId: postId, subject: subject, message: message);
+
+  @visibleForTesting
+  Future<int> writeDiscussion({
+    required int forumId,
+    required String subject,
+    required String htmlMessage,
+  }) =>
+      MoodleWebApiConnector.addDiscussion(
+          forumId: forumId, subject: subject, htmlMessage: htmlMessage);
+
+  /// 回覆一篇貼文。走 `run()` 是為了登入保證與離線分類，不是快取。
+  ///
+  /// `retry: none`：`run()` 的重試會整個重跑 `fetch`，而
+  /// `mod_forum_add_discussion_post` 沒有冪等鍵——按一次重試就多發一則。
+  /// 理由同 [changeProfilePicture]。
+  ///
+  /// `background: false`：使用者主動按的按鈕，token 死掉時要開得了登入頁。
+  Future<Result<MoodleForumPost>> postReply({
+    required int postId,
+    required String subject,
+    required String text,
+  }) =>
+      run<MoodleForumPost>(
+        requires: const {SystemId.moodleWebApi},
+        retry: RetryPolicy.none,
+        errorMessage: R.current.forumSendError,
+        debugLabel: 'moodleForumReply',
+        fetch: () async {
+          try {
+            return await writeReply(
+                postId: postId, subject: subject, message: text);
+          } on MoodleApiException catch (e) {
+            throw TaskFailure(FetchFailed(forumPostFailureMessage(e)));
+          }
+        },
+      );
+
+  /// 開一個新主題，回討論串 id。[text] 是使用者打的純文字，escape 在這裡做：
+  /// `mod_forum_add_discussion` 沒有 `messageformat`，伺服器一律當 HTML 存。
+  /// `retry` 與 `background` 的理由同 [postReply]。
+  Future<Result<int>> postDiscussion({
+    required int forumId,
+    required String subject,
+    required String text,
+  }) =>
+      run<int>(
+        requires: const {SystemId.moodleWebApi},
+        retry: RetryPolicy.none,
+        errorMessage: R.current.forumSendError,
+        debugLabel: 'moodleForumNewDiscussion',
+        fetch: () async {
+          try {
+            return await writeDiscussion(
+              forumId: forumId,
+              subject: subject,
+              htmlMessage: MoodleForumUtils.plainTextToHtml(text),
+            );
+          } on MoodleApiException catch (e) {
+            throw TaskFailure(FetchFailed(forumPostFailureMessage(e)));
+          }
+        },
+      );
+
+  /// 樂觀併入剛送出的回覆之後把整串寫回同一筆快取。理由同
+  /// [saveNotifications]：`run()` 只在 fetch 成功那一刻寫快取，寫入路徑沒有
+  /// `cache:`，不補這一趟的話離線重開會看不到自己剛發的那一則。
+  Future<void> saveDiscussionPosts(
+          int discussionId, List<MoodleForumPost> posts) =>
+      CacheStore.instance.write<List<MoodleForumPost>>(
+          discussionPostsKey(discussionId), posts);
 
   /// 待辦快取只有一筆（'all'）；登出時 `cache_` 前綴整包清掉，不會跨帳號。
   static CacheKey<List<MoodleActionEvent>> upcomingEventsKey() =>
@@ -587,6 +701,19 @@ String avatarFailureMessage(MoodleApiException e) => switch (e.errorcode) {
       'upload_error_form_size' =>
         R.current.avatarTooLargeUnknown,
       _ => R.current.avatarUpdateError,
+    };
+
+/// 發文失敗的 errorcode 換成使用者看得懂的一句話。認不得的一律回
+/// [R.current.forumSendError]——伺服器的英文原文不會出現在畫面上。
+String forumPostFailureMessage(MoodleApiException e) => switch (e.errorcode) {
+      'nopostforum' => R.current.forumErrorNoPermission,
+      'cannotcreatediscussion' => R.current.forumErrorCannotCreateDiscussion,
+      'invalidparentpostid' ||
+      'notpartofdiscussion' =>
+        R.current.forumErrorPostGone,
+      'forumblockingtoomanyposts' => R.current.forumErrorTooManyPosts,
+      'accessexception' => R.current.forumCannotPost,
+      _ => R.current.forumSendError,
     };
 
 /// 舊快取的遷移點，不要簡化成 `fromJson`：每個欄位都有 defaultValue，舊格式的

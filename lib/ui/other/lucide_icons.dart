@@ -138,6 +138,10 @@ class LucideIcons {
   /// message-square
   static const IconData messageSquare = IconData(0xe117, fontFamily: _family);
 
+  /// message-square-plus
+  static const IconData messageSquarePlus =
+      IconData(0xe40c, fontFamily: _family);
+
   /// messages-square
   static const IconData messagesSquare = IconData(0xe40d, fontFamily: _family);
 
@@ -164,6 +168,9 @@ class LucideIcons {
 
   /// search
   static const IconData search = IconData(0xe151, fontFamily: _family);
+
+  /// send
+  static const IconData send = IconData(0xe152, fontFamily: _family);
 
   /// settings
   static const IconData settings = IconData(0xe154, fontFamily: _family);
