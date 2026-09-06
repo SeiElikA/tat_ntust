@@ -41,7 +41,7 @@ class NotificationTile extends StatelessWidget {
       'mod_quiz' => LucideIcons.fileQuestion,
       'mod_feedback' || 'mod_choice' || 'mod_survey' => LucideIcons.vote,
       'mod_lesson' || 'mod_scorm' => LucideIcons.bookOpen,
-      _ => name.startsWith('mod_') ? LucideIcons.puzzle : LucideIcons.megaphone,
+      _ => name.startsWith('mod_') ? LucideIcons.puzzle : LucideIcons.bell,
     };
   }
 

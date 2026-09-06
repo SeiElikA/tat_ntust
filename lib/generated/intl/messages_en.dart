@@ -132,6 +132,61 @@ class MessageLookup extends MessageLookupByLibrary {
     "assignmentNotFound": MessageLookupByLibrary.simpleMessage(
       "This assignment was not found on Moodle",
     ),
+    "avatarCameraDenied": MessageLookupByLibrary.simpleMessage(
+      "Camera access is off. Turn it on in system settings and try again.",
+    ),
+    "avatarChange": MessageLookupByLibrary.simpleMessage(
+      "Change profile picture",
+    ),
+    "avatarDisabledOnSite": MessageLookupByLibrary.simpleMessage(
+      "Profile pictures are turned off on this Moodle site",
+    ),
+    "avatarFromGallery": MessageLookupByLibrary.simpleMessage(
+      "Choose from library",
+    ),
+    "avatarGalleryDenied": MessageLookupByLibrary.simpleMessage(
+      "Photo access is off. Turn it on in system settings and try again.",
+    ),
+    "avatarInvalidImage": MessageLookupByLibrary.simpleMessage(
+      "Moodle couldn\'t process that image. Try a JPG or PNG.",
+    ),
+    "avatarNoPermission": MessageLookupByLibrary.simpleMessage(
+      "Your Moodle account isn\'t allowed to edit its own profile",
+    ),
+    "avatarNotSupported": MessageLookupByLibrary.simpleMessage(
+      "This Moodle site doesn\'t allow changing your picture from the app. Change it on the Moodle website instead.",
+    ),
+    "avatarPickerUnavailable": MessageLookupByLibrary.simpleMessage(
+      "Couldn\'t open the camera or photo library right now. Please try again.",
+    ),
+    "avatarProfileLocked": MessageLookupByLibrary.simpleMessage(
+      "Your Moodle profile is managed by the school account system and can\'t be edited in the app",
+    ),
+    "avatarRemove": MessageLookupByLibrary.simpleMessage(
+      "Remove current picture",
+    ),
+    "avatarRemoveConfirm": MessageLookupByLibrary.simpleMessage(
+      "Remove your current profile picture? Moodle will fall back to the default icon and the original image cannot be recovered.",
+    ),
+    "avatarRemoved": MessageLookupByLibrary.simpleMessage(
+      "Profile picture removed",
+    ),
+    "avatarTakePhoto": MessageLookupByLibrary.simpleMessage("Take a photo"),
+    "avatarTooLarge": MessageLookupByLibrary.simpleMessage(
+      "That image is too large. The site limit is %s.",
+    ),
+    "avatarTooLargeUnknown": MessageLookupByLibrary.simpleMessage(
+      "That image is over the Moodle site\'s upload size limit",
+    ),
+    "avatarUpdateError": MessageLookupByLibrary.simpleMessage(
+      "Couldn\'t change your profile picture",
+    ),
+    "avatarUpdated": MessageLookupByLibrary.simpleMessage(
+      "Profile picture updated",
+    ),
+    "avatarUploadDisabled": MessageLookupByLibrary.simpleMessage(
+      "File upload is turned off on this Moodle site",
+    ),
     "calendar": MessageLookupByLibrary.simpleMessage("Calendar"),
     "campus_life": MessageLookupByLibrary.simpleMessage("Campus Life"),
     "cancel": MessageLookupByLibrary.simpleMessage("Cancel"),
@@ -243,6 +298,9 @@ class MessageLookup extends MessageLookupByLibrary {
     "getMoodleCourseDirectoryError": MessageLookupByLibrary.simpleMessage(
       "Get course directory error",
     ),
+    "getMoodleCourseGradesError": MessageLookupByLibrary.simpleMessage(
+      "Failed to load Moodle running totals",
+    ),
     "getMoodleForumPostsError": MessageLookupByLibrary.simpleMessage(
       "Failed to load the discussion",
     ),
@@ -251,6 +309,15 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "getMoodleNotificationsError": MessageLookupByLibrary.simpleMessage(
       "Failed to load Moodle notifications",
+    ),
+    "getMoodleQuizAttemptsError": MessageLookupByLibrary.simpleMessage(
+      "Failed to load quiz attempts",
+    ),
+    "getMoodleQuizBestGradeError": MessageLookupByLibrary.simpleMessage(
+      "Failed to load quiz grade",
+    ),
+    "getMoodleQuizzesError": MessageLookupByLibrary.simpleMessage(
+      "Failed to load quizzes",
     ),
     "getMoodleScoreError": MessageLookupByLibrary.simpleMessage(
       "get score error",
@@ -301,6 +368,15 @@ class MessageLookup extends MessageLookupByLibrary {
       "Are you sure you want to log out? \nAll data will be cleared",
     ),
     "member": MessageLookupByLibrary.simpleMessage("member"),
+    "moodleCourseGrades": MessageLookupByLibrary.simpleMessage(
+      "Moodle running totals",
+    ),
+    "moodleCourseGradesEmpty": MessageLookupByLibrary.simpleMessage(
+      "No Moodle totals to show for this semester",
+    ),
+    "moodleCourseGradesHint": MessageLookupByLibrary.simpleMessage(
+      "These are running totals calculated from grading on Moodle, not your official NTUST grades. A course shows \"-\" when it has no total yet — the teacher may not have graded it, or may have hidden the total.",
+    ),
     "moodleNotSignedIn": MessageLookupByLibrary.simpleMessage(
       "Not signed in to Moodle",
     ),
@@ -377,6 +453,101 @@ class MessageLookup extends MessageLookupByLibrary {
       "Prepare download...",
     ),
     "projectLink": MessageLookupByLibrary.simpleMessage("Project link"),
+    "quizAlwaysOpen": MessageLookupByLibrary.simpleMessage("Always available"),
+    "quizAnswerInWeb": MessageLookupByLibrary.simpleMessage(
+      "Attempt in browser",
+    ),
+    "quizAttemptFinishedAt": MessageLookupByLibrary.simpleMessage("Submitted"),
+    "quizAttemptNumber": MessageLookupByLibrary.simpleMessage("Attempt %s"),
+    "quizAttemptStartedAt": MessageLookupByLibrary.simpleMessage("Started"),
+    "quizAttemptStateAbandoned": MessageLookupByLibrary.simpleMessage(
+      "Never submitted",
+    ),
+    "quizAttemptStateFinished": MessageLookupByLibrary.simpleMessage(
+      "Finished",
+    ),
+    "quizAttemptStateInProgress": MessageLookupByLibrary.simpleMessage(
+      "In progress",
+    ),
+    "quizAttemptStateNotStarted": MessageLookupByLibrary.simpleMessage(
+      "Not started",
+    ),
+    "quizAttemptStateOverdue": MessageLookupByLibrary.simpleMessage("Overdue"),
+    "quizAttemptStateSubmitted": MessageLookupByLibrary.simpleMessage(
+      "Submitted",
+    ),
+    "quizAttemptStateUnknown": MessageLookupByLibrary.simpleMessage(
+      "Unknown state",
+    ),
+    "quizAttemptsAllowed": MessageLookupByLibrary.simpleMessage(
+      "Attempts allowed",
+    ),
+    "quizAttemptsEmpty": MessageLookupByLibrary.simpleMessage(
+      "You haven\'t attempted this quiz yet",
+    ),
+    "quizAttemptsUnlimited": MessageLookupByLibrary.simpleMessage("Unlimited"),
+    "quizAttemptsUsedOf": MessageLookupByLibrary.simpleMessage("%s of %s used"),
+    "quizBestGrade": MessageLookupByLibrary.simpleMessage("Best grade"),
+    "quizClosedDays": MessageLookupByLibrary.simpleMessage(
+      "Closed %s day(s) ago",
+    ),
+    "quizClosedHours": MessageLookupByLibrary.simpleMessage(
+      "Closed %s hour(s) ago",
+    ),
+    "quizClosedJustNow": MessageLookupByLibrary.simpleMessage("Just closed"),
+    "quizClosesInDays": MessageLookupByLibrary.simpleMessage(
+      "Closes in %s day(s)",
+    ),
+    "quizClosesInHours": MessageLookupByLibrary.simpleMessage(
+      "Closes in %s hour(s)",
+    ),
+    "quizClosesSoon": MessageLookupByLibrary.simpleMessage(
+      "Closes within an hour",
+    ),
+    "quizDetail": MessageLookupByLibrary.simpleMessage("Quiz"),
+    "quizDurationHours": MessageLookupByLibrary.simpleMessage("%s hr"),
+    "quizDurationMinutes": MessageLookupByLibrary.simpleMessage("%s min"),
+    "quizGradeMethod": MessageLookupByLibrary.simpleMessage("Grading method"),
+    "quizGradeMethodAverage": MessageLookupByLibrary.simpleMessage(
+      "Average grade",
+    ),
+    "quizGradeMethodFirst": MessageLookupByLibrary.simpleMessage(
+      "First attempt",
+    ),
+    "quizGradeMethodHighest": MessageLookupByLibrary.simpleMessage(
+      "Highest grade",
+    ),
+    "quizGradeMethodLast": MessageLookupByLibrary.simpleMessage("Last attempt"),
+    "quizGradeMethodUnknown": MessageLookupByLibrary.simpleMessage(
+      "Unknown grading method",
+    ),
+    "quizGradeOutOf": MessageLookupByLibrary.simpleMessage("%s / %s"),
+    "quizGradeToPass": MessageLookupByLibrary.simpleMessage("Grade to pass"),
+    "quizIntro": MessageLookupByLibrary.simpleMessage("Description"),
+    "quizNoGrade": MessageLookupByLibrary.simpleMessage("No grade yet"),
+    "quizNoTimeLimit": MessageLookupByLibrary.simpleMessage("No time limit"),
+    "quizNotFound": MessageLookupByLibrary.simpleMessage(
+      "This quiz was not found on Moodle",
+    ),
+    "quizOpenNoClose": MessageLookupByLibrary.simpleMessage(
+      "Open, with no closing time",
+    ),
+    "quizOpensInDays": MessageLookupByLibrary.simpleMessage(
+      "Opens in %s day(s)",
+    ),
+    "quizOpensInHours": MessageLookupByLibrary.simpleMessage(
+      "Opens in %s hour(s)",
+    ),
+    "quizOpensSoon": MessageLookupByLibrary.simpleMessage(
+      "Opens within an hour",
+    ),
+    "quizSectionAttempts": MessageLookupByLibrary.simpleMessage("Attempts"),
+    "quizSectionGrade": MessageLookupByLibrary.simpleMessage("My grade"),
+    "quizSectionRules": MessageLookupByLibrary.simpleMessage("Rules"),
+    "quizSectionWindow": MessageLookupByLibrary.simpleMessage("Availability"),
+    "quizTimeClose": MessageLookupByLibrary.simpleMessage("Closes"),
+    "quizTimeLimit": MessageLookupByLibrary.simpleMessage("Time limit"),
+    "quizTimeOpen": MessageLookupByLibrary.simpleMessage("Opens"),
     "refresh": MessageLookupByLibrary.simpleMessage("Refresh"),
     "remove": MessageLookupByLibrary.simpleMessage("Remove"),
     "requireOption": MessageLookupByLibrary.simpleMessage("Require option"),

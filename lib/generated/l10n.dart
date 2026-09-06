@@ -1844,6 +1844,491 @@ class S {
     );
   }
 
+  /// `Quiz`
+  String get quizDetail {
+    return Intl.message('Quiz', name: 'quizDetail', desc: '', args: []);
+  }
+
+  /// `Failed to load quizzes`
+  String get getMoodleQuizzesError {
+    return Intl.message(
+      'Failed to load quizzes',
+      name: 'getMoodleQuizzesError',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Failed to load quiz attempts`
+  String get getMoodleQuizAttemptsError {
+    return Intl.message(
+      'Failed to load quiz attempts',
+      name: 'getMoodleQuizAttemptsError',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Failed to load quiz grade`
+  String get getMoodleQuizBestGradeError {
+    return Intl.message(
+      'Failed to load quiz grade',
+      name: 'getMoodleQuizBestGradeError',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `This quiz was not found on Moodle`
+  String get quizNotFound {
+    return Intl.message(
+      'This quiz was not found on Moodle',
+      name: 'quizNotFound',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Availability`
+  String get quizSectionWindow {
+    return Intl.message(
+      'Availability',
+      name: 'quizSectionWindow',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Rules`
+  String get quizSectionRules {
+    return Intl.message('Rules', name: 'quizSectionRules', desc: '', args: []);
+  }
+
+  /// `My grade`
+  String get quizSectionGrade {
+    return Intl.message(
+      'My grade',
+      name: 'quizSectionGrade',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Attempts`
+  String get quizSectionAttempts {
+    return Intl.message(
+      'Attempts',
+      name: 'quizSectionAttempts',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Description`
+  String get quizIntro {
+    return Intl.message('Description', name: 'quizIntro', desc: '', args: []);
+  }
+
+  /// `Opens`
+  String get quizTimeOpen {
+    return Intl.message('Opens', name: 'quizTimeOpen', desc: '', args: []);
+  }
+
+  /// `Closes`
+  String get quizTimeClose {
+    return Intl.message('Closes', name: 'quizTimeClose', desc: '', args: []);
+  }
+
+  /// `Always available`
+  String get quizAlwaysOpen {
+    return Intl.message(
+      'Always available',
+      name: 'quizAlwaysOpen',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Opens in %s day(s)`
+  String get quizOpensInDays {
+    return Intl.message(
+      'Opens in %s day(s)',
+      name: 'quizOpensInDays',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Opens in %s hour(s)`
+  String get quizOpensInHours {
+    return Intl.message(
+      'Opens in %s hour(s)',
+      name: 'quizOpensInHours',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Opens within an hour`
+  String get quizOpensSoon {
+    return Intl.message(
+      'Opens within an hour',
+      name: 'quizOpensSoon',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Open, with no closing time`
+  String get quizOpenNoClose {
+    return Intl.message(
+      'Open, with no closing time',
+      name: 'quizOpenNoClose',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Closes in %s day(s)`
+  String get quizClosesInDays {
+    return Intl.message(
+      'Closes in %s day(s)',
+      name: 'quizClosesInDays',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Closes in %s hour(s)`
+  String get quizClosesInHours {
+    return Intl.message(
+      'Closes in %s hour(s)',
+      name: 'quizClosesInHours',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Closes within an hour`
+  String get quizClosesSoon {
+    return Intl.message(
+      'Closes within an hour',
+      name: 'quizClosesSoon',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Closed %s day(s) ago`
+  String get quizClosedDays {
+    return Intl.message(
+      'Closed %s day(s) ago',
+      name: 'quizClosedDays',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Closed %s hour(s) ago`
+  String get quizClosedHours {
+    return Intl.message(
+      'Closed %s hour(s) ago',
+      name: 'quizClosedHours',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Just closed`
+  String get quizClosedJustNow {
+    return Intl.message(
+      'Just closed',
+      name: 'quizClosedJustNow',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Time limit`
+  String get quizTimeLimit {
+    return Intl.message(
+      'Time limit',
+      name: 'quizTimeLimit',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `No time limit`
+  String get quizNoTimeLimit {
+    return Intl.message(
+      'No time limit',
+      name: 'quizNoTimeLimit',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `%s hr`
+  String get quizDurationHours {
+    return Intl.message('%s hr', name: 'quizDurationHours', desc: '', args: []);
+  }
+
+  /// `%s min`
+  String get quizDurationMinutes {
+    return Intl.message(
+      '%s min',
+      name: 'quizDurationMinutes',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Attempts allowed`
+  String get quizAttemptsAllowed {
+    return Intl.message(
+      'Attempts allowed',
+      name: 'quizAttemptsAllowed',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Unlimited`
+  String get quizAttemptsUnlimited {
+    return Intl.message(
+      'Unlimited',
+      name: 'quizAttemptsUnlimited',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `%s of %s used`
+  String get quizAttemptsUsedOf {
+    return Intl.message(
+      '%s of %s used',
+      name: 'quizAttemptsUsedOf',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Grading method`
+  String get quizGradeMethod {
+    return Intl.message(
+      'Grading method',
+      name: 'quizGradeMethod',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Highest grade`
+  String get quizGradeMethodHighest {
+    return Intl.message(
+      'Highest grade',
+      name: 'quizGradeMethodHighest',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Average grade`
+  String get quizGradeMethodAverage {
+    return Intl.message(
+      'Average grade',
+      name: 'quizGradeMethodAverage',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `First attempt`
+  String get quizGradeMethodFirst {
+    return Intl.message(
+      'First attempt',
+      name: 'quizGradeMethodFirst',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Last attempt`
+  String get quizGradeMethodLast {
+    return Intl.message(
+      'Last attempt',
+      name: 'quizGradeMethodLast',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Unknown grading method`
+  String get quizGradeMethodUnknown {
+    return Intl.message(
+      'Unknown grading method',
+      name: 'quizGradeMethodUnknown',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Best grade`
+  String get quizBestGrade {
+    return Intl.message(
+      'Best grade',
+      name: 'quizBestGrade',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `No grade yet`
+  String get quizNoGrade {
+    return Intl.message(
+      'No grade yet',
+      name: 'quizNoGrade',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Grade to pass`
+  String get quizGradeToPass {
+    return Intl.message(
+      'Grade to pass',
+      name: 'quizGradeToPass',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `%s / %s`
+  String get quizGradeOutOf {
+    return Intl.message('%s / %s', name: 'quizGradeOutOf', desc: '', args: []);
+  }
+
+  /// `Attempt %s`
+  String get quizAttemptNumber {
+    return Intl.message(
+      'Attempt %s',
+      name: 'quizAttemptNumber',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Not started`
+  String get quizAttemptStateNotStarted {
+    return Intl.message(
+      'Not started',
+      name: 'quizAttemptStateNotStarted',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `In progress`
+  String get quizAttemptStateInProgress {
+    return Intl.message(
+      'In progress',
+      name: 'quizAttemptStateInProgress',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Submitted`
+  String get quizAttemptStateSubmitted {
+    return Intl.message(
+      'Submitted',
+      name: 'quizAttemptStateSubmitted',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Overdue`
+  String get quizAttemptStateOverdue {
+    return Intl.message(
+      'Overdue',
+      name: 'quizAttemptStateOverdue',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Finished`
+  String get quizAttemptStateFinished {
+    return Intl.message(
+      'Finished',
+      name: 'quizAttemptStateFinished',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Never submitted`
+  String get quizAttemptStateAbandoned {
+    return Intl.message(
+      'Never submitted',
+      name: 'quizAttemptStateAbandoned',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Unknown state`
+  String get quizAttemptStateUnknown {
+    return Intl.message(
+      'Unknown state',
+      name: 'quizAttemptStateUnknown',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Submitted`
+  String get quizAttemptFinishedAt {
+    return Intl.message(
+      'Submitted',
+      name: 'quizAttemptFinishedAt',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Started`
+  String get quizAttemptStartedAt {
+    return Intl.message(
+      'Started',
+      name: 'quizAttemptStartedAt',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `You haven't attempted this quiz yet`
+  String get quizAttemptsEmpty {
+    return Intl.message(
+      'You haven\'t attempted this quiz yet',
+      name: 'quizAttemptsEmpty',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Attempt in browser`
+  String get quizAnswerInWeb {
+    return Intl.message(
+      'Attempt in browser',
+      name: 'quizAnswerInWeb',
+      desc: '',
+      args: [],
+    );
+  }
+
   /// `This course has no announcements forum`
   String get announcementNoForum {
     return Intl.message(
@@ -2084,6 +2569,236 @@ class S {
     return Intl.message(
       'Failed to mark as read',
       name: 'notificationMarkReadError',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Moodle running totals`
+  String get moodleCourseGrades {
+    return Intl.message(
+      'Moodle running totals',
+      name: 'moodleCourseGrades',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `These are running totals calculated from grading on Moodle, not your official NTUST grades. A course shows "-" when it has no total yet — the teacher may not have graded it, or may have hidden the total.`
+  String get moodleCourseGradesHint {
+    return Intl.message(
+      'These are running totals calculated from grading on Moodle, not your official NTUST grades. A course shows "-" when it has no total yet — the teacher may not have graded it, or may have hidden the total.',
+      name: 'moodleCourseGradesHint',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `No Moodle totals to show for this semester`
+  String get moodleCourseGradesEmpty {
+    return Intl.message(
+      'No Moodle totals to show for this semester',
+      name: 'moodleCourseGradesEmpty',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Failed to load Moodle running totals`
+  String get getMoodleCourseGradesError {
+    return Intl.message(
+      'Failed to load Moodle running totals',
+      name: 'getMoodleCourseGradesError',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Change profile picture`
+  String get avatarChange {
+    return Intl.message(
+      'Change profile picture',
+      name: 'avatarChange',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Choose from library`
+  String get avatarFromGallery {
+    return Intl.message(
+      'Choose from library',
+      name: 'avatarFromGallery',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Take a photo`
+  String get avatarTakePhoto {
+    return Intl.message(
+      'Take a photo',
+      name: 'avatarTakePhoto',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Remove current picture`
+  String get avatarRemove {
+    return Intl.message(
+      'Remove current picture',
+      name: 'avatarRemove',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Remove your current profile picture? Moodle will fall back to the default icon and the original image cannot be recovered.`
+  String get avatarRemoveConfirm {
+    return Intl.message(
+      'Remove your current profile picture? Moodle will fall back to the default icon and the original image cannot be recovered.',
+      name: 'avatarRemoveConfirm',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Profile picture updated`
+  String get avatarUpdated {
+    return Intl.message(
+      'Profile picture updated',
+      name: 'avatarUpdated',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Profile picture removed`
+  String get avatarRemoved {
+    return Intl.message(
+      'Profile picture removed',
+      name: 'avatarRemoved',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Couldn't change your profile picture`
+  String get avatarUpdateError {
+    return Intl.message(
+      'Couldn\'t change your profile picture',
+      name: 'avatarUpdateError',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `This Moodle site doesn't allow changing your picture from the app. Change it on the Moodle website instead.`
+  String get avatarNotSupported {
+    return Intl.message(
+      'This Moodle site doesn\'t allow changing your picture from the app. Change it on the Moodle website instead.',
+      name: 'avatarNotSupported',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Profile pictures are turned off on this Moodle site`
+  String get avatarDisabledOnSite {
+    return Intl.message(
+      'Profile pictures are turned off on this Moodle site',
+      name: 'avatarDisabledOnSite',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Your Moodle profile is managed by the school account system and can't be edited in the app`
+  String get avatarProfileLocked {
+    return Intl.message(
+      'Your Moodle profile is managed by the school account system and can\'t be edited in the app',
+      name: 'avatarProfileLocked',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Your Moodle account isn't allowed to edit its own profile`
+  String get avatarNoPermission {
+    return Intl.message(
+      'Your Moodle account isn\'t allowed to edit its own profile',
+      name: 'avatarNoPermission',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `File upload is turned off on this Moodle site`
+  String get avatarUploadDisabled {
+    return Intl.message(
+      'File upload is turned off on this Moodle site',
+      name: 'avatarUploadDisabled',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `That image is too large. The site limit is %s.`
+  String get avatarTooLarge {
+    return Intl.message(
+      'That image is too large. The site limit is %s.',
+      name: 'avatarTooLarge',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `That image is over the Moodle site's upload size limit`
+  String get avatarTooLargeUnknown {
+    return Intl.message(
+      'That image is over the Moodle site\'s upload size limit',
+      name: 'avatarTooLargeUnknown',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Moodle couldn't process that image. Try a JPG or PNG.`
+  String get avatarInvalidImage {
+    return Intl.message(
+      'Moodle couldn\'t process that image. Try a JPG or PNG.',
+      name: 'avatarInvalidImage',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Camera access is off. Turn it on in system settings and try again.`
+  String get avatarCameraDenied {
+    return Intl.message(
+      'Camera access is off. Turn it on in system settings and try again.',
+      name: 'avatarCameraDenied',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Photo access is off. Turn it on in system settings and try again.`
+  String get avatarGalleryDenied {
+    return Intl.message(
+      'Photo access is off. Turn it on in system settings and try again.',
+      name: 'avatarGalleryDenied',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Couldn't open the camera or photo library right now. Please try again.`
+  String get avatarPickerUnavailable {
+    return Intl.message(
+      'Couldn\'t open the camera or photo library right now. Please try again.',
+      name: 'avatarPickerUnavailable',
       desc: '',
       args: [],
     );

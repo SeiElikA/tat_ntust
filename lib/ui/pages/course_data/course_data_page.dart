@@ -17,10 +17,18 @@ import 'package:get/get.dart';
 import 'package:flutter_app/ui/other/lucide_icons.dart';
 
 class CourseDataPage extends StatefulWidget {
+  /// 「成績」在 `_pages` / `_tabItems` 裡的位置。呼叫端要直接開那一頁時用它，
+  /// 不要寫死 2。
+  static const int scoreTab = 2;
+
   final CourseInfoJson courseInfo;
+
+  /// 進頁時落在哪一個分頁。
+  final int initialTab;
 
   const CourseDataPage(
     this.courseInfo, {
+    this.initialTab = 0,
     super.key,
   });
 
@@ -31,8 +39,8 @@ class CourseDataPage extends StatefulWidget {
 class _CourseDataPageState extends State<CourseDataPage>
     with SingleTickerProviderStateMixin {
   TabController? _tabController;
-  final PageController _pageController = PageController();
-  int _currentIndex = 0;
+  late final PageController _pageController;
+  late int _currentIndex;
   List<Widget> _pages = [];
   List<Map<String, dynamic>> _tabItems = [];
 
@@ -41,6 +49,9 @@ class _CourseDataPageState extends State<CourseDataPage>
   @override
   void initState() {
     super.initState();
+    // 三個都要跟著 initialTab，少設一個第一幀的指示器與內容就對不上。
+    _currentIndex = widget.initialTab;
+    _pageController = PageController(initialPage: widget.initialTab);
     _controller = CourseDataController(widget.courseInfo.main.course.id);
     // 四個分頁一起抓，不等使用者滑過去；見 CourseDataController。
     unawaited(_controller.loadAll());
@@ -67,7 +78,11 @@ class _CourseDataPageState extends State<CourseDataPage>
       {"name": R.current.score, "icon": LucideIcons.graduationCap},
       {"name": R.current.assignment, "icon": LucideIcons.clipboardList},
     ];
-    _tabController = TabController(vsync: this, length: _tabItems.length);
+    _tabController = TabController(
+      vsync: this,
+      length: _tabItems.length,
+      initialIndex: widget.initialTab,
+    );
   }
 
   @override

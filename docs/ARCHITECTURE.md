@@ -11,9 +11,9 @@ TAT 把學校的單一登入、課程查詢、成績系統與 Moodle 包成一�
 | 項目 | 數值 |
 | --- | --- |
 | Flutter SDK | 3.38.5（鎖在 `.fvmrc`，fvm 與 Puro 都讀得到） |
-| `lib/` Dart 檔案 | 221（其中 21 個 `*.g.dart`），import 邊 775 |
+| `lib/` Dart 檔案 | 252（其中 27 個 `*.g.dart`），import 邊 930 |
 | GetxController | 7，另有 1 個 GetxService（`AppService`） |
-| 測試 | 885 個，98 個測試檔 |
+| 測試 | 1187 個，121 個測試檔 |
 | analyzer | `dart analyze --fatal-infos` 零問題 |
 | 外部系統 | 校內 6 台主機，校外 Firebase、GitHub API、Google Forms、Google Fonts、App Store / Google Play |
 | CI | GitHub Actions 三個 job：`analyze-and-test`、`build-android`、`build-ios` |
@@ -26,15 +26,15 @@ TAT 把學校的單一登入、課程查詢、成績系統與 Moodle 包成一�
 | rank | 層 | 目錄 | 檔案 | 職責 |
 | --- | --- | --- | --- | --- |
 | 0 | main | `lib/main.dart` | 1 | 啟動順序：Firebase、Dio、Model、安裝 AuthSession 與登入閘道、決定初始路由 |
-| 1 | ui | `lib/ui/` | 85 | 頁面、共用元件、兩個 WebView 登入頁、路由 |
-| 2 | controller | `lib/src/controller/` | 10 | 頁面狀態；只回資料，不開對話框 |
-| 2.5 | repository | `lib/src/repository/` | 6 | 取資料的唯一入口，對外只回 `Result<T>` |
+| 1 | ui | `lib/ui/` | 94 | 頁面、共用元件、兩個 WebView 登入頁、路由 |
+| 2 | controller | `lib/src/controller/` | 15 | 頁面狀態；只回資料，不開對話框 |
+| 2.5 | repository | `lib/src/repository/` | 7 | 取資料的唯一入口，對外只回 `Result<T>` |
 | 3.5 | auth | `lib/src/auth/` | 3 | 登入狀態的唯一所有者 |
-| 4 | connector | `lib/src/connector/` | 10 | 唯一的 HTTP 出口：單一 Dio 加持久化 cookie jar |
-| 5 | util | `lib/src/util/`、`service/`、`file/`、`version/` | 35 | 靜態工具、GetxService、平台服務、下載、版本遷移與商店更新 |
+| 4 | connector | `lib/src/connector/` | 10 | 唯一的 HTTP 出口：單一 Dio 加持久化 cookie jar。唯一不是 form-urlencoded 的出口是 `DioConnector.postMultipart`（換頭貼的上傳） |
+| 5 | util | `lib/src/util/`、`service/`、`file/`、`version/` | 40 | 靜態工具、GetxService、平台服務、下載、版本遷移與商店更新 |
 | 6 | store | `lib/src/store/` | 9 | 本機持久化，不碰網路 |
 | 7 | config | `lib/src/config/`、`R.dart`、`firebase_options.dart` | 9 | 純常數與多語系門面 |
-| 8 | model | `lib/src/model/`、`lib/src/enum/` | 46 | json_serializable 模型 |
+| 8 | model | `lib/src/model/`、`lib/src/enum/` | 58 | json_serializable 模型 |
 | 9 | generated | `lib/generated/`、`lib/l10n/` | 4 | Intl 產生物 |
 | 10 | log | `lib/debug/` | 2 | 橫切關注點 |
 
@@ -201,7 +201,7 @@ nullable：**「讀不到」不等於「沒登入」**。Android 從備份還原
 | 教務處行事曆<br>`www.academic.ntust.edu.tw` | 公開頁爬 `.ics` 連結後下載成 `calendar.ics`。這台主機少送一張中介憑證，由 `twca_intermediate.dart` 補上 | `NTUSTConnector.getCalendarUrl`<br>`calendar_repository.dart` |
 | 課程查詢 API<br>`querycourse.ntust.edu.tw` | 公開 JSON API，**不需登入**：關鍵字搜尋、課程詳細、用課號反查課表 | `course_connector.dart` |
 | 成績查詢系統<br>`stuinfosys.ntust.edu.tw` | 不走 Dio。HeadlessInAppWebView 載入頁面取 HTML 再解析 | `score_connector.dart` |
-| Moodle<br>`moodle2.ntust.edu.tw` | WebView 走 `admin/tool/mobile/launch.php` 取 wstoken，之後 POST wsfunction：`core_webservice_get_site_info`、`core_enrol_get_users_courses`、`core_course_get_contents`、`core_enrol_get_enrolled_users`、`mod_forum_get_forum_discussions`、`gradereport_user_get_grade_items`、通知偏好兩支、`tool_mobile_get_autologin_key`（WebView 免登入）、`core_calendar_get_action_events_by_timesort`（行事曆頁的待辦）、`mod_assign_get_assignments` 與 `mod_assign_get_submission_status`（課程頁「作業」分頁與作業詳情：截止日期、繳交狀態、成績與回饋，唯讀）、`mod_forum_get_forums_by_courses`（用 `type == 'news'` 找公告區）與 `mod_forum_get_discussion_posts`（公告討論串的回覆）、站內通知五支（`message_popup_get_popup_notifications` 的清單、兩支未讀數與兩支標記已讀，見 docs/MOODLE_REFERENCE.md：三支的 `useridto` 不能送 0） | `moodle_webapi_connector.dart`<br>`moodle_login_page.dart` |
+| Moodle<br>`moodle2.ntust.edu.tw` | WebView 走 `admin/tool/mobile/launch.php` 取 wstoken，之後 POST wsfunction：`core_webservice_get_site_info`、`core_enrol_get_users_courses`、`core_course_get_contents`、`core_enrol_get_enrolled_users`、`mod_forum_get_forum_discussions`、`gradereport_user_get_grade_items`、通知偏好兩支、`tool_mobile_get_autologin_key`（WebView 免登入）、`core_calendar_get_action_events_by_timesort`（行事曆頁的待辦）、`gradereport_overview_get_course_grades`（成績分頁的「Moodle 目前成績」：這學期每一門課的即時總分，只在使用者開那一頁時發——伺服器會先把所有課重算一次成績）、`mod_assign_get_assignments` 與 `mod_assign_get_submission_status`（課程頁「作業」分頁與作業詳情：截止日期、繳交狀態、成績與回饋，唯讀）、`mod_quiz_get_quizzes_by_courses`、`mod_quiz_get_user_attempts`（Moodle 5.0 起改名 `mod_quiz_get_user_quiz_attempts`，依 site_info 的 `functions[]` 擇一）與 `mod_quiz_get_user_best_grade`（課程目錄點測驗進去的唯讀資訊頁：開放時間、作答時限與剩餘次數、最佳成績與作答紀錄；作答一律導到網頁）、`mod_forum_get_forums_by_courses`（用 `type == 'news'` 找公告區）與 `mod_forum_get_discussion_posts`（公告討論串的回覆）、站內通知五支（`message_popup_get_popup_notifications` 的清單、兩支未讀數與兩支標記已讀，見 docs/MOODLE_REFERENCE.md：三支的 `useridto` 不能送 0）、換頭貼兩趟（`webservice/upload.php` 把圖送進 draft 區換一個 itemid，再由 `core_user_update_picture` 套用或移除；前者不是 wsfunction，回的是 `text/plain`，見 docs/MOODLE_REFERENCE.md） | `moodle_webapi_connector.dart`<br>`moodle_login_page.dart` |
 | Firebase<br>`projectId ntust-tat` | Crashlytics 接 `FlutterError` 與 `runZonedGuarded`；Analytics 掛 navigatorObservers；Remote Config 讀公告；FCM 轉本地通知 | `lib/src/util/*_utils.dart` |
 | GitHub API | 貢獻者頁，`github` 套件 | `contributors_page.dart` |
 | App Store / Google Play | 啟動時問商店有沒有新版：Android 走 Play 的 in-app update（Play 自己的下載提示），iOS 用 `upgrader` 查 App Store 後跳對話框。兩邊都可以按「稍後」，沒有強制更新 | `store_update.dart`<br>`update_prompt.dart` |
@@ -239,11 +239,12 @@ WebMail（`mail.ntust.edu.tw`）與舊版 SSO 頁（`ssoam.ntust.edu.tw/nidp/app
 - 課程資料頁與課程詳情頁的分頁狀態是普通類別（`CourseDataController`、
   `CourseDetailController`），不是 GetxController：生命週期就是那一個頁面。它們在
   進入頁面時就把分頁的請求一起發出去，因為 `PageView(children:)` 是懶載入的。
-  作業詳情頁、公告討論串頁與公告與通知頁同理（`CourseAssignmentController`、
+  作業詳情頁、測驗詳情頁、公告討論串頁與公告與通知頁同理
+  （`CourseAssignmentController`、`CourseQuizController`、
   `CourseAnnouncementController`、`AnnouncementCenterController`）。
 - 新頁面**不可以** import `route_utils.dart` / `error_page.dart` / `base_page.dart`
   （lib/ui 那個環已經卡在 `MAX_SCC` 的門檻上）：錯誤畫面與 WebView 開啟器由
-  在環裡的呼叫端注入，公告分頁、公告討論串頁、作業分頁、作業詳情頁與公告與通知頁就是這樣接的（公告與通知頁的兩半都是頁面中段的區塊，所以它只注入 WebView 開啟器，錯誤畫面一律 `InlineErrorView`）。嵌在頁面中段、周圍
+  在環裡的呼叫端注入，公告分頁、公告討論串頁、作業分頁、作業詳情頁、測驗詳情頁、公告與通知頁與「Moodle 目前成績」頁就是這樣接的（公告與通知頁的兩半、以及「Moodle 目前成績」的清單都是頁面中段的區塊，所以它們只注入開啟器／導頁，錯誤畫面一律 `InlineErrorView`）。嵌在頁面中段、周圍
   畫面還在的區塊（行事曆的待辦、作業詳情的狀態卡）失敗時用 `InlineErrorView`
   （`lib/ui/components/page/`，不在環裡）：它有就地重試的鈕，`ErrorPage` 沒有。
   同一批區塊「空」的時候用 `SectionEmptyState`（同一個目錄）而不是整頁級的
@@ -281,7 +282,7 @@ WebMail（`mail.ntust.edu.tw`）與舊版 SSO 頁（`ssoam.ntust.edu.tw/nidp/app
 ```bash
 flutter pub get --enforce-lockfile   # 安裝依賴，並確認 pubspec.lock 未被更動
 dart analyze --fatal-infos           # 零 error / warning / info
-flutter test                         # 885 個測試
+flutter test                         # 1187 個測試
 python3 tool/deps.py                 # 分層與匯入環度量
 python3 tool/deps.py --check         # CI 模式，超過棘輪門檻時失敗
 ```
@@ -419,6 +420,13 @@ ssoam2、stuinfosys、i.ntust 是不同 host，只有網域 cookie 能跨。改�
 - **帳密存進 secure storage 之後，換手機從備份還原需要重新登入一次。**
   secure storage 的內容綁定裝置金鑰，還原到新裝置解不開。這是刻意接受的取捨，
   見 `lib/src/store/credentials_store.dart` 的類別註解。
+- **換頭貼的入口一律顯示，可用與否等伺服器回答。** `core_user_update_picture`
+  在 `!$userauth->can_edit_profile() || $userauth->edit_profile_url()` 時回
+  `noprofileedit`，而 NTUST 的 Moodle 帳號很可能綁在 ssoam2 的 auth plugin 上。
+  site_info 沒有任何欄位報得出這件事（`usercanmanageownfiles` 是私人檔案區、
+  不是 `moodle/user:editownprofile`），要事先知道只能多打一趟探測。
+  取捨是：入口照常給，失敗時用 `avatarProfileLocked` 明講「請到 Moodle 網站改」。
+  若日後確認站台永久拒絕，再改成用一次性探測把入口收起來。
 
 ---
 
@@ -450,3 +458,8 @@ ssoam2、stuinfosys、i.ntust 是不同 host，只有網域 cookie 能跨。改�
   呼叫過它了。背景預載少了這個旗標會在 SSO 過期時把登入頁蓋在使用者正在看的畫面上。
 - **`R.current` 是 `S.of(Get.context!)` 的 lazy static**，navigator 還沒建好時直接
   拋。啟動路徑上碰到它的程式要放進 post-frame callback。
+- **上傳不能走 `getDataByPostResponse`。** `BaseOptions.sendTimeout` 是 5 秒，而
+  `IOHttpClientAdapter` 把它套在「送完整個 body」上而不是 chunk 間隔，一張照片
+  在校園 4G 上必爆，錯誤還會被分類成一句沒有線索的「更換頭貼失敗」。
+  `postMultipart` 是為此存在的第二條出口：自己的 sendTimeout、自己的
+  `onSendProgress`，其餘路徑一行都不動。

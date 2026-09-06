@@ -18,6 +18,7 @@ import 'package:flutter_app/ui/components/page/error_page.dart';
 import 'package:flutter_app/src/util/my_toast.dart';
 import 'package:flutter_app/ui/pages/course_data/screen/sub_page/course_assignment_detail_page.dart';
 import 'package:flutter_app/ui/pages/course_data/screen/sub_page/course_html_page.dart';
+import 'package:flutter_app/ui/pages/course_data/screen/sub_page/course_quiz_detail_page.dart';
 import 'package:flutter_widget_from_html/flutter_widget_from_html.dart';
 import 'package:get/get.dart';
 import 'package:flutter_app/ui/other/lucide_icons.dart';
@@ -67,6 +68,8 @@ class _CourseInfoPageState extends State<CourseInfoPage> {
         return LucideIcons.clipboardList;
       case "folder":
         return LucideIcons.folder;
+      case "quiz":
+        return LucideIcons.fileQuestion;
       case "label":
         return LucideIcons.tag;
       case "url":
@@ -98,6 +101,15 @@ class _CourseInfoPageState extends State<CourseInfoPage> {
         unawaited(Get.to(() => CourseAssignmentDetailPage(
               widget.courseInfo,
               assignId: ap.instance,
+              errorBuilder: (message) => ErrorPage(errorMsg: message),
+              openWebView: RouteUtils.toWebViewPage,
+            )));
+        break;
+      case "quiz":
+        // Modules.instance 就是 quiz id；ErrorPage 與 RouteUtils 由這裡注入。
+        unawaited(Get.to(() => CourseQuizDetailPage(
+              widget.courseInfo,
+              quizId: ap.instance,
               errorBuilder: (message) => ErrorPage(errorMsg: message),
               openWebView: RouteUtils.toWebViewPage,
             )));

@@ -1,4 +1,5 @@
 import 'package:flutter_app/src/model/moodle_webapi/moodle_core_calendar_action_events.dart';
+import 'package:flutter_app/src/util/moodle_course_name_utils.dart';
 
 /// 待辦清單的分組。順序就是畫面順序。
 enum DeadlineBucket { overdue, today, thisWeek, later }
@@ -10,20 +11,13 @@ class DeadlineGroup {
   final List<MoodleActionEvent> events;
 }
 
-/// 待辦清單的純函式：課名前綴、分組、時間格式。沒有任何 UI 與網路。
+/// 待辦清單的純函式：分組與時間格式。沒有任何 UI 與網路。
 class UpcomingEventUtils {
   UpcomingEventUtils._();
 
-  /// NTUST 課名前綴 `115.1【AT1001301】`；容忍沒有「.」與前後空白。
-  static final RegExp _coursePrefix =
-      RegExp(r'^\s*\d{3}\.?[0-9A-Za-z]\s*【[^】]*】\s*');
-
-  /// 去掉前綴；去完是空字串就退回原字串（trim 過），不比對到就原樣回傳。
-  static String stripCoursePrefix(String name) {
-    final trimmed = name.trim();
-    final stripped = trimmed.replaceFirst(_coursePrefix, '').trim();
-    return stripped.isEmpty ? trimmed : stripped;
-  }
+  /// 課名前綴的實作在 [MoodleCourseNameUtils]：課程總分那一頁也要用同一套規則。
+  static String stripCoursePrefix(String name) =>
+      MoodleCourseNameUtils.stripCoursePrefix(name);
 
   /// 顯示用課名：shortname 優先、空的退 fullname；站台事件沒有 course 回 null。
   static String? courseLabelOf(MoodleActionEvent event) {

@@ -64,6 +64,14 @@ class RedactingLogInterceptor extends Interceptor {
 
   static Object? _redactValue(Object? data) {
     if (data == null) return null;
+    // FormData 沒有 toString()，今天印出來只是 `Instance of 'FormData'`；
+    // 那是巧合不是設計。明確只印欄位名與檔名，值一律不印。
+    if (data is FormData) {
+      return {
+        'fields': data.fields.map((e) => e.key).toList(),
+        'files': data.files.map((e) => e.value.filename).toList(),
+      };
+    }
     if (data is Map) {
       return {
         for (final e in data.entries)
@@ -81,7 +89,8 @@ class RedactingLogInterceptor extends Interceptor {
     if (uri.queryParameters.isEmpty) return uri.toString();
     final redacted = {
       for (final e in uri.queryParameters.entries)
-        e.key: _isSensitiveKey(e.key, _sensitiveFields) ? mask(e.value) : e.value,
+        e.key:
+            _isSensitiveKey(e.key, _sensitiveFields) ? mask(e.value) : e.value,
     };
     return uri.replace(queryParameters: redacted).toString();
   }
@@ -95,7 +104,8 @@ class RedactingLogInterceptor extends Interceptor {
   }
 
   @override
-  void onResponse(Response<dynamic> response, ResponseInterceptorHandler handler) {
+  void onResponse(
+      Response<dynamic> response, ResponseInterceptorHandler handler) {
     Log.d('<-- ${response.statusCode} '
         '${redactUri(response.requestOptions.uri)}\n'
         'headers: ${redactHeaders(response.headers.map)}');

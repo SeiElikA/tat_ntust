@@ -4,8 +4,8 @@ import 'package:flutter_app/src/model/moodle_webapi/moodle_mod_assign_get_assign
 import 'package:flutter_app/src/model/moodle_webapi/moodle_mod_assign_get_submission_status.dart';
 import 'package:flutter_app/src/repository/result.dart';
 import 'package:flutter_app/src/util/moodle_assign_utils.dart';
+import 'package:flutter_app/ui/pages/course_data/screen/widgets/status_pill.dart';
 import 'package:sprintf/sprintf.dart';
-import 'package:flutter_app/ui/other/lucide_icons.dart';
 
 /// [DueHint] 對映成畫面文字。住在 UI 層是因為要 R.current；
 /// 作業分頁與詳情頁共用。
@@ -22,7 +22,8 @@ String dueHintText(DueHint hint) => switch (hint.kind) {
       DueHintKind.overdueJustNow => R.current.assignOverdueJustNow,
     };
 
-/// 作業的狀態籤，作業分頁與詳情頁共用；刻意不 import 任何頁面。
+/// 作業的狀態籤，作業分頁與詳情頁共用；外觀走共用的 [StatusPill]，
+/// 刻意不 import 任何頁面。
 class AssignStatusChip extends StatelessWidget {
   const AssignStatusChip(this.status, {super.key, this.stale = false});
 
@@ -86,22 +87,11 @@ class AssignStatusChip extends StatelessWidget {
           scheme.onErrorContainer
         ),
     };
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (stale) ...[
-            Icon(LucideIcons.history, size: 12, color: fg),
-            const SizedBox(width: 4),
-          ],
-          Text(labelOf(status), style: TextStyle(fontSize: 12, color: fg)),
-        ],
-      ),
+    return StatusPill(
+      background: bg,
+      foreground: fg,
+      stale: stale,
+      label: labelOf(status),
     );
   }
 }

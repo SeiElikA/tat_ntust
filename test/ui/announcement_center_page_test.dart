@@ -349,8 +349,8 @@ void main() {
     expect(NotificationTile.iconFor('mod_choice'), LucideIcons.vote);
     // 沒對到的模組仍然看得出是模組，core 與 null 才退回大聲公。
     expect(NotificationTile.iconFor('mod_wiki'), LucideIcons.puzzle);
-    expect(NotificationTile.iconFor('moodle'), LucideIcons.megaphone);
-    expect(NotificationTile.iconFor(null), LucideIcons.megaphone);
+    expect(NotificationTile.iconFor('moodle'), LucideIcons.bell);
+    expect(NotificationTile.iconFor(null), LucideIcons.bell);
   });
 
   test('這一頁不可以 import route_utils / error_page / base_page', () {

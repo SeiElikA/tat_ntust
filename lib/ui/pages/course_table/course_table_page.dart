@@ -48,7 +48,7 @@ class CourseTablePage extends GetView<CourseController> {
       // 內層 Obx 只讀未讀數，未讀數變動時不會連整張課表一起重建。
       Obx(() {
         final unread = NotificationBadgeController.instance.unread.value;
-        final icon = Icon(LucideIcons.megaphone, color: Get.iconColor);
+        final icon = Icon(LucideIcons.bell, color: Get.iconColor);
         return IconButton(
           // 純圖示按鈕在螢幕閱讀器下只會唸「按鈕」，要靠 tooltip 補語意。
           tooltip: unread > 0

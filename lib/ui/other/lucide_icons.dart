@@ -35,6 +35,12 @@ class LucideIcons {
   /// calendar-days
   static const IconData calendarDays = IconData(0xe2b9, fontFamily: _family);
 
+  /// camera
+  static const IconData camera = IconData(0xe064, fontFamily: _family);
+
+  /// chart-column
+  static const IconData chartColumn = IconData(0xe2a3, fontFamily: _family);
+
   /// chevron-down
   static const IconData chevronDown = IconData(0xe06d, fontFamily: _family);
 
@@ -102,6 +108,9 @@ class LucideIcons {
   /// image-off
   static const IconData imageOff = IconData(0xe1c0, fontFamily: _family);
 
+  /// images
+  static const IconData images = IconData(0xe5c4, fontFamily: _family);
+
   /// info
   static const IconData info = IconData(0xe0f9, fontFamily: _family);
 
@@ -110,6 +119,9 @@ class LucideIcons {
 
   /// link
   static const IconData link = IconData(0xe102, fontFamily: _family);
+
+  /// list-ordered
+  static const IconData listOrdered = IconData(0xe1d1, fontFamily: _family);
 
   /// log-in
   static const IconData logIn = IconData(0xe10d, fontFamily: _family);
@@ -161,6 +173,9 @@ class LucideIcons {
 
   /// tag
   static const IconData tag = IconData(0xe17f, fontFamily: _family);
+
+  /// timer
+  static const IconData timer = IconData(0xe1e0, fontFamily: _family);
 
   /// trash-2
   static const IconData trash2 = IconData(0xe18e, fontFamily: _family);

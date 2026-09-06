@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:awesome_dialog/awesome_dialog.dart';
 import 'package:flutter/cupertino.dart';
@@ -14,12 +15,15 @@ import 'package:flutter_app/src/controller/score_page/score_page_controller.dart
 import 'package:flutter_app/src/auth/session_cleaner.dart';
 import 'package:flutter_app/src/controller/main_page/main_controller.dart';
 import 'package:flutter_app/debug/log/console_output.dart';
+import 'package:flutter_app/src/service/image_pick_service.dart';
+import 'package:flutter_app/src/service/task_ui_delegate.dart';
 import 'package:flutter_app/src/store/model.dart';
 import 'package:flutter_app/ui/routes/route_utils.dart';
 import 'package:flutter_app/src/version/app_version.dart';
 import 'package:flutter_app/ui/components/custom_appbar.dart';
 import 'package:flutter_app/ui/components/shimmer/profile_loading.dart';
 import 'package:flutter_app/ui/other/error_dialog.dart';
+import 'package:flutter_app/ui/pages/other/components/avatar_action_sheet.dart';
 import 'package:flutter_app/ui/pages/other/components/user_profile.dart';
 import 'package:flutter_app/ui/pages/password/check_password_dialog.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
@@ -89,6 +93,7 @@ class _OtherPageState extends State<OtherPage> {
               // MainScreen 以 State 欄位持有它，這一頁與設定頁登出後仍會
               // Get.find 它。
               final mainController = Get.find<MainController>();
+              mainController.cancelAvatarChange();
               mainController.profile.value = null;
               if (Get.isRegistered<CourseController>()) {
                 Get.find<CourseController>().reset();
@@ -261,7 +266,63 @@ class _OtherPageState extends State<OtherPage> {
         );
       }
 
-      return UserProfile(data: profile);
+      return UserProfile(
+        data: profile,
+        progress: controller.avatarProgress.value,
+        onAvatarTap: () => unawaited(_onAvatarTap(controller)),
+      );
     });
   }
+
+  Future<void> _onAvatarTap(MainController controller) async {
+    final action = await showAvatarActionSheet(context,
+        canRemove: controller.hasCustomAvatar);
+    if (action == null) return;
+
+    if (action == AvatarAction.remove) {
+      // 換一張不必確認：使用者已經連按三下（頭貼 → 來源 → 選圖），而且結果
+      // 可逆（再換一張或移除）。移除要確認：它是唯一破壞性的分支，伺服器端
+      // delete_area_files 直接把舊圖刪掉、沒有復原，而且這一列就貼在兩個
+      // 「選擇」旁邊，很容易誤按。
+      final confirmed = await Get.dialog<bool>(AlertDialog.adaptive(
+        title: Text(R.current.avatarRemove),
+        content: Text(R.current.avatarRemoveConfirm),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back(result: false),
+            child: Text(R.current.cancel),
+          ),
+          TextButton(
+            onPressed: () => Get.back(result: true),
+            child: Text(R.current.sure),
+          ),
+        ],
+      ));
+      if (confirmed != true) return;
+      final error = await controller.changeAvatar();
+      TaskUiDelegate.instance.toast(error ?? R.current.avatarRemoved);
+      return;
+    }
+
+    File? file;
+    try {
+      file = await ImagePickService.instance.pick(action == AvatarAction.camera
+          ? ImagePickSource.camera
+          : ImagePickSource.gallery);
+    } on ImagePickFailure catch (e) {
+      TaskUiDelegate.instance.toast(_pickFailureMessage(e.reason));
+      return;
+    }
+    // 使用者按取消不是錯誤，什麼都不做也不提示。
+    if (file == null) return;
+
+    final error = await controller.changeAvatar(file: file);
+    TaskUiDelegate.instance.toast(error ?? R.current.avatarUpdated);
+  }
+
+  String _pickFailureMessage(ImagePickFailureReason reason) => switch (reason) {
+        ImagePickFailureReason.cameraDenied => R.current.avatarCameraDenied,
+        ImagePickFailureReason.galleryDenied => R.current.avatarGalleryDenied,
+        ImagePickFailureReason.unavailable => R.current.avatarPickerUnavailable,
+      };
 }

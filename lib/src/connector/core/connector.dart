@@ -34,6 +34,26 @@ class Connector {
           ConnectorParameter parameter) async =>
       DioConnector.instance.getDataByPostResponse(parameter);
 
+  /// 回傳的是 body，不是 Response：webservice/upload.php 一律回 HTTP 200，
+  /// 而且因為 `$_FILES` 非空，Content-Type 是 text/plain，Dio 不會 jsonDecode，
+  /// 所以這裡拿到的是 String，解析交給呼叫端。
+  static Future<dynamic> postMultipart(
+    ConnectorParameter parameter, {
+    required FormData formData,
+    Duration? sendTimeout,
+    ProgressCallback? onSendProgress,
+    CancelToken? cancelToken,
+  }) async {
+    final result = await DioConnector.instance.postMultipart(
+      parameter,
+      formData: formData,
+      sendTimeout: sendTimeout,
+      onSendProgress: onSendProgress,
+      cancelToken: cancelToken,
+    );
+    return result.data;
+  }
+
   static String uriAddQuery(String url, Map<String, dynamic> queryParameters) {
     if (!url.contains('?')) {
       url += "?";

@@ -5,6 +5,7 @@ import 'package:flutter_app/src/util/remote_config_utils.dart';
 import 'package:flutter_app/ui/pages/announcement/announcement_center_page.dart';
 import 'package:flutter_app/ui/pages/announcement/announcement_page.dart';
 import 'package:flutter_app/src/model/course/course_class_json.dart';
+import 'package:flutter_app/src/model/course/course_main_extra_json.dart';
 import 'package:flutter_app/src/model/course_table/course_table_json.dart';
 import 'package:flutter_app/ui/pages/course_data/course_data_page.dart';
 import 'package:flutter_app/ui/pages/course_data/screen/sub_page/course_folder_page.dart';
@@ -17,6 +18,7 @@ import 'package:flutter_app/ui/pages/other/page/contributors_page.dart';
 import 'package:flutter_app/ui/pages/other/page/dev_page.dart';
 import 'package:flutter_app/ui/pages/other/page/setting/setting_page.dart';
 import 'package:flutter_app/ui/pages/other/page/store_edit_page.dart';
+import 'package:flutter_app/ui/pages/score/moodle_course_grades_page.dart';
 import 'package:flutter_app/ui/pages/web_view/inapp_web_view_page.dart';
 import 'package:flutter_app/ui/screen/privacy_policy/privacy_policy_screen.dart';
 import 'package:flutter_app/ui/screen/login/login_screen.dart';
@@ -57,9 +59,30 @@ class RouteUtils {
     );
   }
 
-  static Future toCourseDataPage(CourseInfoJson courseInfo) async {
+  static Future toCourseDataPage(CourseInfoJson courseInfo,
+      {int initialTab = 0}) async {
     return await Get.to(
-      () => CourseDataPage(courseInfo),
+      () => CourseDataPage(courseInfo, initialTab: initialTab),
+      transition: transition,
+    );
+  }
+
+  /// 「Moodle 目前成績」。點一列開那門課的 Moodle 成績分頁——那一段導頁在這裡
+  /// 注入，頁面本身不 import 這個檔案（見 docs/ARCHITECTURE.md「UI 慣例」）。
+  /// 課程頁只讀 `main.course` 的 id 與 name，所以現組一個最小的 CourseInfoJson
+  /// 就夠；內部 id 由 MoodleRepository 用課號查回來（多半是快取命中）。
+  static Future<void> toMoodleCourseGrades() async {
+    await Get.to(
+      () => MoodleCourseGradesPage(
+        onOpenCourse: (course) => toCourseDataPage(
+          CourseInfoJson(
+            main: CourseMainInfoJson(
+              course: CourseMainJson(id: course.courseId, name: course.name),
+            ),
+          ),
+          initialTab: CourseDataPage.scoreTab,
+        ),
+      ),
       transition: transition,
     );
   }

@@ -52,3 +52,28 @@ function」，那是一次性探測時記下的**數量**，清單本身沒有�
 
 用真帳號打一次 site_info、把 `functions[]` 存成 `test/fixtures/` 的第一份
 site_info fixture，之後所有 `wsFunctionBlocked` 的判斷才有依據。
+
+---
+
+## 內建信箱改成 App 內收發（IMAP / SMTP）
+
+`可行（有前提）` `工作量 大` `已調查` → **完整開發計畫見 [docs/WEBMAIL_IMAP.md](WEBMAIL_IMAP.md)**
+
+**一句話**：學校信箱是 Openfind Mail2000 V8，已實測對外開著 IMAPS 993 與
+SMTPS 465（587 與 25 不通），協定層可行；但伺服器的 IMAP 擴充只有
+`IMAP4rev1 AUTH=LOGIN LITERAL+ ID NAMESPACE STARTTLS`，沒有 `IDLE`、`MOVE`、
+`SORT`、`UIDPLUS`、`CONDSTORE`、`SPECIAL-USE`，所以只做得出「輪詢式的陽春信箱」，
+背景推播新信在沒有自架伺服器的前提下**做不到**。
+
+現況是 `lib/ui/pages/subsystem/sub_system_page.dart:150` 的 WebView 加
+`evaluateJavascript` 塞帳密，密碼從來沒有被驗證過，而且靠寫死的 Kendo UI
+DOM 結構。
+
+**已確認信箱密碼與 SSO 密碼是兩組不同的密碼**（2026-09-06）。App 現在存的
+`webMailPassword` 是塞進 `login.ntust.edu.tw` 的 SSO 密碼，IMAP 不收，所以要
+新增一個獨立的 `mailPassword` 欄位，而且**每一位既有使用者第一次開新信箱都會
+卡住**——要用一個對話框請他重新填一次，而且文案必須明講這跟校務系統密碼不是同一組。
+
+還沒驗證的是 Big5 舊信解碼與寄信端的限制（寄件者位址、每日上限）。
+門檻、分層設計、憑證欄位怎麼加、密碼對話框規格與逐階段實作步驟都寫在
+WEBMAIL_IMAP.md。

@@ -1,6 +1,9 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'dart:math';
+
+import 'package:dio/dio.dart';
 
 import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart' show visibleForTesting;
@@ -16,16 +19,22 @@ import 'package:flutter_app/src/model/moodle_webapi/moodle_core_calendar_action_
 import 'package:flutter_app/src/model/moodle_webapi/moodle_core_course_get_contents.dart';
 import 'package:flutter_app/src/model/moodle_webapi/moodle_core_enrol_get_users.dart';
 import 'package:flutter_app/src/model/moodle_webapi/moodle_gradereport_get_grade_items.dart';
+import 'package:flutter_app/src/model/moodle_webapi/moodle_gradereport_overview_course_grades.dart';
 import 'package:flutter_app/src/model/moodle_webapi/moodle_message_popup_notifications.dart';
 import 'package:flutter_app/src/model/moodle_webapi/moodle_mod_assign_get_assignments.dart';
 import 'package:flutter_app/src/model/moodle_webapi/moodle_mod_assign_get_submission_status.dart';
 import 'package:flutter_app/src/model/moodle_webapi/moodle_mod_forum_get_discussion_posts.dart';
 import 'package:flutter_app/src/model/moodle_webapi/moodle_mod_forum_get_forum_discussions.dart';
 import 'package:flutter_app/src/model/moodle_webapi/moodle_mod_forum_get_forums_by_courses.dart';
+import 'package:flutter_app/src/model/moodle_webapi/moodle_mod_quiz_get_quizzes_by_courses.dart';
+import 'package:flutter_app/src/model/moodle_webapi/moodle_mod_quiz_get_user_attempts.dart';
+import 'package:flutter_app/src/model/moodle_webapi/moodle_mod_quiz_get_user_best_grade.dart';
 import 'package:flutter_app/src/model/moodle_webapi/moodle_profile_entity.dart';
 import 'package:flutter_app/src/model/moodle_webapi/moodle_setting_entity.dart';
+import 'package:flutter_app/src/model/moodle_webapi/moodle_user_picture.dart';
 import 'package:flutter_app/src/store/model.dart';
 import 'package:flutter_app/src/util/html_utils.dart';
+import 'package:flutter_app/src/util/moodle_course_name_utils.dart';
 import 'package:flutter_app/src/util/moodle_forum_utils.dart';
 
 enum MoodleWebApiConnectorStatus { loginSuccess, loginFail }
@@ -94,6 +103,11 @@ class MoodleWebApiConnector {
   /// HTML 表格，欄位一增減 DOM 走訪就靜靜地壞掉。
   static const String gradeItemsFunction = "gradereport_user_get_grade_items";
 
+  /// 這個帳號全部課程的目前總分。@since Moodle 3.2，在
+  /// MOODLE_OFFICIAL_MOBILE_SERVICE 內。
+  static const String courseGradesFunction =
+      "gradereport_overview_get_course_grades";
+
   static const String actionEventsFunction =
       "core_calendar_get_action_events_by_timesort";
 
@@ -107,6 +121,19 @@ class MoodleWebApiConnector {
   static const int actionEventsMaxPages = 4;
 
   static const String assignmentsFunction = "mod_assign_get_assignments";
+
+  static const String quizzesFunction = "mod_quiz_get_quizzes_by_courses";
+
+  /// Moodle 5.0 起改名，舊名在 5.0 標記 deprecated、6.0 移除；
+  /// 站台有新的就用新的，見 [preferredQuizAttemptsFunction]。
+  static const String quizAttemptsFunction = "mod_quiz_get_user_attempts";
+  static const String quizUserAttemptsFunction =
+      "mod_quiz_get_user_quiz_attempts";
+
+  static const String quizBestGradeFunction = "mod_quiz_get_user_best_grade";
+
+  /// 只有 'all' 看得到 inprogress / overdue；伺服器預設的 'finished' 會漏掉它們。
+  static const String quizAttemptsStatus = "all";
 
   static const String forumsByCoursesFunction =
       "mod_forum_get_forums_by_courses";
@@ -145,6 +172,21 @@ class MoodleWebApiConnector {
   /// 站內通知一次最多翻幾頁，同 [actionEventsMaxPages] 的態度：收件匣再大也
   /// 不該把開頁變成四趟以上的請求。
   static const int notificationsMaxPages = 4;
+
+  /// 更換或移除頭貼。@since Moodle 3.2，在 MOODLE_OFFICIAL_MOBILE_SERVICE 內。
+  static const String updatePictureFunction = "core_user_update_picture";
+
+  /// webservice/upload.php 不是 wsfunction，site_info 的 functions[] 不會列它；
+  /// 它的開關是 site_info 的 uploadfiles（外部服務設定裡的同一顆）。
+  static const String uploadEndpoint = "$host/webservice/upload.php";
+
+  /// multipart 欄位名，upload.php 用 `foreach($_FILES)` 掃，名字本身不重要；
+  /// 沿用官方文件與 App 用的 file_1，好對照。
+  static const String uploadFieldName = "file_1";
+
+  /// 上傳整個 body 的總時間上限。BaseOptions 的 5 秒是給表單 POST 的，
+  /// 照片撐不過去（IOHttpClientAdapter 把 sendTimeout 套在整條 addStream 上）。
+  static const Duration uploadSendTimeout = Duration(seconds: 90);
 
   /// passport 必須跟著回傳：signature 是 `md5(wwwroot + passport)`，驗它才能
   /// 確定 token 來自我們發出的那次請求。亂數必須維持密碼學等級。
@@ -343,7 +385,20 @@ class MoodleWebApiConnector {
   static Future<dynamic> Function(ConnectorParameter parameter) wsPost =
       Connector.getJsonByPost;
 
+  /// 上傳的傳輸層；可替換是為了讓測試不必連網路，同 [wsPost]。
+  @visibleForTesting
+  static Future<dynamic> Function(
+    ConnectorParameter parameter, {
+    required FormData formData,
+    Duration? sendTimeout,
+    ProgressCallback? onSendProgress,
+    CancelToken? cancelToken,
+  }) uploadPost = Connector.postMultipart;
+
   /// 測試用：把 autologin 的節流狀態與注入點全部還原。
+  ///
+  /// 名字已經跟不上內容了（它現在也重設 [wsPost] 與 [uploadPost]），改名要動
+  /// 好幾個測試檔，留待後續處理。
   @visibleForTesting
   static void resetAutologinState() {
     autologinLastKeyAt = null;
@@ -351,6 +406,7 @@ class MoodleWebApiConnector {
     autologinClock = DateTime.now;
     autologinTimeout = _defaultAutologinTimeout;
     wsPost = Connector.getJsonByPost;
+    uploadPost = Connector.postMultipart;
   }
 
   static final String _moodleHost = Uri.parse(host).host;
@@ -1096,6 +1152,110 @@ class MoodleWebApiConnector {
     return entity.userGrades.first;
   }
 
+  /// 這學期每一門課在 Moodle 上的目前總分，抓不到回 null；空清單是合法結果。
+  ///
+  /// 課名與學期都來自 [_getUsersCourses]（同一次往返已被記憶，多半不必再打）；
+  /// 這支 WS 只回 courseid 與格式化過的分數。伺服器端會先把所有課重算一次成績
+  /// （regrade_all_courses_if_needed），所以只在使用者真的開那一頁時呼叫。
+  static Future<MoodleCourseGradeList?> getCourseGrades() async {
+    try {
+      final uid = await _ensureUserId();
+      if (uid == null) return null;
+      final courses = await _getUsersCourses();
+      if (courses == null) return null;
+      final semester = currentSemesterOf(courses);
+      // 一門課的 idnumber 都對不上 <學年3><學期1> 時寧可失敗：學期猜錯會端出
+      // 一份看起來很正常、其實是別學期的清單。
+      if (semester == null) return null;
+
+      final result = await _callWs(courseGradesFunction, {"userid": uid});
+      final grades = courseGradesOf(result);
+      if (grades == null) {
+        _reportFailure(
+          courseGradesFunction,
+          MoodleApiException(
+            wsFunction: courseGradesFunction,
+            message: '回應裡沒有 grades',
+          ),
+          StackTrace.current,
+        );
+        return null;
+      }
+      return MoodleCourseGradeList(
+        semester: semester,
+        courses: joinCourseGrades(courses, grades, semester),
+      );
+    } catch (e, stack) {
+      _reportFailure(courseGradesFunction, e, stack);
+      return null;
+    }
+  }
+
+  /// 剝出 `grades[]`；形狀不對回 null，空陣列照原樣回空清單
+  /// （沒有任何課開放成績是合法狀態，不是抓取失敗）。
+  static List<MoodleOverviewGrade>? courseGradesOf(dynamic result) {
+    if (result is! Map || result["grades"] is! List) return null;
+    return MoodleOverviewGradesEntity.fromJson(
+            Map<String, dynamic>.from(result))
+        .grades;
+  }
+
+  /// 把總分接到課名上。純函式。
+  ///
+  /// 只留 idnumber 前綴等於這個學期的課；順序照伺服器回的順序，那就是 Moodle
+  /// 網頁版總覽表的順序，也省掉中文課名的排序規則。伺服器對「沒開成績、
+  /// 不是學生身分、看不到的課」是直接跳過而且不回 warning，所以這裡也不補
+  /// 任何佔位列——補了會分不出「老師關掉成績」與「沒這門課」。
+  static List<MoodleCourseGradeItem> joinCourseGrades(
+    List<dynamic> courses,
+    List<MoodleOverviewGrade> grades,
+    SemesterJson semester,
+  ) {
+    final prefix = "${semester.year}${semester.semester}";
+    if (prefix.length != semesterPrefixLength) return const [];
+
+    final byMoodleId = <String, Map>{};
+    for (final course in courses) {
+      if (course is! Map) continue;
+      final id = _courseKeyOf(course);
+      if (id != null) byMoodleId[id] = course;
+    }
+
+    final rows = <MoodleCourseGradeItem>[];
+    for (final grade in grades) {
+      final course = byMoodleId[grade.courseid.toString()];
+      if (course == null) continue;
+      final idnumber = course["idnumber"];
+      if (idnumber is! String || !idnumber.startsWith(prefix)) continue;
+      final courseId = _courseIdOf(idnumber);
+      if (courseId == null || courseId.isEmpty) continue;
+      // 課程總分是文字/無評分型態時伺服器回空字串，畫成空白會像壞掉；
+      // 藏起來的那個 "-" 則原樣帶下去，永遠不解析成數字。
+      final formatted = HtmlUtils.clean(grade.grade).trim();
+      rows.add(MoodleCourseGradeItem(
+        courseId: courseId,
+        name: _courseDisplayName(course, courseId),
+        grade: formatted.isEmpty ? "-" : formatted,
+      ));
+    }
+    return rows;
+  }
+
+  /// fullname 優先、shortname 退路、都空就用課號。與待辦 tile 的
+  /// `UpcomingEventUtils.courseLabelOf`（shortname 優先）相反是刻意的：
+  /// 那裡課名只是與活動名共用一行的副標，這裡它是主角，課號另有一行。
+  static String _courseDisplayName(Map course, String courseId) {
+    for (final key in const ["fullname", "shortname"]) {
+      final raw = course[key];
+      if (raw is! String) continue;
+      // format_string 過的（`&` 會是 `&amp;`），先還原實體再剝前綴。
+      final name =
+          MoodleCourseNameUtils.stripCoursePrefix(HtmlUtils.clean(raw));
+      if (name.isNotEmpty) return name;
+    }
+    return courseId;
+  }
+
   /// [now] 當天 00:00 往前推 [actionEventsLookbackDays] 天的 Unix 秒。
   static int actionEventsTimesortFrom(DateTime now) =>
       DateTime(now.year, now.month, now.day - actionEventsLookbackDays)
@@ -1254,6 +1414,146 @@ class MoodleWebApiConnector {
 
   /// 作業的網頁位址。[cmid] 是 course module id，不是 assign id。
   static String assignViewUrl(int cmid) => "$host/mod/assign/view.php?id=$cmid";
+
+  /// 這門課（Moodle 內部 id）的全部測驗，抓不到回 null。日期已套過 override；
+  /// `moodlewssettingfileurl` 要留著，intro 的 `@@PLUGINFILE@@` 才會換成網址。
+  static Future<List<MoodleQuiz>?> getQuizzes(String courseId) async {
+    try {
+      final result = await _callWs(quizzesFunction, {
+        "moodlewssettingfilter": "true",
+        "moodlewssettingfileurl": "true",
+        "courseids[0]": courseId,
+      });
+      final quizzes = quizzesOf(result);
+      if (quizzes == null) {
+        _reportFailure(
+          quizzesFunction,
+          MoodleApiException(
+            wsFunction: quizzesFunction,
+            message: 'quizzes 為空：${_firstWarningMessage(result)}',
+          ),
+          StackTrace.current,
+        );
+        return null;
+      }
+      return quizzes;
+    } catch (e, stack) {
+      _reportFailure(quizzesFunction, e, stack);
+      return null;
+    }
+  }
+
+  /// `quizzes` 缺席或形狀不對回 null；**空清單加上 warnings 也回 null**——
+  /// `util::validate_courses` 把沒權限的課從 courses 移除並塞一筆 warning，
+  /// 那是「沒選這門課」而不是「這門課沒有測驗」。`name` 是 format_string
+  /// 過的，在這裡 [HtmlUtils.clean]，快取存的才是還原後的。
+  static List<MoodleQuiz>? quizzesOf(dynamic result) {
+    if (result is! Map || result["quizzes"] is! List) return null;
+    final entity = MoodleModQuizGetQuizzesByCourses.fromJson(
+        Map<String, dynamic>.from(result));
+    final warnings = result["warnings"];
+    if (entity.quizzes.isEmpty && warnings is List && warnings.isNotEmpty) {
+      return null;
+    }
+    for (final q in entity.quizzes) {
+      q.name = HtmlUtils.clean(q.name);
+    }
+    return entity.quizzes;
+  }
+
+  /// 作答紀錄要打哪一支。判準與官方 App 相同（site_info 的 `functions[]`）：
+  /// 有 `mod_quiz_get_user_quiz_attempts` 就用它，否則退回 5.0 起 deprecated
+  /// 的舊名。site_info 還沒載入時 fail-open 到舊名——那是 4.5（NTUST 現況）
+  /// 唯一存在的一支。
+  @visibleForTesting
+  static String preferredQuizAttemptsFunction() {
+    final profile = siteInfo;
+    if (profile == null || !profile.knowsWsFunctions) {
+      return quizAttemptsFunction;
+    }
+    if (profile.wsAvailable(quizUserAttemptsFunction)) {
+      return quizUserAttemptsFunction;
+    }
+    return quizAttemptsFunction;
+  }
+
+  /// 自己在這個測驗的作答紀錄，抓不到回 null。空清單是合法結果。
+  ///
+  /// 不送 `userid`：兩支的 PHP 都有 `if (empty($params['userid']))
+  /// $userid = $USER->id;`，與通知那三支不同（那三支送 0 會直接 accessdenied）。
+  static Future<List<MoodleQuizAttempt>?> getQuizAttempts(int quizId) async {
+    final wsFunction = preferredQuizAttemptsFunction();
+    try {
+      final result = await _callWs(wsFunction, {
+        "quizid": quizId.toString(),
+        "status": quizAttemptsStatus,
+        "includepreviews": "0",
+      });
+      final attempts = quizAttemptsOf(result);
+      if (attempts == null) {
+        _reportFailure(
+          wsFunction,
+          MoodleApiException(
+            wsFunction: wsFunction,
+            message: '回應裡沒有 attempts',
+          ),
+          StackTrace.current,
+        );
+        return null;
+      }
+      return attempts;
+    } catch (e, stack) {
+      _reportFailure(wsFunction, e, stack);
+      return null;
+    }
+  }
+
+  /// 形狀不對回 null。preview 由伺服器濾掉（`includepreviews=0`），這裡再濾
+  /// 一次是防呆：老師帳號的預覽不該算進作答次數。
+  static List<MoodleQuizAttempt>? quizAttemptsOf(dynamic result) {
+    if (result is! Map || result["attempts"] is! List) return null;
+    final parsed = MoodleModQuizGetUserAttempts.fromJson(
+        Map<String, dynamic>.from(result));
+    return [
+      for (final a in parsed.attempts)
+        if (!a.isPreview) a
+    ];
+  }
+
+  /// 這個測驗的最佳成績與及格分數，抓不到回 null。`hasgrade == false` 是
+  /// 正常回應（還沒作答、或老師關掉分數顯示），不是失敗。
+  static Future<MoodleQuizBestGrade?> getQuizBestGrade(int quizId) async {
+    try {
+      final result = await _callWs(quizBestGradeFunction, {
+        "quizid": quizId.toString(),
+      });
+      final grade = quizBestGradeOf(result);
+      if (grade == null) {
+        _reportFailure(
+          quizBestGradeFunction,
+          MoodleApiException(
+            wsFunction: quizBestGradeFunction,
+            message: '回應裡沒有 hasgrade',
+          ),
+          StackTrace.current,
+        );
+        return null;
+      }
+      return grade;
+    } catch (e, stack) {
+      _reportFailure(quizBestGradeFunction, e, stack);
+      return null;
+    }
+  }
+
+  /// 形狀不對回 null。`hasgrade` 是唯一必填欄位，用它當形狀的標記。
+  static MoodleQuizBestGrade? quizBestGradeOf(dynamic result) {
+    if (result is! Map || result["hasgrade"] == null) return null;
+    return MoodleQuizBestGrade.fromJson(Map<String, dynamic>.from(result));
+  }
+
+  /// 測驗的網頁位址。[cmid] 是 course module id，不是 quiz id。
+  static String quizViewUrl(int cmid) => "$host/mod/quiz/view.php?id=$cmid";
 
   /// 站內通知（popup）清單，抓不到回 null。回應本身就帶 `unreadcount`，
   /// 開頁時不必再打一趟未讀數。
@@ -1464,6 +1764,148 @@ class MoodleWebApiConnector {
     } catch (e, stack) {
       _reportFailure(wsFunction, e, stack);
       return false;
+    }
+  }
+
+  /// upload.php 的 body 先 decode 成 dynamic：String 就 jsonDecode，
+  /// 已經是 Map/List 就原樣（測試注入時方便）。解不開回 null。
+  static dynamic decodeUploadBody(dynamic body) {
+    if (body is String) {
+      try {
+        return jsonDecode(body);
+      } catch (_) {
+        return null;
+      }
+    }
+    return body;
+  }
+
+  /// webservice/upload.php 的回應 → draft 檔案紀錄。
+  ///
+  /// 三種形狀都要判：
+  /// 1. `{error, errorcode, ...}`（AJAX_SCRIPT 的例外包，key 是 `error` 不是
+  ///    `message`，所以 [moodleErrorOf] 認不出來）。
+  /// 2. 陣列裡的錯誤元素（`errortype` fileoversized / filenameexist，HTTP 照樣 200）。
+  /// 3. 正常的 filerecord 陣列。
+  ///
+  /// 傳進來的通常是 String：upload.php 因為 `$_FILES` 非空，Content-Type 送的是
+  /// text/plain，Dio 不會替我們 jsonDecode，所以這裡先過 [decodeUploadBody]。
+  static MoodleDraftFile draftFileOf(dynamic body) {
+    final data = decodeUploadBody(body);
+
+    if (data is Map && data.containsKey("error")) {
+      throw MoodleApiException(
+        wsFunction: uploadEndpoint,
+        errorcode: data["errorcode"]?.toString(),
+        message: data["error"]?.toString(),
+        debugInfo: data["debuginfo"]?.toString(),
+      );
+    }
+
+    if (data is! List || data.isEmpty) {
+      throw MoodleApiException(
+        wsFunction: uploadEndpoint,
+        errorcode: "nofile",
+        message: "upload.php 沒有回傳任何檔案紀錄",
+      );
+    }
+
+    final first = data.first;
+    if (first is! Map) {
+      throw MoodleApiException(
+        wsFunction: uploadEndpoint,
+        errorcode: "nofile",
+        message: "upload.php 的回應形狀不對",
+      );
+    }
+    final file = MoodleDraftFile.fromJson(Map<String, dynamic>.from(first));
+    if (file.isError) {
+      throw MoodleApiException(
+        wsFunction: uploadEndpoint,
+        errorcode: file.errortype,
+        message: file.error,
+      );
+    }
+    return file;
+  }
+
+  /// core_user_update_picture 的回應 → 結果。形狀不對回 null。
+  static MoodleUpdatePictureResult? updatePictureResultOf(dynamic result) {
+    if (result is! Map || !result.containsKey("success")) return null;
+    return MoodleUpdatePictureResult.fromJson(
+        Map<String, dynamic>.from(result));
+  }
+
+  /// 寫入路徑的收尾：照樣送 [onApiError]（token 死掉要清），但不吞掉——
+  /// 呼叫端要拿 errorcode 換一句使用者看得懂的話。讀取路徑吞例外是因為它們
+  /// 有快取可以退，這條沒有。
+  static Never _reportAndRethrow(
+      String wsFunction, Object e, StackTrace stack) {
+    _reportFailure(wsFunction, e, stack);
+    Error.throwWithStackTrace(e, stack);
+  }
+
+  /// 把一個檔案送進自己的 draft 檔案區，回 draft itemid。
+  ///
+  /// 不送 itemid：`optional_param('itemid', 0, PARAM_INT)` 為 0 時伺服器會叫
+  /// `file_get_unused_draft_itemid()` 開一個新的，這也順便讓 filenameexist
+  /// 不可能發生。token 放 POST 欄位不放 query：`get_request_parameter` 先看
+  /// `$_POST`，而 query string 會被寫進學校的 access log。
+  /// filepath 也不送，預設就是 '/'。
+  ///
+  /// MultipartFile 刻意不指定 contentType：upload.php 從不讀那一欄，
+  /// `process_new_icon` 是用 `getimagesize()` 嗅內容的。
+  static Future<int?> uploadDraftFile(
+    File file, {
+    required String filename,
+    void Function(int sent, int total)? onProgress,
+    CancelToken? cancelToken,
+  }) async {
+    final token = wsToken;
+    if (token == null) return null;
+    try {
+      final formData = FormData.fromMap({
+        "token": token,
+        uploadFieldName:
+            await MultipartFile.fromFile(file.path, filename: filename),
+      });
+      final body = await uploadPost(
+        ConnectorParameter(uploadEndpoint),
+        formData: formData,
+        sendTimeout: uploadSendTimeout,
+        onSendProgress: onProgress,
+        cancelToken: cancelToken,
+      );
+      return draftFileOf(body).itemid;
+    } catch (e, stack) {
+      _reportAndRethrow(uploadEndpoint, e, stack);
+    }
+  }
+
+  /// 套用（或移除）頭貼。回伺服器算出來的結果；形狀不對回 null。
+  ///
+  /// `draftitemid` 沒有 VALUE_DEFAULT，移除時也要送，送 0。
+  /// `userid` 不送：這一支真的把 0 當成自己（`empty($params['userid']) or
+  /// $params['userid'] == $USER->id`），與 docs/MOODLE_REFERENCE.md 裡那三支
+  /// 通知 function 不同。
+  /// `treatWarningsAsError` 對它無效：伺服器端 warnings 寫死是空陣列，
+  /// 唯一的訊號是 success；照樣傳是為了跟另一條寫入路徑（toggleSetting）一致。
+  static Future<MoodleUpdatePictureResult?> updateProfilePicture({
+    required int draftItemId,
+    bool delete = false,
+  }) async {
+    try {
+      final result = await _callWs(
+        updatePictureFunction,
+        {
+          "draftitemid": draftItemId.toString(),
+          "delete": delete ? "1" : "0",
+        },
+        treatWarningsAsError: true,
+      );
+      return updatePictureResultOf(result);
+    } catch (e, stack) {
+      _reportAndRethrow(updatePictureFunction, e, stack);
     }
   }
 }
