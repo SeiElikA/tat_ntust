@@ -397,21 +397,104 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "folderEmpty": MessageLookupByLibrary.simpleMessage("This folder is empty"),
     "folderFileCount": MessageLookupByLibrary.simpleMessage("%s file(s)"),
+    "forumAddAttachment": MessageLookupByLibrary.simpleMessage(
+      "Add attachment",
+    ),
+    "forumAttachFromCamera": MessageLookupByLibrary.simpleMessage(
+      "Take a photo",
+    ),
+    "forumAttachFromFiles": MessageLookupByLibrary.simpleMessage(
+      "Choose a file",
+    ),
+    "forumAttachFromGallery": MessageLookupByLibrary.simpleMessage(
+      "Choose from library",
+    ),
+    "forumAttachmentCountExceeded": MessageLookupByLibrary.simpleMessage(
+      "This forum allows at most %s attachments",
+    ),
+    "forumAttachmentDisabled": MessageLookupByLibrary.simpleMessage(
+      "This forum does not allow attachments",
+    ),
+    "forumAttachmentDuplicateName": MessageLookupByLibrary.simpleMessage(
+      "Two files share a name; Moodle keeps only the first, so rename one",
+    ),
+    "forumAttachmentLimit": MessageLookupByLibrary.simpleMessage(
+      "Up to %s files",
+    ),
+    "forumAttachmentMissing": MessageLookupByLibrary.simpleMessage(
+      "%s did not upload; check on the website",
+    ),
+    "forumAttachmentSizeLimit": MessageLookupByLibrary.simpleMessage(
+      "Up to %s per file",
+    ),
+    "forumAttachmentTooLarge": MessageLookupByLibrary.simpleMessage(
+      "\"%s\" is over the %s per-file limit",
+    ),
+    "forumAttachmentUploadDisabled": MessageLookupByLibrary.simpleMessage(
+      "File upload is disabled on the school\'s Moodle",
+    ),
     "forumAttachments": MessageLookupByLibrary.simpleMessage("Attachments"),
+    "forumCancelReplyTarget": MessageLookupByLibrary.simpleMessage(
+      "Reply to the first post instead",
+    ),
     "forumCannotCheckPosting": MessageLookupByLibrary.simpleMessage(
       "Couldn\'t check whether you can post here",
+    ),
+    "forumCannotDeleteHasReplies": MessageLookupByLibrary.simpleMessage(
+      "This post has replies and cannot be deleted",
+    ),
+    "forumCannotDeletePost": MessageLookupByLibrary.simpleMessage(
+      "This post can no longer be deleted",
+    ),
+    "forumCannotDeleteRated": MessageLookupByLibrary.simpleMessage(
+      "This post has been rated and cannot be deleted",
     ),
     "forumCannotPost": MessageLookupByLibrary.simpleMessage(
       "You can\'t post in this forum from the app",
     ),
+    "forumCannotPostHere": MessageLookupByLibrary.simpleMessage(
+      "This forum is not open for new discussions",
+    ),
+    "forumDeleteDone": MessageLookupByLibrary.simpleMessage("Deleted"),
+    "forumDeleteError": MessageLookupByLibrary.simpleMessage(
+      "Delete failed; refresh to check whether the post is still there",
+    ),
+    "forumDeletePost": MessageLookupByLibrary.simpleMessage("Delete post"),
+    "forumDeletePostConfirm": MessageLookupByLibrary.simpleMessage(
+      "Delete this post?",
+    ),
+    "forumDeleteTopicConfirm": MessageLookupByLibrary.simpleMessage(
+      "This is the first post: deleting it removes the whole discussion and every reply. Delete?",
+    ),
     "forumDiscardDraft": MessageLookupByLibrary.simpleMessage(
       "Discard what you haven\'t posted yet?",
     ),
+    "forumEditAttachmentsWebOnly": MessageLookupByLibrary.simpleMessage(
+      "This post has attachments and the school\'s Moodle does not let the app edit it without breaking the attachment marker. Edit it on the website.",
+    ),
+    "forumEditDone": MessageLookupByLibrary.simpleMessage("Updated"),
+    "forumEditError": MessageLookupByLibrary.simpleMessage(
+      "Update failed; refresh to check whether it went through instead of saving again",
+    ),
+    "forumEditInWeb": MessageLookupByLibrary.simpleMessage(
+      "Edit on the website",
+    ),
+    "forumEditPost": MessageLookupByLibrary.simpleMessage("Edit post"),
+    "forumEditRichWebOnly": MessageLookupByLibrary.simpleMessage(
+      "This post has formatting or images the app cannot reproduce; editing it here would destroy them.",
+    ),
+    "forumEditWindowClosed": MessageLookupByLibrary.simpleMessage(
+      "The time window for editing this post has closed",
+    ),
+    "forumEdited": MessageLookupByLibrary.simpleMessage("edited"),
     "forumEmpty": MessageLookupByLibrary.simpleMessage(
       "This forum has no discussions yet",
     ),
     "forumErrorCannotCreateDiscussion": MessageLookupByLibrary.simpleMessage(
       "This forum won\'t accept a new discussion",
+    ),
+    "forumErrorNoEditPermission": MessageLookupByLibrary.simpleMessage(
+      "You cannot edit this post",
     ),
     "forumErrorNoPermission": MessageLookupByLibrary.simpleMessage(
       "You can\'t post in this thread right now",
@@ -421,6 +504,9 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "forumErrorTooManyPosts": MessageLookupByLibrary.simpleMessage(
       "You\'ve hit this forum\'s posting limit",
+    ),
+    "forumFormattingInWeb": MessageLookupByLibrary.simpleMessage(
+      "Bold, lists and tables need the website editor.",
     ),
     "forumMessageHint": MessageLookupByLibrary.simpleMessage(
       "Write your message…",
@@ -434,16 +520,25 @@ class MessageLookup extends MessageLookupByLibrary {
     "forumOpenInWeb": MessageLookupByLibrary.simpleMessage(
       "Open forum in browser",
     ),
-    "forumPlainTextOnly": MessageLookupByLibrary.simpleMessage(
-      "The app posts plain text only. Attachments, formatting, private replies and editing need the website.",
-    ),
+    "forumPostActions": MessageLookupByLibrary.simpleMessage("This post"),
     "forumPostDeleted": MessageLookupByLibrary.simpleMessage(
       "This post has been deleted",
     ),
+    "forumRemoveAttachment": MessageLookupByLibrary.simpleMessage(
+      "Remove this attachment",
+    ),
     "forumReplies": MessageLookupByLibrary.simpleMessage("%s replies"),
     "forumReply": MessageLookupByLibrary.simpleMessage("Reply"),
+    "forumReplyHint": MessageLookupByLibrary.simpleMessage("Write a reply…"),
     "forumReplyingTo": MessageLookupByLibrary.simpleMessage("Replying to %s"),
+    "forumReplyingToTopic": MessageLookupByLibrary.simpleMessage(
+      "Replying to the topic: %s",
+    ),
+    "forumSaveEdit": MessageLookupByLibrary.simpleMessage("Save"),
     "forumSend": MessageLookupByLibrary.simpleMessage("Post"),
+    "forumSendCancelled": MessageLookupByLibrary.simpleMessage(
+      "Upload cancelled",
+    ),
     "forumSendDone": MessageLookupByLibrary.simpleMessage("Posted"),
     "forumSendDoneRefreshFailed": MessageLookupByLibrary.simpleMessage(
       "Posted, but the thread could not be reloaded",

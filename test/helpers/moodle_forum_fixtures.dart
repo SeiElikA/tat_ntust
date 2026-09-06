@@ -5,7 +5,10 @@ import 'package:flutter_app/src/connector/moodle_webapi_connector.dart';
 import 'package:flutter_app/src/model/moodle_webapi/moodle_core_course_get_contents.dart';
 import 'package:flutter_app/src/model/moodle_webapi/moodle_mod_forum_get_discussion_posts.dart';
 import 'package:flutter_app/src/model/moodle_webapi/moodle_mod_forum_get_forum_discussions.dart';
+import 'package:flutter_app/src/model/moodle_webapi/moodle_mod_forum_draft_area.dart';
+import 'package:flutter_app/src/model/moodle_webapi/moodle_mod_forum_get_forum_access_information.dart';
 import 'package:flutter_app/src/model/moodle_webapi/moodle_mod_forum_get_forums_by_courses.dart';
+import 'package:flutter_app/src/util/moodle_forum_edit_utils.dart';
 
 /// test/fixtures/moodle_forum/ 底下的 JSON。形狀照 MOODLE_405_STABLE 的
 /// mod/forum/externallib.php 與 post / stored_file exporter，帶著所有 TAT
@@ -44,3 +47,19 @@ List<MoodleCoreCourseGetContents> fixtureCourseContents() =>
         .map((e) =>
             MoodleCoreCourseGetContents.fromJson(Map<String, dynamic>.from(e)))
         .toList();
+
+/// `get_forum_access_information` 的 36 個 `can*`。**故意不含 caneditownpost**
+/// ——access.php 沒有那個 capability。
+MoodleForumAccess fixtureForumAccess(
+        [String name = 'get_forum_access_information']) =>
+    MoodleWebApiConnector.accessOf(loadMoodleForumFixture(name))!;
+
+/// `prepare_draft_area_for_post`。`files[]` 的網址欄位是 **fileurl**
+/// （external_files），不是貼文附件的 `url`。
+MoodleForumDraftArea fixtureDraftArea(
+        [String name = 'prepare_draft_area_for_post']) =>
+    MoodleWebApiConnector.draftAreaOf(loadMoodleForumFixture(name))!;
+
+/// `get_discussion_post`。回的是**原文**，沒有經過 `_normalizePost`。
+ForumPostEdit fixturePostForEdit([String name = 'get_discussion_post']) =>
+    MoodleWebApiConnector.postForEditOf(loadMoodleForumFixture(name))!;

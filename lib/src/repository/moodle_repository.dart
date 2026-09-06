@@ -14,8 +14,11 @@ import 'package:flutter_app/src/model/moodle_webapi/moodle_message_popup_notific
 import 'package:flutter_app/src/model/moodle_webapi/moodle_mod_assign_get_assignments.dart';
 import 'package:flutter_app/src/model/moodle_webapi/moodle_mod_assign_get_submission_status.dart';
 import 'package:flutter_app/src/model/moodle_webapi/moodle_mod_forum_can_add_discussion.dart';
+import 'package:flutter_app/src/model/moodle_webapi/moodle_mod_forum_draft_area.dart';
 import 'package:flutter_app/src/model/moodle_webapi/moodle_mod_forum_get_discussion_posts.dart';
 import 'package:flutter_app/src/model/moodle_webapi/moodle_mod_forum_get_forum_discussions.dart';
+import 'package:flutter_app/src/model/moodle_webapi/moodle_mod_forum_get_forum_access_information.dart';
+import 'package:flutter_app/src/model/moodle_webapi/moodle_mod_forum_get_forums_by_courses.dart';
 import 'package:flutter_app/src/model/moodle_webapi/moodle_mod_quiz_get_quizzes_by_courses.dart';
 import 'package:flutter_app/src/model/moodle_webapi/moodle_mod_quiz_get_user_attempts.dart';
 import 'package:flutter_app/src/model/moodle_webapi/moodle_mod_quiz_get_user_best_grade.dart';
@@ -28,6 +31,7 @@ import 'package:flutter_app/src/util/file_utils.dart';
 import 'package:flutter_app/src/util/moodle_assign_submit_utils.dart';
 import 'package:flutter_app/src/util/moodle_assign_utils.dart';
 import 'package:flutter_app/src/util/moodle_avatar_utils.dart';
+import 'package:flutter_app/src/util/moodle_forum_edit_utils.dart';
 import 'package:flutter_app/src/util/moodle_forum_utils.dart';
 import 'package:flutter_app/src/util/moodle_quiz_utils.dart';
 import 'package:path_provider/path_provider.dart';
@@ -312,6 +316,10 @@ class MoodleRepository {
         background: background,
       );
 
+  /// 「一個既有附件都不留」時送給 `filestokeep` 的哨兵檔名。它對不到 draft
+  /// 區裡的任何檔案，所以全部會被刪掉——空陣列做不到這件事（那是「全部保留」）。
+  static const String _keepNothingSentinel = 'tat_keep_nothing.invalid';
+
   /// 討論串的快取。讀與「樂觀併入之後寫回」共用同一把 key。
   static CacheKey<List<MoodleForumPost>> discussionPostsKey(int discussionId) =>
       CacheKey<List<MoodleForumPost>>(
@@ -363,23 +371,174 @@ class MoodleRepository {
         fetch: () => MoodleWebApiConnector.canAddDiscussion(forumId),
       );
 
+  /// 這個討論區能不能附檔、最多幾個、單檔多大。
+  ///
+  /// 刻意**不快取**，理由同 [canAddDiscussion]：過期的「你可以附檔」比沒有
+  /// 答案更糟。任何一步問不到就回 `enabled: false` 的政策（**不是 null**）
+  /// ——附件上「不知道」等於「不給」。
+  ///
+  /// [knownCanCreateAttachment] 給新主題那條路用：`can_add_discussion` 的
+  /// `cancreateattachment` 已經把 capability、`maxattachments` 與 `maxbytes`
+  /// 三件事都算完了，只差 forum record 上那兩個數字，不必再打一趟
+  /// `get_forum_access_information`。
+  Future<Result<ForumAttachPolicy>> getForumAttachPolicy({
+    required String courseId,
+    required int forumId,
+    bool? knownCanCreateAttachment,
+  }) =>
+      run<ForumAttachPolicy>(
+        requires: const {SystemId.moodleWebApi},
+        background: true,
+        retry: RetryPolicy.none,
+        errorMessage: R.current.forumAttachmentDisabled,
+        debugLabel: 'moodleForumAttachPolicy',
+        fetch: () => _forumAttachPolicy(
+          courseId: courseId,
+          forumId: forumId,
+          knownCanCreateAttachment: knownCanCreateAttachment,
+        ),
+      );
+
+  Future<ForumAttachPolicy> _forumAttachPolicy({
+    required String courseId,
+    required int forumId,
+    bool? knownCanCreateAttachment,
+  }) async {
+    final site = MoodleWebApiConnector.siteInfo;
+    // upload.php 是所有附件的唯一入口，站台關掉就整條路不通（同交作業與換頭貼）。
+    if (site != null && site.uploadfiles != 1) {
+      return const ForumAttachPolicy.off();
+    }
+    if (forumId <= 0) return const ForumAttachPolicy.off();
+
+    final forumsFuture = fetchForums(courseId);
+    final accessFuture = knownCanCreateAttachment == null
+        ? fetchForumAccess(forumId)
+        : Future<MoodleForumAccess?>.value(
+            MoodleForumAccess(cancreateattachment: knownCanCreateAttachment));
+    final forums = await forumsFuture;
+    final access = await accessFuture;
+    if (forums == null || access == null) return const ForumAttachPolicy.off();
+    // null ＝站台沒回這個欄位 ＝不知道 ⇒ 不給。
+    if (access.cancreateattachment != true) {
+      return const ForumAttachPolicy.off();
+    }
+
+    MoodleForum? forum;
+    for (final f in forums) {
+      if (f.id == forumId) forum = f;
+    }
+    if (forum == null) return const ForumAttachPolicy.off();
+    // maxbytes == 1 是 Moodle 的「完全不准附件」哨兵值。
+    if (forum.maxattachments <= 0 || forum.maxbytes == 1) {
+      return const ForumAttachPolicy.off();
+    }
+    return ForumAttachPolicy(
+      enabled: true,
+      maxFiles: forum.maxattachments,
+      // 課程層級的 $COURSE->maxbytes 沒有 API，這是盡力而為的近似值；
+      // 真正擋得住的是送出後的附件比對。
+      maxBytes: MoodleForumEditUtils.effectiveMaxBytes(
+        siteMax: site?.usermaxuploadfilesize ?? 0,
+        forumMax: forum.maxbytes,
+      ),
+    );
+  }
+
+  /// 測試用的縫。
+  @visibleForTesting
+  Future<List<MoodleForum>?> fetchForums(String courseId) =>
+      MoodleWebApiConnector.getForums(courseId);
+
+  @visibleForTesting
+  Future<MoodleForumAccess?> fetchForumAccess(int forumId) =>
+      MoodleWebApiConnector.getForumAccess(forumId);
+
   @visibleForTesting
   Future<MoodleForumPost> writeReply({
     required int postId,
     required String subject,
     required String message,
+    int? attachmentsId,
   }) =>
       MoodleWebApiConnector.addDiscussionPost(
-          postId: postId, subject: subject, message: message);
+        postId: postId,
+        subject: subject,
+        message: message,
+        attachmentsId: attachmentsId,
+      );
 
   @visibleForTesting
   Future<int> writeDiscussion({
     required int forumId,
     required String subject,
     required String htmlMessage,
+    int? attachmentsId,
   }) =>
       MoodleWebApiConnector.addDiscussion(
-          forumId: forumId, subject: subject, htmlMessage: htmlMessage);
+        forumId: forumId,
+        subject: subject,
+        htmlMessage: htmlMessage,
+        attachmentsId: attachmentsId,
+      );
+
+  @visibleForTesting
+  Future<MoodleForumDraftArea> writeForumDraftArea({
+    required int postId,
+    required List<({String filename, String filepath})> filesToKeep,
+  }) =>
+      MoodleWebApiConnector.prepareForumDraftArea(
+          postId: postId, filesToKeep: filesToKeep);
+
+  @visibleForTesting
+  Future<void> writePostUpdate({
+    required int postId,
+    required String subject,
+    required String message,
+    int? attachmentsId,
+  }) =>
+      MoodleWebApiConnector.updateDiscussionPost(
+        postId: postId,
+        subject: subject,
+        message: message,
+        attachmentsId: attachmentsId,
+      );
+
+  @visibleForTesting
+  Future<void> writePostDelete(int postId) =>
+      MoodleWebApiConnector.deleteForumPost(postId);
+
+  /// 按下編輯時的那一趟：拿新鮮的 `capabilities.edit` 與**原文**。
+  ///
+  /// 不走 `run()`：它不是要顯示的資料，而是一個「現在還能不能編輯」的守門，
+  /// 而且**不可以進快取**——快取裡的 `message` 早就是算繪好的 HTML。
+  /// 失敗回 null，呼叫端只能說「更新失敗」而不是推一頁空的編輯器。
+  Future<ForumPostEdit?> fetchPostForEdit(int postId) =>
+      MoodleWebApiConnector.getPostForEdit(postId);
+
+  @visibleForTesting
+  Future<List<MoodleForumPost>?> fetchDiscussionPosts(int discussionId) =>
+      MoodleWebApiConnector.getDiscussionPosts(discussionId);
+
+  /// 使用者按了「取消上傳」不是失敗。dio 取消時丟的是 `DioException`，
+  /// `run()` 的泛用 catch 只會把它翻成 `errorMessage`——也就是「送出失敗；
+  /// 請重新整理確認是否已送出」，而那時什麼都還沒送出去，那句話只會讓人去找
+  /// 一則不存在的貼文。三支寫入共用這一層。
+  Future<T> _guardCancel<T>(
+    CancelToken? cancelToken,
+    Future<T> Function() body,
+  ) async {
+    try {
+      return await body();
+    } on TaskFailure {
+      rethrow;
+    } catch (_) {
+      if (cancelToken?.isCancelled ?? false) {
+        throw TaskFailure(FetchFailed(R.current.forumSendCancelled));
+      }
+      rethrow;
+    }
+  }
 
   /// 回覆一篇貼文。走 `run()` 是為了登入保證與離線分類，不是快取。
   ///
@@ -388,51 +547,393 @@ class MoodleRepository {
   /// 理由同 [changeProfilePicture]。
   ///
   /// `background: false`：使用者主動按的按鈕，token 死掉時要開得了登入頁。
-  Future<Result<MoodleForumPost>> postReply({
+  Future<Result<ForumReplyOutcome>> postReply({
     required int postId,
     required String subject,
     required String text,
+    List<File> attachments = const [],
+    ForumAttachPolicy policy = const ForumAttachPolicy.off(),
+    void Function(ForumTransferProgress progress)? onProgress,
+    CancelToken? cancelToken,
   }) =>
-      run<MoodleForumPost>(
+      run<ForumReplyOutcome>(
         requires: const {SystemId.moodleWebApi},
         retry: RetryPolicy.none,
         errorMessage: R.current.forumSendError,
         debugLabel: 'moodleForumReply',
-        fetch: () async {
+        fetch: () => _guardCancel(cancelToken, () async {
           try {
-            return await writeReply(
-                postId: postId, subject: subject, message: text);
+            final draftId = await _prepareNewAttachments(
+              attachments,
+              policy,
+              onProgress: onProgress,
+              cancelToken: cancelToken,
+            );
+            final post = await writeReply(
+              postId: postId,
+              subject: subject,
+              message: text,
+              attachmentsId: draftId,
+            );
+            // 這一支的回應自帶伺服器實際收下的附件（`get_attachments_for_posts`
+            // 無條件跑），所以事後驗證不必再打一趟。
+            return ForumReplyOutcome(
+              post,
+              warning: _missingAttachmentWarning(attachments, post.attachments),
+            );
           } on MoodleApiException catch (e) {
             throw TaskFailure(FetchFailed(forumPostFailureMessage(e)));
           }
-        },
+        }),
       );
 
   /// 開一個新主題，回討論串 id。[text] 是使用者打的純文字，escape 在這裡做：
   /// `mod_forum_add_discussion` 沒有 `messageformat`，伺服器一律當 HTML 存。
   /// `retry` 與 `background` 的理由同 [postReply]。
-  Future<Result<int>> postDiscussion({
+  Future<Result<ForumDiscussionOutcome>> postDiscussion({
     required int forumId,
     required String subject,
     required String text,
+    List<File> attachments = const [],
+    ForumAttachPolicy policy = const ForumAttachPolicy.off(),
+    void Function(ForumTransferProgress progress)? onProgress,
+    CancelToken? cancelToken,
   }) =>
-      run<int>(
+      run<ForumDiscussionOutcome>(
         requires: const {SystemId.moodleWebApi},
         retry: RetryPolicy.none,
         errorMessage: R.current.forumSendError,
         debugLabel: 'moodleForumNewDiscussion',
-        fetch: () async {
+        fetch: () => _guardCancel(cancelToken, () async {
+          final int discussionId;
           try {
-            return await writeDiscussion(
+            final draftId = await _prepareNewAttachments(
+              attachments,
+              policy,
+              onProgress: onProgress,
+              cancelToken: cancelToken,
+            );
+            discussionId = await writeDiscussion(
               forumId: forumId,
               subject: subject,
               htmlMessage: MoodleForumUtils.plainTextToHtml(text),
+              attachmentsId: draftId,
             );
           } on MoodleApiException catch (e) {
             throw TaskFailure(FetchFailed(forumPostFailureMessage(e)));
           }
+          if (attachments.isEmpty) {
+            return ForumDiscussionOutcome(discussionId, subject: subject);
+          }
+          // add_discussion 的回應**沒有 post**，附件的事後驗證只能另外打一趟。
+          // 成功之後本來就要重載清單，這一趟順便當成驗證。
+          final posts = await fetchDiscussionPosts(discussionId);
+          if (posts == null || posts.isEmpty) {
+            // 主題確實建立了，只是這一刻證明不了附件有沒有上去——不可以
+            // 報成失敗，也不可以裝作全部都上去了。
+            return ForumDiscussionOutcome(discussionId,
+                subject: subject,
+                warning: R.current.forumSendDoneRefreshFailed);
+          }
+          return ForumDiscussionOutcome(
+            discussionId,
+            subject: subject,
+            warning:
+                _missingAttachmentWarning(attachments, posts.first.attachments),
+          );
+        }),
+      );
+
+  /// 編輯自己的貼文。
+  ///
+  /// [hadAttachments] 是「這篇貼文原本有沒有附件」，[keepAttachments] 是使用者
+  /// 決定留下的那些既有附件，[newAttachments] 是這次新挑的。
+  ///
+  /// `attachmentsid` 的決策是這條路最需要小心的一段：
+  /// - **原本沒有附件、使用者也沒加 → 不送**。旗標本來就是空的，不會弄壞。
+  /// - **其餘全部（原本有／新加／移除）→ 一定送**一個由
+  ///   `prepare_draft_area_for_post` 種出來的 draftitemid。不送的話
+  ///   `forum_update_post()` 會把 `forum_posts.attachment` 旗標清成空字串
+  ///   （`empty(-1) === false` 過不了 early return），檔案還在但主題清單的
+  ///   迴紋針會憑空消失。**這段「多餘」的 prepare 呼叫不可以被優化掉。**
+  ///
+  /// 站台沒開 `prepare_draft_area_for_post` 而這篇貼文**有附件**時直接拒絕：
+  /// 那時種不出一個含既有附件的 draft 區，只剩「不送 attachmentsid」一條路，
+  /// 而那正是上面那段寫著不可以做的事。檔案雖然保得住，主題清單的迴紋針會
+  /// 憑空消失——把它報成「已更新，附件維持原樣」是說反話。
+  Future<Result<ForumEditOutcome>> editPost({
+    required int postId,
+    required String subject,
+    required String text,
+    required List<MoodleForumFile> keepAttachments,
+    required List<File> newAttachments,
+    required bool hadAttachments,
+    ForumAttachPolicy policy = const ForumAttachPolicy.off(),
+    void Function(ForumTransferProgress progress)? onProgress,
+    CancelToken? cancelToken,
+  }) =>
+      run<ForumEditOutcome>(
+        requires: const {SystemId.moodleWebApi},
+        retry: RetryPolicy.none,
+        errorMessage: R.current.forumEditError,
+        debugLabel: 'moodleForumEditPost',
+        fetch: () => _guardCancel(
+          cancelToken,
+          () => _editPost(
+            postId: postId,
+            subject: subject,
+            text: text,
+            keepAttachments: keepAttachments,
+            newAttachments: newAttachments,
+            hadAttachments: hadAttachments,
+            policy: policy,
+            onProgress: onProgress,
+            cancelToken: cancelToken,
+          ),
+        ),
+      );
+
+  Future<ForumEditOutcome> _editPost({
+    required int postId,
+    required String subject,
+    required String text,
+    required List<MoodleForumFile> keepAttachments,
+    required List<File> newAttachments,
+    required bool hadAttachments,
+    required ForumAttachPolicy policy,
+    void Function(ForumTransferProgress progress)? onProgress,
+    CancelToken? cancelToken,
+  }) async {
+    // 縱深防禦：伺服器對空字串是「不改」然後照樣回 status: true，使用者會
+    // 看到「已更新」而內容一個字沒變。UI 已經擋過一次，這裡再擋一次。
+    if (subject.trim().isEmpty) {
+      throw TaskFailure(FetchFailed(R.current.forumSubjectRequired));
+    }
+    if (text.trim().isEmpty) {
+      throw TaskFailure(FetchFailed(R.current.forumMessageRequired));
+    }
+
+    int? attachmentsId;
+    try {
+      if (hadAttachments || newAttachments.isNotEmpty) {
+        if (!MoodleWebApiConnector.canPrepareForumDraftArea) {
+          // 這裡不可以降級成「不送 attachmentsid」：那會把
+          // forum_posts.attachment 清成空字串。入口那邊已經先擋過一次
+          // （`CourseForumThreadPage._canEdit`），這是縱深防禦。
+          throw TaskFailure(FetchFailed(R.current.forumEditAttachmentsWebOnly));
+        }
+        attachmentsId = await _buildEditDraftArea(
+          postId: postId,
+          keepAttachments: keepAttachments,
+          newAttachments: newAttachments,
+          policy: policy,
+          onProgress: onProgress,
+          cancelToken: cancelToken,
+        );
+      }
+      await writePostUpdate(
+        postId: postId,
+        subject: subject,
+        message: text,
+        attachmentsId: attachmentsId,
+      );
+    } on MoodleApiException catch (e) {
+      throw TaskFailure(FetchFailed(forumPostFailureMessage(e)));
+    }
+
+    // 回傳裡沒有更新後的貼文，所以一定要重讀：這一趟同時完成能力刷新與附件驗證。
+    final fresh = await fetchPostForEdit(postId);
+    if (fresh == null) return const ForumEditOutcome();
+    final sent = [
+      for (final f in keepAttachments) f.filename,
+      for (final f in newAttachments) MoodleForumEditUtils.basename(f.path),
+    ];
+    final missing =
+        MoodleForumEditUtils.missingAttachments(sent, fresh.attachments);
+    return ForumEditOutcome(
+      warning: missing.isEmpty
+          ? null
+          : sprintf(R.current.forumAttachmentMissing, [missing.join('、')]),
+    );
+  }
+
+  /// 編輯路徑的 draft 區：先把既有附件種進去（`filestokeep` 決定留哪些，
+  /// **空陣列是全部留著**），再把新挑的檔案傳進**同一區**。
+  Future<int> _buildEditDraftArea({
+    required int postId,
+    required List<MoodleForumFile> keepAttachments,
+    required List<File> newAttachments,
+    required ForumAttachPolicy policy,
+    void Function(ForumTransferProgress progress)? onProgress,
+    CancelToken? cancelToken,
+  }) async {
+    if (newAttachments.isNotEmpty) {
+      _checkForumAttachmentNames([
+        for (final f in keepAttachments) f.filename,
+        for (final f in newAttachments) MoodleForumEditUtils.basename(f.path),
+      ], policy);
+    }
+    final area = await writeForumDraftArea(
+      postId: postId,
+      // 空的 `filestokeep` 是「**全部保留**」，不是「全部刪掉」。所以使用者把
+      // 既有附件全部移除時不能送空陣列，要送一個對不到任何檔案的哨兵名單，
+      // draft 區裡的舊檔案才會被刪光。
+      filesToKeep: keepAttachments.isEmpty
+          ? const [(filename: _keepNothingSentinel, filepath: '/')]
+          : [
+              for (final f in keepAttachments)
+                (filename: f.filename, filepath: f.filepath),
+            ],
+    );
+    if (newAttachments.isNotEmpty) {
+      // 編輯路徑才拿得到伺服器解析過（含課程層級）的真實上限。
+      await _checkForumAttachmentSizes(newAttachments, policy, area.maxbytes);
+    }
+    return _buildForumDraftArea(
+      newAttachments,
+      itemId: area.draftitemid,
+      onProgress: onProgress,
+      cancelToken: cancelToken,
+    );
+  }
+
+  /// 刪除一篇貼文。[isTopicPost] 為真時伺服器會刪掉**整串**。
+  ///
+  /// 成功後**不重讀討論串**：主文被刪掉時 `get_discussion_posts` 會在
+  /// `$discussion->get_forum_id()` 丟 PHP Error，看起來就像刪除失敗。
+  /// 由呼叫端決定是重載主題清單（主文）還是重載討論串（回覆）。
+  Future<Result<bool>> deletePost({
+    required int postId,
+    required bool isTopicPost,
+    required int discussionId,
+  }) =>
+      run<bool>(
+        requires: const {SystemId.moodleWebApi},
+        retry: RetryPolicy.none,
+        errorMessage: R.current.forumDeleteError,
+        debugLabel: 'moodleForumDeletePost',
+        fetch: () async {
+          try {
+            await writePostDelete(postId);
+          } on MoodleApiException catch (e) {
+            throw TaskFailure(FetchFailed(forumPostFailureMessage(e)));
+          }
+          // 討論串已經不存在，留著那筆快取就是一份指向空氣的舊資料。
+          if (isTopicPost) {
+            await CacheStore.instance
+                .removeEntry(discussionPostsKey(discussionId));
+          }
+          return true;
         },
       );
+
+  /// 新增路徑（回覆／新主題）的附件前置：本地先擋三件事，再把整批送進一個
+  /// draft 區。空清單直接回 null＝不送 `attachmentsid`。
+  Future<int?> _prepareNewAttachments(
+    List<File> files,
+    ForumAttachPolicy policy, {
+    void Function(ForumTransferProgress progress)? onProgress,
+    CancelToken? cancelToken,
+  }) async {
+    if (files.isEmpty) return null;
+    _checkForumAttachmentNames(
+        [for (final f in files) MoodleForumEditUtils.basename(f.path)], policy);
+    await _checkForumAttachmentSizes(files, policy, 0);
+    return _buildForumDraftArea(files,
+        onProgress: onProgress, cancelToken: cancelToken);
+  }
+
+  /// 送出前一定要在本地擋掉的三件事：站台關掉上傳、重名（upload.php 會回
+  /// `filenameexist`）、超過檔案數（伺服器靜靜丟掉多的、不回 warning）。
+  void _checkForumAttachmentNames(
+      List<String> filenames, ForumAttachPolicy policy) {
+    if (!policy.enabled) {
+      throw TaskFailure(FetchFailed(R.current.forumAttachmentDisabled));
+    }
+    final site = MoodleWebApiConnector.siteInfo;
+    if (site != null && site.uploadfiles != 1) {
+      throw TaskFailure(FetchFailed(R.current.forumAttachmentUploadDisabled));
+    }
+    if (MoodleForumEditUtils.duplicateFilename(filenames) != null) {
+      throw TaskFailure(FetchFailed(R.current.forumAttachmentDuplicateName));
+    }
+    if (MoodleForumEditUtils.exceedsCount(filenames.length, policy.maxFiles)) {
+      throw TaskFailure(FetchFailed(sprintf(
+          R.current.forumAttachmentCountExceeded,
+          [policy.maxFiles.toString()])));
+    }
+  }
+
+  /// 逐一量大小：超過上限的檔案伺服器不會抱怨，只會靜靜不見。
+  /// [areaMax] 是 `prepare_draft_area_for_post` 回的真值，有就優先。
+  Future<void> _checkForumAttachmentSizes(
+      List<File> files, ForumAttachPolicy policy, int areaMax) async {
+    final maxBytes = MoodleForumEditUtils.effectiveMaxBytes(
+      siteMax: MoodleWebApiConnector.siteInfo?.usermaxuploadfilesize ?? 0,
+      forumMax: policy.maxBytes,
+      areaMax: areaMax,
+    );
+    if (maxBytes <= 0) return;
+    for (final f in files) {
+      if (MoodleForumEditUtils.exceedsSize(await f.length(), maxBytes)) {
+        throw TaskFailure(FetchFailed(sprintf(
+            R.current.forumAttachmentTooLarge, [
+          MoodleForumEditUtils.basename(f.path),
+          FileUtils.formatBytes(maxBytes, 1)
+        ])));
+      }
+    }
+  }
+
+  /// 把整批檔案送進同一個 draft 區，回那個 itemid。一個一個傳，不並行；
+  /// 任何一個失敗就整批放棄——半套的 draft 送進 `update_discussion_post`
+  /// 就是把附件同步成錯的樣子。
+  Future<int> _buildForumDraftArea(
+    List<File> files, {
+    int? itemId,
+    void Function(ForumTransferProgress progress)? onProgress,
+    CancelToken? cancelToken,
+  }) async {
+    var id = itemId;
+    for (var i = 0; i < files.length; i++) {
+      final name = MoodleForumEditUtils.basename(files[i].path);
+      final uploaded = await writeDraftFile(
+        files[i],
+        filename: name,
+        draftItemId: id,
+        onProgress: (sent, total) => onProgress?.call(ForumTransferProgress(
+          done: i,
+          total: files.length,
+          ratio: total <= 0 ? 0 : sent / total,
+          phase: ForumTransferPhase.upload,
+          filename: name,
+        )),
+        cancelToken: cancelToken,
+      );
+      if (uploaded == null) {
+        throw TaskFailure(FetchFailed(R.current.forumSendError));
+      }
+      id ??= uploaded;
+    }
+    // 上傳做完就進入「送出中」：這一段不能取消，請求出去就收不回來。
+    onProgress?.call(ForumTransferProgress(
+      done: files.length,
+      total: files.length,
+      ratio: 0,
+      phase: ForumTransferPhase.posting,
+    ));
+    return id!;
+  }
+
+  /// 伺服器實際收下的附件比對回送出的清單，少了就明講少了哪一個。
+  String? _missingAttachmentWarning(
+      List<File> sent, List<MoodleForumFile> got) {
+    if (sent.isEmpty) return null;
+    final missing = MoodleForumEditUtils.missingAttachments(
+        [for (final f in sent) MoodleForumEditUtils.basename(f.path)], got);
+    if (missing.isEmpty) return null;
+    return sprintf(R.current.forumAttachmentMissing, [missing.join('、')]);
+  }
 
   /// 樂觀併入剛送出的回覆之後把整串寫回同一筆快取。理由同
   /// [saveNotifications]：`run()` 只在 fetch 成功那一刻寫快取，寫入路徑沒有
@@ -1107,8 +1608,31 @@ String avatarFailureMessage(MoodleApiException e) => switch (e.errorcode) {
 String forumPostFailureMessage(MoodleApiException e) => switch (e.errorcode) {
       'nopostforum' => R.current.forumErrorNoPermission,
       'cannotcreatediscussion' => R.current.forumErrorCannotCreateDiscussion,
+      // can_edit_post 為假。時間窗、不是自己的貼文、mailnow 三種原因都會走到
+      // 這裡，而客戶端分不出是哪一種（$CFG->maxeditingtime 沒有任何 web
+      // service 讀得到），所以只講一句每一種情形都成立的話。真正的「時間到了」
+      // 由按下編輯時那一趟守門（capabilities.edit == false）先講，
+      // 這一格是守門到寫入之間那段空隙的答案。**不可以配網頁入口**：
+      // 網頁版 mod/forum/post.php 走同一個 can_edit_post，一樣做不到。
+      'cannotupdatepost' => R.current.forumErrorNoEditPermission,
+      // prepare_draft_area_for_post 在 can_edit_post 為假時丟的就是這一個。
+      // 字面是「沒有檢視權限」，實際意思是「你不能編輯這一篇」——照字面翻會
+      // 給使用者一句完全誤導的話。
+      'noviewdiscussionspermission' => R.current.forumEditWindowClosed,
+      'cannotdeletepost' => R.current.forumCannotDeletePost,
+      // 有回覆就刪不掉，句點；網頁版走同一個 validate_delete_post。
+      'couldnotdeletereplies' => R.current.forumCannotDeleteHasReplies,
+      // 這一個的 module 是 rating，不是 forum。
+      'couldnotdeleteratings' => R.current.forumCannotDeleteRated,
+      'filenameexist' => R.current.forumAttachmentDuplicateName,
+      'fileoversized' ||
+      'userquotalimit' ||
+      'upload_error_ini_size' ||
+      'upload_error_form_size' =>
+        R.current.assignFileTooLargeUnknown,
       'invalidparentpostid' ||
-      'notpartofdiscussion' =>
+      'notpartofdiscussion' ||
+      'invalidpostid' =>
         R.current.forumErrorPostGone,
       'forumblockingtoomanyposts' => R.current.forumErrorTooManyPosts,
       'accessexception' => R.current.forumCannotPost,

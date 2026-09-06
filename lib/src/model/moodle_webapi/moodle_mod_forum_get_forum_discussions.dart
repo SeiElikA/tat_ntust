@@ -17,9 +17,17 @@ class MoodleModForumGetForumDiscussions {
   @JsonKey(name: 'forumFound', defaultValue: true)
   bool forumFound;
 
+  /// 這批主題屬於哪個 forum instance。伺服器不回這個欄位——它由 connector
+  /// 填（公告那條路的 forum id 本來只活在 `_findAnnouncementForumId` 裡面），
+  /// 而回覆要附件就必須知道它。加性欄位：舊快取解回來是 0，那時附件入口收起
+  /// 來，回覆／編輯／刪除照常。
+  @JsonKey(name: 'forumId', defaultValue: 0)
+  int forumId;
+
   MoodleModForumGetForumDiscussions({
     List<Discussions>? discussions,
     this.forumFound = true,
+    this.forumId = 0,
   }) {
     this.discussions = discussions ?? [];
   }

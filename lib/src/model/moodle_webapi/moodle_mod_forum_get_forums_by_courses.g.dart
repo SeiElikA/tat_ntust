@@ -14,6 +14,8 @@ MoodleForum _$MoodleForumFromJson(Map<String, dynamic> json) => MoodleForum(
       cmid: (json['cmid'] as num?)?.toInt() ?? 0,
       numdiscussions: (json['numdiscussions'] as num?)?.toInt() ?? 0,
       cancreatediscussions: json['cancreatediscussions'] as bool?,
+      maxattachments: (json['maxattachments'] as num?)?.toInt() ?? 0,
+      maxbytes: (json['maxbytes'] as num?)?.toInt() ?? 0,
     );
 
 Map<String, dynamic> _$MoodleForumToJson(MoodleForum instance) =>
@@ -25,4 +27,6 @@ Map<String, dynamic> _$MoodleForumToJson(MoodleForum instance) =>
       'cmid': instance.cmid,
       'numdiscussions': instance.numdiscussions,
       'cancreatediscussions': instance.cancreatediscussions,
+      'maxattachments': instance.maxattachments,
+      'maxbytes': instance.maxbytes,
     };

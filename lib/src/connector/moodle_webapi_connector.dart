@@ -23,7 +23,10 @@ import 'package:flutter_app/src/model/moodle_webapi/moodle_gradereport_overview_
 import 'package:flutter_app/src/model/moodle_webapi/moodle_message_popup_notifications.dart';
 import 'package:flutter_app/src/model/moodle_webapi/moodle_mod_assign_get_assignments.dart';
 import 'package:flutter_app/src/model/moodle_webapi/moodle_mod_assign_get_submission_status.dart';
+import 'package:flutter_app/src/model/moodle_webapi/moodle_forum_write_status.dart';
 import 'package:flutter_app/src/model/moodle_webapi/moodle_mod_forum_can_add_discussion.dart';
+import 'package:flutter_app/src/model/moodle_webapi/moodle_mod_forum_draft_area.dart';
+import 'package:flutter_app/src/model/moodle_webapi/moodle_mod_forum_get_forum_access_information.dart';
 import 'package:flutter_app/src/model/moodle_webapi/moodle_mod_forum_get_discussion_posts.dart';
 import 'package:flutter_app/src/model/moodle_webapi/moodle_mod_forum_get_forum_discussions.dart';
 import 'package:flutter_app/src/model/moodle_webapi/moodle_mod_forum_get_forums_by_courses.dart';
@@ -36,6 +39,7 @@ import 'package:flutter_app/src/model/moodle_webapi/moodle_user_picture.dart';
 import 'package:flutter_app/src/store/model.dart';
 import 'package:flutter_app/src/util/html_utils.dart';
 import 'package:flutter_app/src/util/moodle_course_name_utils.dart';
+import 'package:flutter_app/src/util/moodle_forum_edit_utils.dart';
 import 'package:flutter_app/src/util/moodle_forum_utils.dart';
 
 enum MoodleWebApiConnectorStatus { loginSuccess, loginFail }
@@ -154,6 +158,31 @@ class MoodleWebApiConnector {
 
   /// 「這個討論區現在能不能開新主題」。不含發文節流。
   static const String canAddDiscussionFunction = "mod_forum_can_add_discussion";
+
+  /// 這個討論區的 capability 快照。type=read。整份回應是
+  /// `load_capability_def('mod_forum')` 執行期攤出來的，欄位集合跟著站台版本
+  /// 走，每一格都是 VALUE_OPTIONAL；**沒有 `caneditownpost`**（見
+  /// [MoodleForumAccess]）。這次只為了 `cancreateattachment` 打它。
+  static const String forumAccessInformationFunction =
+      "mod_forum_get_forum_access_information";
+
+  /// 單獨一篇貼文，帶**資料庫裡的原文**與抓取當下的 capabilities。type=read。
+  static const String discussionPostFunction = "mod_forum_get_discussion_post";
+
+  /// 把貼文現有的附件整批複製進使用者的 draft 區。type=write。
+  static const String prepareDraftAreaFunction =
+      "mod_forum_prepare_draft_area_for_post";
+
+  /// 編輯自己的貼文。type=write。
+  static const String updateDiscussionPostFunction =
+      "mod_forum_update_discussion_post";
+
+  /// 刪除自己的貼文（沒有父貼文時連整串一起刪）。type=write。
+  static const String deletePostFunction = "mod_forum_delete_post";
+
+  /// `prepare_draft_area_for_post` 的 `area` 只能是 `attachment` 或 `post`，
+  /// 其他值丟 `invalid_parameter_exception`（**沒有** forum errorcode）。
+  static const String forumDraftAreaAttachment = "attachment";
 
   /// FORMAT_PLAIN。`messageformat` 的 VALUE_DEFAULT 是 FORMAT_HTML，
   /// 不送就等於宣告「這是 HTML」，手機上打的純文字會掉換行、`a < b` 被吃掉。
@@ -925,7 +954,11 @@ class MoodleWebApiConnector {
         "sortorder": 1,
         "groupid": 0,
       });
-      return announcementsOf(result);
+      final parsed = announcementsOf(result);
+      // 合成欄位：公告那條路的 forum id 本來只活在 _findAnnouncementForumId
+      // 裡面，而回覆要附件就必須知道它。
+      if (parsed != null) parsed.forumId = forumId;
+      return parsed;
     } catch (e, stack) {
       _reportFailure(forumDiscussionsFunction, e, stack);
       return null;
@@ -937,10 +970,7 @@ class MoodleWebApiConnector {
   static Future<int?> _findAnnouncementForumId(String courseId) async {
     Object? forumsError;
     try {
-      final forums = forumsOf(await _callWs(forumsByCoursesFunction, {
-        "moodlewssettingfilter": "true",
-        "courseids[0]": courseId,
-      }));
+      final forums = await _fetchForums(courseId);
       if (forums != null) return pickAnnouncementForum(forums)?.id;
     } catch (e) {
       // 這裡吞掉是為了「站台沒開這支 function」那條名稱比對的退路，但 token
@@ -964,6 +994,23 @@ class MoodleWebApiConnector {
         if (e is Map) MoodleForum.fromJson(Map<String, dynamic>.from(e)),
     ];
   }
+
+  /// 這門課的討論區清單。失敗回 null（附件政策問不到就是「不給附件」）。
+  /// 與公告那條路共用同一趟參數，只差這裡吞掉例外。
+  static Future<List<MoodleForum>?> getForums(String courseId) async {
+    try {
+      return await _fetchForums(courseId);
+    } catch (e, stack) {
+      _reportFailure(forumsByCoursesFunction, e, stack);
+      return null;
+    }
+  }
+
+  static Future<List<MoodleForum>?> _fetchForums(String courseId) async =>
+      forumsOf(await _callWs(forumsByCoursesFunction, {
+        "moodlewssettingfilter": "true",
+        "courseids[0]": courseId,
+      }));
 
   static const String newsForumType = 'news';
 
@@ -1102,6 +1149,25 @@ class MoodleWebApiConnector {
     }
   }
 
+  /// 形狀不對回 null。每一格都是 VALUE_OPTIONAL，缺席就是 null＝不知道。
+  @visibleForTesting
+  static MoodleForumAccess? accessOf(dynamic result) {
+    if (result is! Map) return null;
+    return MoodleForumAccess.fromJson(Map<String, dynamic>.from(result));
+  }
+
+  /// 這個討論區的 capability 快照。失敗回 null——附件上「不知道」等於「不給」。
+  static Future<MoodleForumAccess?> getForumAccess(int forumId) async {
+    try {
+      return accessOf(await _callWs(forumAccessInformationFunction, {
+        "forumid": forumId.toString(),
+      }));
+    } catch (e, stack) {
+      _reportFailure(forumAccessInformationFunction, e, stack);
+      return null;
+    }
+  }
+
   /// 站台有沒有對這個 token 開放「回覆」。site_info 還沒載入時 fail-open，
   /// 態度與 [wsFunctionBlocked] 一致：第一次送出才會拿到 accessexception。
   static bool get canPostToForum =>
@@ -1111,6 +1177,24 @@ class MoodleWebApiConnector {
   /// 其中一支，所以不共用同一顆旗標。
   static bool get canCreateDiscussion =>
       wsFunctionBlocked(addDiscussionFunction) == null;
+
+  /// 站台有沒有開放編輯。關掉時不畫編輯，選單只剩刪除。
+  static bool get canEditForumPost =>
+      wsFunctionBlocked(updateDiscussionPostFunction) == null;
+
+  static bool get canDeleteForumPost =>
+      wsFunctionBlocked(deletePostFunction) == null;
+
+  /// 關掉時**原本沒有附件的貼文照樣可以編輯**（附件區收起來），有附件的那些
+  /// 連編輯入口都不給：那時只剩「不送 `attachmentsid`」一條路，而那會把
+  /// `forum_posts.attachment` 清成空字串——檔案還在，主題清單的迴紋針不見。
+  static bool get canPrepareForumDraftArea =>
+      wsFunctionBlocked(prepareDraftAreaFunction) == null;
+
+  /// 關掉時編輯入口整個收起來：拿不到原文與新鮮的 capabilities，硬編會用過期
+  /// 的快照覆蓋掉伺服器上的東西。
+  static bool get canReadForumPost =>
+      wsFunctionBlocked(discussionPostFunction) == null;
 
   /// `post` 欄位 → 已正規化的貼文。缺席或形狀不對回 null；呼叫端必須把 null
   /// 當成失敗，**不可以**當成「送出成功但沒東西可畫」。
@@ -1140,10 +1224,16 @@ class MoodleWebApiConnector {
   /// 沒有冪等鍵：送出後連線中斷時，伺服器可能已經寫入而客戶端看到失敗。
   /// 這件事在客戶端無解，所以失敗文案寫「送出失敗」而不是「請再試一次」，
   /// 重新進頁面時的重新載入會顯示到底哪一則真的發出去了。
+  /// [attachmentsId] 是 `upload.php` 開出來的 draft 區 itemid，**不送等於
+  /// 沒有附件**（`forum_add_attachment()` 開頭是
+  /// `if (empty($post->attachments)) return true;`）。送了也不保證收得下：
+  /// 沒有 `mod/forum:createattachment` 時伺服器把這個值**靜靜改成 0**、不報錯，
+  /// 所以呼叫端必須事後比對回應裡的 `post.attachments`。
   static Future<MoodleForumPost> addDiscussionPost({
     required int postId,
     required String subject,
     required String message,
+    int? attachmentsId,
   }) async {
     try {
       final result = await _callWs(
@@ -1155,6 +1245,10 @@ class MoodleWebApiConnector {
           "messageformat": forumMessageFormatPlain,
           "options[0][name]": "topreferredformat",
           "options[0][value]": "1",
+          if (attachmentsId != null) ...{
+            "options[1][name]": "attachmentsid",
+            "options[1][value]": attachmentsId.toString(),
+          },
         },
         treatWarningsAsError: true,
       );
@@ -1181,10 +1275,14 @@ class MoodleWebApiConnector {
   /// `groupid: 0` 就是「用我目前的群組」：伺服器在群組模式關閉時會改成 -1，
   /// 否則代入 `groups_get_activity_group`。`discussionsubscribe` 不送，
   /// 沿用伺服器寫死的 true——送 0 會把學生從自己開的主題退訂。
+  /// [attachmentsId] 的語意與 [addDiscussionPost] 完全相同（含「沒有
+  /// createattachment 時靜靜變 0」）。這一支的回應**沒有 post**，所以事後驗證
+  /// 必須另外打一趟 `get_discussion_posts` 取第一篇比對。
   static Future<int> addDiscussion({
     required int forumId,
     required String subject,
     required String htmlMessage,
+    int? attachmentsId,
   }) async {
     try {
       final result = await _callWs(
@@ -1194,6 +1292,10 @@ class MoodleWebApiConnector {
           "subject": subject,
           "message": htmlMessage,
           "groupid": "0",
+          if (attachmentsId != null) ...{
+            "options[0][name]": "attachmentsid",
+            "options[0][value]": attachmentsId.toString(),
+          },
         },
         treatWarningsAsError: true,
       );
@@ -1211,6 +1313,199 @@ class MoodleWebApiConnector {
     } catch (e, stack) {
       _reportAndRethrow(addDiscussionFunction, e, stack);
     }
+  }
+
+  /// `mod_forum_get_discussion_post` 的 `post` → 編輯頁要的那幾格。
+  ///
+  /// **刻意不回 [MoodleForumPost]**：這一支回的是資料庫裡的**原文**
+  /// （post_exporter 的 `get_message()` 不跑 `format_text`，`@@PLUGINFILE@@`
+  /// 原封不動），一旦包成 `MoodleForumPost` 就會有人拿去 [_normalizePost] 或
+  /// 寫進 `cache_moodle_forum_posts`，那會把原文換成算繪好的 HTML 再存起來，
+  /// 之後的編輯就是拿算繪結果去覆蓋伺服器的原文。用一個不同的型別讓這件事
+  /// 在型別上不可能發生。
+  @visibleForTesting
+  static ForumPostEdit? postForEditOf(dynamic result) {
+    if (result is! Map) return null;
+    final post = result["post"];
+    if (post is! Map) return null;
+    final id = post["id"];
+    if (id is! num) return null;
+    final capabilities = post["capabilities"];
+    final attachments = post["attachments"];
+    return (
+      id: id.toInt(),
+      subject: HtmlUtils.clean(post["subject"]?.toString() ?? ""),
+      rawMessage: post["message"]?.toString() ?? "",
+      rawFormat: switch (post["messageformat"]) {
+        final num n => n.toInt(),
+        _ => MoodleForumUtils.formatHtml,
+      },
+      canEdit: capabilities is Map && capabilities["edit"] == true,
+      attachments: [
+        if (attachments is List)
+          for (final a in attachments)
+            if (a is Map)
+              MoodleForumFile.fromJson(Map<String, dynamic>.from(a)),
+      ],
+    );
+  }
+
+  /// 按下編輯時打的那一趟：拿新鮮的 `capabilities.edit` 與原文。
+  ///
+  /// **這一份回應不可以走 [_normalizePost]、也不可以進快取。**
+  /// 不帶 `includeinlineattachments`，所以 `messageinlinefiles` 必定是空的
+  /// ——不要拿它去解 `@@PLUGINFILE@@`。
+  static Future<ForumPostEdit?> getPostForEdit(int postId) async {
+    try {
+      return postForEditOf(await _callWs(discussionPostFunction, {
+        "moodlewssettingfilter": "true",
+        "moodlewssettingfileurl": "true",
+        "postid": postId.toString(),
+      }));
+    } catch (e, stack) {
+      _reportFailure(discussionPostFunction, e, stack);
+      return null;
+    }
+  }
+
+  /// 把這篇貼文現有的附件整批複製進使用者的 draft 區，回那個 draft 區。
+  ///
+  /// **空的 [filesToKeep] ＝全部保留，不是全部刪掉**（伺服器只在名單非空時
+  /// 才刪掉不在名單上的）。要移除某個既有附件，就把要留下的列出來。
+  ///
+  /// 它會先驗 `can_edit_post()`，不過就丟 **`noviewdiscussionspermission`**
+  /// ——那個 errorcode 會騙人，字面是「沒有檢視權限」，實際意思是「你不能
+  /// 編輯這一篇」（多半是超過 `$CFG->maxeditingtime`）。
+  static Future<MoodleForumDraftArea> prepareForumDraftArea({
+    required int postId,
+    List<({String filename, String filepath})> filesToKeep = const [],
+  }) async {
+    try {
+      final result = await _callWs(
+        prepareDraftAreaFunction,
+        {
+          "postid": postId.toString(),
+          "area": forumDraftAreaAttachment,
+          "draftitemid": "0",
+          for (var i = 0; i < filesToKeep.length; i++) ...{
+            "filestokeep[$i][filename]": filesToKeep[i].filename,
+            "filestokeep[$i][filepath]": filesToKeep[i].filepath,
+          },
+        },
+        treatWarningsAsError: true,
+      );
+      final area = draftAreaOf(result);
+      // 證明不了 draft 區存在就不能拿它去覆蓋附件——送一個假的 itemid 進
+      // update_discussion_post 會把既有附件同步成空的。
+      if (area == null) {
+        throw MoodleApiException(
+          wsFunction: prepareDraftAreaFunction,
+          errorcode: "couldnotadd",
+          message: "回應裡沒有可用的 draftitemid，無法確認 draft 區真的開好了",
+        );
+      }
+      return area;
+    } catch (e, stack) {
+      _reportAndRethrow(prepareDraftAreaFunction, e, stack);
+    }
+  }
+
+  /// 形狀不對、或 `draftitemid` 不是正整數時回 null。
+  @visibleForTesting
+  static MoodleForumDraftArea? draftAreaOf(dynamic result) {
+    if (result is! Map) return null;
+    final raw = result["draftitemid"];
+    final itemId = raw is num ? raw.toInt() : int.tryParse("$raw");
+    if (itemId == null || itemId <= 0) return null;
+    final files = result["files"];
+    return MoodleForumDraftArea(
+      draftitemid: itemId,
+      files: [
+        if (files is List)
+          for (final f in files)
+            if (f is Map)
+              MoodleForumDraftFile.fromJson(Map<String, dynamic>.from(f)),
+      ],
+      maxbytes:
+          MoodleForumDraftArea.intOptionOf(result["areaoptions"], "maxbytes"),
+      maxfiles:
+          MoodleForumDraftArea.intOptionOf(result["areaoptions"], "maxfiles"),
+    );
+  }
+
+  /// 編輯自己的貼文。
+  ///
+  /// 三件一定要記住的事：
+  /// 1. **不可以送 `topreferredformat`。** 這一支借用
+  ///    `add_discussion_post_parameters()` 做 validate_parameters，但選項白名單
+  ///    在函式本體，只認 `pinned` / `discussionsubscribe` / `inlineattachmentsid`
+  ///    / `attachmentsid`——送了會回 `errorinvalidparam`。從回覆那一段複製貼上
+  ///    是最自然的寫法，而且只有真的按下編輯才會炸。
+  /// 2. **空 subject／空 message ＝不改，不是清空**，然後照樣回 `status: true`。
+  ///    呼叫端要先擋掉空內容，否則使用者會看到「已更新」而東西一個字沒變。
+  /// 3. **不送 [attachmentsId] ＝既有附件原封不動**（`IGNORE_FILE_MERGE`），
+  ///    但 `forum_update_post()` 最後無條件呼叫 `forum_add_attachment()`，
+  ///    而 `empty(-1) === false` 過不了那個 early return，於是
+  ///    `file_get_draft_area_info(-1)` 回 filecount 0 →
+  ///    `$DB->set_field('forum_posts','attachment','')`：**貼文的 attachment
+  ///    旗標會被清成空字串**，檔案還在，但主題清單的迴紋針會憑空消失。
+  ///    所以「原本有附件」或「使用者新加了附件」時一律要送。
+  static Future<void> updateDiscussionPost({
+    required int postId,
+    required String subject,
+    required String message,
+    int? attachmentsId,
+  }) async {
+    try {
+      final result = await _callWs(
+        updateDiscussionPostFunction,
+        {
+          "postid": postId.toString(),
+          "subject": subject,
+          "message": message,
+          "messageformat": forumMessageFormatPlain,
+          if (attachmentsId != null) ...{
+            "options[0][name]": "attachmentsid",
+            "options[0][value]": attachmentsId.toString(),
+          },
+        },
+        treatWarningsAsError: true,
+      );
+      _requireWriteStatus(result, updateDiscussionPostFunction);
+    } catch (e, stack) {
+      _reportAndRethrow(updateDiscussionPostFunction, e, stack);
+    }
+  }
+
+  /// 刪除一篇貼文。**沒有父貼文（＝討論串主文）時伺服器會刪掉整串**
+  /// （`forum_delete_discussion`），所以確認框必須講清楚。
+  ///
+  /// 刪掉主文之後**不可以**再打 `mod_forum_get_discussion_posts`：那一支的
+  /// `$discussionvault->get_from_id()` 沒有 null 檢查，下一行
+  /// `$discussion->get_forum_id()` 會丟 PHP Error（回應裡沒有 forum errorcode），
+  /// 看起來就像「刪除失敗」，而其實已經刪掉了。
+  static Future<void> deleteForumPost(int postId) async {
+    try {
+      final result = await _callWs(
+        deletePostFunction,
+        {"postid": postId.toString()},
+        treatWarningsAsError: true,
+      );
+      _requireWriteStatus(result, deletePostFunction);
+    } catch (e, stack) {
+      _reportAndRethrow(deletePostFunction, e, stack);
+    }
+  }
+
+  /// `status != true` 一律當失敗。實務上不可達（`forum_update_post()` 最後
+  /// 無條件回 true），但證明不了寫入發生過就是失敗。
+  static void _requireWriteStatus(dynamic result, String wsFunction) {
+    if (MoodleForumWriteStatus.of(result)?.status == true) return;
+    throw MoodleApiException(
+      wsFunction: wsFunction,
+      errorcode: "badresponse",
+      message: "$wsFunction 沒有回 status: true，無法確認寫入真的發生過",
+    );
   }
 
   /// manager、coursecreator 是站台層級角色、不是這門課的老師，刻意不列：

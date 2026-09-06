@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'dart:io';
 
+import 'package:dio/dio.dart' show CancelToken;
 import 'package:flutter/material.dart';
 import 'package:flutter_app/src/R.dart';
 import 'package:flutter_app/src/connector/core/connector.dart';
@@ -11,29 +13,37 @@ import 'package:flutter_app/src/model/moodle_webapi/moodle_mod_forum_get_forum_d
 import 'package:flutter_app/src/repository/result.dart';
 import 'package:flutter_app/src/service/task_ui_delegate.dart';
 import 'package:flutter_app/src/util/language_utils.dart';
+import 'package:flutter_app/src/util/moodle_forum_edit_utils.dart';
 import 'package:flutter_app/src/util/moodle_forum_utils.dart';
-import 'package:flutter_app/ui/components/card/section_card.dart';
 import 'package:flutter_app/ui/components/custom_appbar.dart';
-import 'package:flutter_app/ui/components/html/moodle_html_view.dart';
 import 'package:flutter_app/ui/components/page/inline_error_view.dart';
 import 'package:flutter_app/ui/components/page/result_view.dart';
 import 'package:flutter_app/ui/components/page/web_view_opener.dart';
-import 'package:flutter_app/ui/components/tile/moodle_file_tile.dart';
+import 'package:flutter_app/ui/other/lucide_icons.dart';
 import 'package:flutter_app/ui/pages/course_data/screen/sub_page/course_forum_compose_page.dart';
+import 'package:flutter_app/ui/pages/course_data/screen/widgets/forum_attach_picker.dart';
+import 'package:flutter_app/ui/pages/course_data/screen/widgets/forum_bottom_bar.dart';
+import 'package:flutter_app/ui/pages/course_data/screen/widgets/forum_composer_bar.dart';
+import 'package:flutter_app/ui/pages/course_data/screen/widgets/forum_post_action_sheet.dart';
+import 'package:flutter_app/ui/pages/course_data/screen/widgets/forum_post_block.dart';
 import 'package:flutter_app/ui/service/file_download.dart';
 import 'package:get/get.dart';
-import 'package:intl/intl.dart';
-import 'package:flutter_app/ui/other/lucide_icons.dart';
 
 /// 一則討論串：第一篇加上全部回覆。公告分頁與一般討論區都推這一頁——它們是
-/// 同一種東西，只是討論區的 type 不同。WebView 開啟器由呼叫端注入，
-/// 見 docs/ARCHITECTURE.md「UI 慣例」；貼文本文走 [MoodleHtmlView]。
+/// 同一種東西，只是討論區的 type 不同。
+///
+/// **回覆不換頁**：底部釘一條 [ForumComposerBar]，對話還在上面。編輯與開新
+/// 主題才換頁（`CourseForumComposePage`）。WebView 開啟器由呼叫端注入，
+/// 見 docs/ARCHITECTURE.md「UI 慣例」。
 class CourseForumThreadPage extends StatefulWidget {
   const CourseForumThreadPage(
     this.courseInfo, {
     required this.discussionId,
     required this.title,
+    this.forumId = 0,
     this.fallbackDiscussion,
+    this.readOnly = false,
+    required this.onDiscussionChanged,
     required this.openWebView,
     super.key,
   });
@@ -47,9 +57,26 @@ class CourseForumThreadPage extends StatefulWidget {
   /// AppBar 標題。HTML 實體已由 connector 還原。
   final String title;
 
+  /// forum instance id。**只有附件政策要用它**；0（舊快取）時附件入口收起來，
+  /// 回覆／編輯／刪除照常——那三件事都不需要 forum record。
+  final int forumId;
+
   /// 抓不到回覆時的退路貼文來源：清單那一列本身就是第一篇貼文。從剛建立的
   /// 主題直接進來時手上沒有那一列，是 null。
   final Discussions? fallbackDiscussion;
+
+  /// 唯讀的討論區（公告區）。學生在那裡本來就不能回覆，網頁版也一樣——所以
+  /// 不畫「這裡不能回覆，去網頁」那條列：那句話的前提是「網頁還有路」。
+  /// 老師手上的回覆列不受影響，那條分支在前面就先走掉了。
+  final bool readOnly;
+
+  /// 清單那一列已經不是伺服器上的樣子了：主文被刪掉，或第一篇被編輯過
+  /// （`forum_discussions.name` 與附件旗標都會跟著變）。
+  ///
+  /// **刻意不是 pop 的回傳值**：回傳值只要有一個呼叫端忘了接就是靜默失效，
+  /// 而且返回手勢與返回鍵各有各的路。注入一個 callback 讓每個呼叫端都得
+  /// 決定要怎麼辦。
+  final VoidCallback onDiscussionChanged;
 
   final WebViewOpener openWebView;
 
@@ -60,29 +87,79 @@ class CourseForumThreadPage extends StatefulWidget {
 class _CourseForumThreadPageState extends State<CourseForumThreadPage> {
   late final CourseForumThreadController _controller;
 
+  /// AppBar 的標題。編輯第一篇會改掉主題名，那時它要跟著換——不然使用者剛
+  /// 改完標題，頭上那一行還在說舊的。
+  late String _title;
+  final _scrollController = ScrollController();
+  final _composerKey = GlobalKey<ForumComposerBarState>();
+
+  /// 每一則貼文一把 key，依 id 沿用——整串重抓之後捲動位置不會亂。
+  final _postKeys = <int, GlobalKey>{};
+
+  /// 正在回覆哪一篇。null ＝第一篇（預設）。
+  MoodleForumPost? _aimAt;
+
+  /// 由 [ForumComposerBar] 回報，給這一頁的 `PopScope` 用。
+  bool _hasDraft = false;
+  bool _busy = false;
+
+  CancelToken? _cancelToken;
+
   @override
   void initState() {
     super.initState();
-    _controller =
-        CourseForumThreadController(discussionId: widget.discussionId);
+    _title = widget.title;
+    _controller = CourseForumThreadController(
+      discussionId: widget.discussionId,
+      courseId: widget.courseInfo.main.course.id,
+      forumId: widget.forumId,
+    );
     unawaited(_controller.loadPosts());
+    unawaited(_controller.loadAttachPolicy());
   }
 
   @override
   void dispose() {
     _controller.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: baseAppbar(title: widget.title),
-      body: ResultView<List<MoodleForumPost>>(
-        state: _controller.posts,
-        onRetry: _controller.loadPosts,
-        errorBuilder: _fallback,
-        builder: _thread,
+    return PopScope(
+      // 送出中一律擋住：那一則已經在路上了，離開只會讓它沒有人接。
+      canPop: !_hasDraft && !_busy,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        if (_busy) {
+          TaskUiDelegate.instance.toast(R.current.forumSending);
+          return;
+        }
+        unawaited(_confirmDiscard());
+      },
+      child: Scaffold(
+        appBar: baseAppbar(
+          title: _title,
+          onBack: () => Navigator.maybePop(context),
+          action: [
+            IconButton(
+              tooltip: R.current.forumOpenInWeb,
+              icon: const Icon(LucideIcons.externalLink, size: 18),
+              onPressed: () => unawaited(_openInWeb()),
+            ),
+          ],
+        ),
+        body: ResultView<List<MoodleForumPost>>(
+          state: _controller.posts,
+          // **一定要 keepVisible**：這顆重試只出現在 `Stale` 的橫幅上，也就是
+          // 貼文與回覆列都還在畫面上的時候。清成 null 會把回覆列整個拆掉，
+          // 連同它 State 裡的草稿與已挑好的附件一起消失。
+          onRetry: () => _controller.loadPosts(keepVisible: true),
+          errorBuilder: _fallback,
+          builder: _thread,
+        ),
+        bottomNavigationBar: _bottomBar(),
       ),
     );
   }
@@ -92,10 +169,10 @@ class _CourseForumThreadPageState extends State<CourseForumThreadPage> {
   Widget _fallback(String message) {
     final discussion = widget.fallbackDiscussion;
     return ListView(
-      padding: const EdgeInsets.fromLTRB(12, 12, 12, 32),
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
       children: [
         if (discussion != null) ...[
-          ..._postBlock(ThreadPost(MoodleForumUtils.rootPostOf(discussion), 0),
+          _block(ThreadPost(MoodleForumUtils.rootPostOf(discussion), 0),
               first: true),
           const SizedBox(height: 12),
         ],
@@ -106,46 +183,378 @@ class _CourseForumThreadPageState extends State<CourseForumThreadPage> {
 
   Widget _thread(List<MoodleForumPost> posts) {
     final items = MoodleForumUtils.buildThread(posts);
-    // 沒有任何一篇可以回覆時用一行說明加網頁入口收尾，而不是給一顆按下去才
-    // 失敗的鈕。討論串被鎖、cutoff 過了、公告區的學生身分都會走到這裡。
-    final locked = !posts.any(_canReply);
     return ListView.builder(
-      padding: const EdgeInsets.fromLTRB(12, 12, 12, 32),
-      itemCount: items.length + (locked ? 1 : 0),
-      itemBuilder: (context, index) {
-        if (index == items.length) return _lockedFooter();
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: _postBlock(items[index], first: index == 0),
-        );
-      },
+      controller: _scrollController,
+      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+      // 底部 padding 只留 12：底下是一條實體的列，不是空氣。
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+      itemCount: items.length,
+      itemBuilder: (context, index) =>
+          _block(items[index], first: index == 0, posts: posts),
     );
   }
 
-  Widget _lockedFooter() {
-    final scheme = Theme.of(context).colorScheme;
-    final text = Theme.of(context).textTheme;
-    return Padding(
-      padding: const EdgeInsets.only(top: 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            R.current.forumThreadLocked,
-            style: text.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
+  Widget _block(ThreadPost item,
+      {required bool first, List<MoodleForumPost> posts = const []}) {
+    final p = item.post;
+    return ForumPostBlock(
+      key: _keyOf(p.id),
+      item: item,
+      first: first,
+      aimed: _aimAt?.id == p.id,
+      canReply: _canReply(p),
+      hasOwnerActions: _canEdit(p) || _canDelete(p),
+      onReply: () => _aim(p),
+      onActions: () => unawaited(_postActions(p, posts)),
+      onOpenFile: _download,
+      openWebView: widget.openWebView,
+      dirName: widget.courseInfo.main.course.name,
+      title: _title,
+    );
+  }
+
+  GlobalKey _keyOf(int postId) =>
+      _postKeys.putIfAbsent(postId, () => GlobalKey());
+
+  /// 三選一，永遠只有一個。
+  ///
+  /// 載入中與 `Failed` 都不畫列：能不能回覆來自 `capabilities`，貼文還沒到就
+  /// 沒有可以瞄準的對象，畫一條按不動的列等於說謊。`Stale` 照畫——「送出成功
+  /// 但重抓失敗」會停在那裡，那時使用者必須能繼續講話。
+  Widget _bottomBar() => Obx(() {
+        final result = _controller.posts.value;
+        final posts = switch (result) {
+          Ok<List<MoodleForumPost>>(:final data) => data,
+          Stale<List<MoodleForumPost>>(:final data) => data,
+          _ => null,
+        };
+        if (posts == null) return const SizedBox.shrink();
+        if (!posts.any(_canReply)) {
+          // 公告區的唯讀是常態，不是「App 走不通」：網頁版走的是同一個
+          // `replynews`，那條列只會給一個一樣被拒的出口。
+          if (widget.readOnly) return const SizedBox.shrink();
+          return ForumNoticeBar(
+            message: R.current.forumThreadLocked,
+            onOpenWeb: () => unawaited(_openInWeb()),
+          );
+        }
+        return ForumComposerBar(
+          key: _composerKey,
+          hintText: R.current.forumReplyHint,
+          targetLabel: _aimAt == null ? null : _authorOf(_aimAt!),
+          topicLabel: _title,
+          canAttach: _controller.policy.enabled,
+          maxAttachments: _controller.policy.maxFiles,
+          maxBytes: _controller.policy.maxBytes,
+          onPickFiles: _pickFiles,
+          onSend: _send,
+          onCancelUpload: () => _cancelToken?.cancel(),
+          onAimAtRoot: () => setState(() => _aimAt = null),
+          onScrollToTarget: () => _scrollTo(_targetPost?.id),
+          onDraftChanged: _setHasDraft,
+          onBusyChanged: (busy) => setState(() => _busy = busy),
+        );
+      });
+
+  /// 回覆列被拿掉時會在 post-frame 回報一次 false，那時整頁可能已經走了；
+  /// 沒有 `mounted` 這一格就會是 setState after dispose。
+  void _setHasDraft(bool has) {
+    if (!mounted || _hasDraft == has) return;
+    setState(() => _hasDraft = has);
+  }
+
+  String _authorOf(MoodleForumPost p) {
+    final name = p.author?.fullname ?? "";
+    return name.isNotEmpty ? name : R.current.forumUnknownAuthor;
+  }
+
+  /// 瞄準某一篇：目標列出現、輸入框取得焦點、那一篇捲到列的上緣並加外框。
+  void _aim(MoodleForumPost p) {
+    setState(() => _aimAt = _rootPost?.id == p.id ? null : p);
+    _composerKey.currentState?.focusInput();
+    _scrollTo(p.id);
+  }
+
+  void _scrollTo(int? postId) {
+    if (postId == null) return;
+    final context = _keyOf(postId).currentContext;
+    if (context == null) return;
+    unawaited(Scrollable.ensureVisible(
+      context,
+      alignment: 0.1,
+      duration: const Duration(milliseconds: 200),
+      curve: Curves.easeOut,
+    ));
+  }
+
+  MoodleForumPost? get _rootPost {
+    final posts = _controller.posts.value?.dataOrNull;
+    if (posts == null || posts.isEmpty) return null;
+    for (final p in posts) {
+      if (!p.hasparent) return p;
+    }
+    return posts.first;
+  }
+
+  /// 回覆的目標：使用者沒有指定時就是第一篇。
+  MoodleForumPost? get _targetPost => _aimAt ?? _rootPost;
+
+  Future<List<File>> _pickFiles(int remaining) =>
+      pickForumAttachments(context, remaining: remaining);
+
+  /// 送出一則回覆。true ＝成功（列自己清空）。
+  Future<bool> _send(
+    String text,
+    List<File> files, {
+    required void Function(ForumTransferProgress progress) onProgress,
+  }) async {
+    final parent = _targetPost;
+    if (parent == null) return false;
+    final token = CancelToken();
+    _cancelToken = token;
+    try {
+      final result = await _controller.reply(
+        postId: parent.id,
+        subject: _replySubject(parent),
+        text: text,
+        attachments: files,
+        policy: _controller.policy,
+        onProgress: onProgress,
+        cancelToken: token,
+      );
+      if (!mounted) return false;
+      switch (result) {
+        case Ok(:final data):
+          await _afterReply(data);
+          return true;
+        case Stale(:final reason):
+        case Failed(:final reason):
+          // 留在原地，文字與附件原封不動。
+          TaskUiDelegate.instance.toast(reason.message);
+          return false;
+      }
+    } finally {
+      _cancelToken = null;
+    }
+  }
+
+  Future<void> _afterReply(ForumReplyOutcome outcome) async {
+    setState(() => _aimAt = null);
+    await _controller.appendPost(outcome.post);
+    // 重抓是為了拿伺服器排好的順序與新的 capabilities；失敗時 controller 會
+    // 退回 Stale，剛送出的那一則留在畫面上——寫入確實成功了。
+    await _controller.loadPosts(keepVisible: true);
+    if (!mounted) return;
+    // 回覆路徑不吐「已送出」：那則回覆就在眼前。
+    if (_controller.posts.value is Stale<List<MoodleForumPost>>) {
+      TaskUiDelegate.instance.toast(R.current.forumSendDoneRefreshFailed);
+    }
+    // 附件被伺服器靜靜丟掉時另外說一句：貼文真的發出去了，不可以報成失敗，
+    // 也不可以裝作全部都上去了。
+    final warning = outcome.warning;
+    if (warning != null) TaskUiDelegate.instance.toast(warning);
+    WidgetsBinding.instance
+        .addPostFrameCallback((_) => _scrollTo(outcome.post.id));
+  }
+
+  Future<void> _postActions(
+      MoodleForumPost p, List<MoodleForumPost> posts) async {
+    final action = await showForumPostActionSheet(
+      context,
+      canEdit: _canEdit(p),
+      canDelete: _canDelete(p),
+      deleteBlockedByReplies:
+          MoodleForumEditUtils.hasVisibleReplies(posts, p.id),
+    );
+    if (action == null || !mounted) return;
+    switch (action) {
+      case ForumPostAction.edit:
+        await _startEdit(p);
+      case ForumPostAction.delete:
+        await _confirmDelete(p);
+    }
+  }
+
+  /// 編輯的守門（最容易做壞的一格）。
+  ///
+  /// 一定要先打一趟 `mod_forum_get_discussion_post`：畫面上的
+  /// `capabilities.edit` 是抓取當下的快照，而編輯窗長度讀不到；而且編輯頁要
+  /// 填的是**原文**，快取裡只有算繪好的 HTML。
+  Future<void> _startEdit(MoodleForumPost p) async {
+    final fresh = await _controller.loadPostForEdit(p.id);
+    if (!mounted) return;
+    if (fresh == null) {
+      TaskUiDelegate.instance.toast(R.current.forumEditError);
+      return;
+    }
+    if (!fresh.canEdit) {
+      // 不提網頁：網頁版走同一個 can_edit_post，一樣過期了。
+      TaskUiDelegate.instance.toast(R.current.forumEditWindowClosed);
+      await _controller.loadPosts(keepVisible: true);
+      return;
+    }
+    if (!MoodleForumEditUtils.isPlainRoundTrip(
+        fresh.rawMessage, fresh.rawFormat)) {
+      await _richEditDialog();
+      return;
+    }
+    if (!mounted) return;
+    final isTopicPost = !p.hasparent;
+    final outcome = await Get.to<ForumEditOutcome>(
+      () => CourseForumComposePage.edit(
+        postId: p.id,
+        isTopicPost: isTopicPost,
+        initialSubject: fresh.subject,
+        initialText: MoodleForumEditUtils.htmlToPlain(fresh.rawMessage),
+        existingAttachments: fresh.attachments,
+        // 每一次送出都是一把新的 token。`??=` 會把使用者取消過的那一把一直
+        // 遞回去，而 dio 對已取消的 token 是在送出之前就直接丟——重試永遠
+        // 不可能成功，人就困在一頁按不動的編輯器上。
+        onSendEdit: (subject, text, keep, added, {required onProgress}) async {
+          final token = CancelToken();
+          _cancelToken = token;
+          try {
+            return await _controller.editPost(
+              postId: p.id,
+              subject: subject,
+              text: text,
+              keepAttachments: keep,
+              newAttachments: added,
+              hadAttachments: fresh.attachments.isNotEmpty,
+              policy: _editAttachPolicy,
+              onProgress: onProgress,
+              cancelToken: token,
+            );
+          } finally {
+            _cancelToken = null;
+          }
+        },
+        attachPolicy: _editAttachPolicy,
+        onPickFiles: _pickFiles,
+        onCancelUpload: () => _cancelToken?.cancel(),
+        onOpenAttachment: (f) async => _download(f),
+        openWebView: widget.openWebView,
+        webUrl: _discussionUrl(),
+        webTitle: _title,
+      ),
+    );
+    if (outcome == null || !mounted) return;
+    // 回傳裡沒有更新後的貼文，所以一定要重讀伺服器。
+    await _controller.loadPosts(keepVisible: true);
+    if (!mounted) return;
+    if (isTopicPost) {
+      // 編輯第一篇會連帶改掉 `forum_discussions.name` 與附件旗標：清單那一列
+      // 的標題與迴紋針都已經不對了，頭上這一行也是。標題取伺服器重讀回來的
+      // 那一份，重抓失敗（Stale）時寧可留著舊的，也不要換成空字串。
+      final subject = _rootPost?.subject ?? '';
+      if (subject.isNotEmpty) setState(() => _title = subject);
+      widget.onDiscussionChanged();
+    }
+    TaskUiDelegate.instance.toast(R.current.forumEditDone);
+    final warning = outcome.warning;
+    if (warning != null) TaskUiDelegate.instance.toast(warning);
+  }
+
+  /// 站台沒開 `prepare_draft_area_for_post` 時附件區收起來：沒有它就沒有辦法
+  /// 種一個含既有附件的 draft 區。**原本就有附件的貼文連編輯入口都不會有**
+  /// （見 [_canEdit]），走到這裡的一定是原本沒有附件的那些。
+  ForumAttachPolicy get _editAttachPolicy =>
+      MoodleWebApiConnector.canPrepareForumDraftArea
+          ? _controller.policy
+          : const ForumAttachPolicy.off();
+
+  /// 這是網頁連結唯一一次真的是答案，而且理由寫在同一句話裡。
+  Future<void> _richEditDialog() => Get.dialog<void>(
+        AlertDialog.adaptive(
+          content: Text(R.current.forumEditRichWebOnly),
+          actions: [
+            TextButton(
+              onPressed: () => Get.back<void>(),
+              child: Text(R.current.cancel),
+            ),
+            TextButton(
+              onPressed: () {
+                Get.back<void>();
+                unawaited(_openInWeb());
+              },
+              child: Text(R.current.forumEditInWeb),
+            ),
+          ],
+        ),
+      );
+
+  Future<void> _confirmDelete(MoodleForumPost p) async {
+    final isTopicPost = !p.hasparent;
+    final confirmed = await Get.dialog<bool>(
+      AlertDialog.adaptive(
+        // 主文的刪除會連同整串一起消失——Moodle 的行為，不可以用同一句話騙人。
+        content: Text(isTopicPost
+            ? R.current.forumDeleteTopicConfirm
+            : R.current.forumDeletePostConfirm),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back<bool>(result: false),
+            child: Text(R.current.cancel),
           ),
-          TextButton.icon(
-            onPressed: () => unawaited(_openInWeb()),
-            icon: const Icon(LucideIcons.externalLink, size: 16),
-            label: Text(R.current.forumOpenInWeb),
+          TextButton(
+            onPressed: () => Get.back<bool>(result: true),
+            child: Text(R.current.sure),
           ),
         ],
       ),
     );
+    if (confirmed != true || !mounted) return;
+    final result =
+        await _controller.deletePost(postId: p.id, isTopicPost: isTopicPost);
+    if (!mounted) return;
+    switch (result) {
+      case Ok():
+        TaskUiDelegate.instance.toast(R.current.forumDeleteDone);
+        if (isTopicPost) {
+          // 討論串已經不存在，**不可以**再打 get_discussion_posts：伺服器端
+          // 那一支沒有 null 檢查，會丟 PHP Error 而看起來像刪除失敗。
+          widget.onDiscussionChanged();
+          Get.back();
+          return;
+        }
+        await _controller.removePost(p.id);
+        // 不樂觀地把那一列拿掉當作結論：Moodle 對有子貼文的貼文是換成墓碑
+        // 而不是刪除，伺服器說了算。
+        await _controller.loadPosts(keepVisible: true);
+      case Stale(:final reason):
+      case Failed(:final reason):
+        TaskUiDelegate.instance.toast(reason.message);
+    }
   }
 
-  Future<void> _openInWeb() =>
-      widget.openWebView(widget.title, _discussionUrl());
+  Future<void> _confirmDiscard() async {
+    final discard = await Get.dialog<bool>(
+      AlertDialog.adaptive(
+        content: Text(R.current.forumDiscardDraft),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back<bool>(result: false),
+            child: Text(R.current.cancel),
+          ),
+          TextButton(
+            onPressed: () => Get.back<bool>(result: true),
+            child: Text(R.current.sure),
+          ),
+        ],
+      ),
+    );
+    if (discard != true || !mounted) return;
+    Get.back();
+  }
+
+  void _download(MoodleForumFile f) => unawaited(FileDownload.download(
+        context,
+        MoodleWebApiConnector.fileUrlWithToken(f.url),
+        widget.courseInfo.main.course.name,
+        name: f.filename,
+      ));
+
+  Future<void> _openInWeb() => widget.openWebView(_title, _discussionUrl());
 
   /// 網頁版討論串。這裡不呼叫 `autologinUrl`：注入的 [CourseForumThreadPage
   /// .openWebView] 自己會換，再換一次等於在六分鐘的伺服器節流內多燒一把鑰匙。
@@ -155,65 +564,9 @@ class _CourseForumThreadPageState extends State<CourseForumThreadPage> {
         {"lang": LanguageUtils.getLangIndex() == LangEnum.zh ? "zh_tw" : "en"},
       );
 
-  List<Widget> _postBlock(ThreadPost t, {required bool first}) {
-    final p = t.post;
-    final scheme = Theme.of(context).colorScheme;
-    final author = p.author?.fullname ?? "";
-    return [
-      Padding(
-        padding: EdgeInsets.only(left: t.depth.clamp(0, 3) * 12.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SectionHeader(
-              icon: t.depth == 0 ? LucideIcons.megaphone : LucideIcons.reply,
-              title: author.isNotEmpty ? author : R.current.forumUnknownAuthor,
-              first: first,
-              trailing: Text(
-                _time(p),
-                style: Theme.of(context)
-                    .textTheme
-                    .bodySmall
-                    ?.copyWith(color: scheme.onSurfaceVariant),
-              ),
-            ),
-            SectionCard([
-              // 只有第一篇印標題：回覆的 subject 是伺服器語系的「回覆: …」，
-              // 重複又難看。
-              if (t.depth == 0 && p.subject.isNotEmpty)
-                SectionSubLabel(p.subject),
-              _body(p),
-              if (p.attachments.isNotEmpty) ...[
-                const SectionDivider(),
-                SectionSubLabel(R.current.forumAttachments),
-                for (final f in p.attachments)
-                  MoodleFileTile(
-                    filename: f.filename,
-                    onTap: () => unawaited(FileDownload.download(
-                      context,
-                      MoodleWebApiConnector.fileUrlWithToken(f.url),
-                      widget.courseInfo.main.course.name,
-                      name: f.filename,
-                    )),
-                  ),
-              ],
-              // 回覆鈕逐篇而不是一條底部列：回覆的對象因此永遠不會弄錯，
-              // 而最常見的「回第一篇」剛好落在最上面。
-              if (_canReply(p))
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: TextButton.icon(
-                    onPressed: () => unawaited(_compose(p)),
-                    icon: const Icon(LucideIcons.reply, size: 16),
-                    label: Text(R.current.forumReply),
-                  ),
-                ),
-            ]),
-          ],
-        ),
-      ),
-    ];
-  }
+  /// 伺服器組好的「回覆: …」，語系跟著站台；沒有就退回討論串標題。
+  String _replySubject(MoodleForumPost parent) =>
+      parent.replysubject.isNotEmpty ? parent.replysubject : _title;
 
   /// 伺服器算的 `capabilities.reply` 是唯一判準（**不是** `urls.reply`：
   /// `selfenrol` 會讓那個網址在不能回覆時也非 null）；站台沒開放這支
@@ -221,65 +574,24 @@ class _CourseForumThreadPageState extends State<CourseForumThreadPage> {
   bool _canReply(MoodleForumPost p) =>
       MoodleForumUtils.canReply(p) && MoodleWebApiConnector.canPostToForum;
 
-  /// 伺服器組好的「回覆: …」，語系跟著站台；沒有就退回討論串標題。
-  String _replySubject(MoodleForumPost parent) =>
-      parent.replysubject.isNotEmpty ? parent.replysubject : widget.title;
+  /// 編輯與刪除的閘門。缺席 ＝ null ＝ 不知道 ＝ 不畫（照抄 `canReply` 的態度）。
+  ///
+  /// `_controller.fresh` 那一項是 0-a：能力旗標是抓取當下的快照，而編輯窗長度
+  /// 讀不到，`Stale`（快取／離線／送出後重抓失敗）時它們就開始說謊。
+  bool _canEdit(MoodleForumPost p) =>
+      _controller.fresh &&
+      MoodleWebApiConnector.canEditForumPost &&
+      MoodleWebApiConnector.canReadForumPost &&
+      p.capabilities?.edit == true &&
+      !p.isdeleted &&
+      // 有附件而站台沒開 `prepare_draft_area_for_post` 時整個不給編輯：那條路
+      // 只剩「不送 attachmentsid」，而那會把主題清單的迴紋針清掉。與其在存檔
+      // 那一刻才拒絕，不如一開始就不給入口。
+      (p.attachments.isEmpty || MoodleWebApiConnector.canPrepareForumDraftArea);
 
-  Future<void> _compose(MoodleForumPost parent) async {
-    final added = await Get.to<MoodleForumPost>(
-      () => CourseForumComposePage.reply(
-        parent: parent,
-        subject: _replySubject(parent),
-        onSendReply: (text) => _controller.reply(
-          postId: parent.id,
-          subject: _replySubject(parent),
-          text: text,
-        ),
-        dirName: widget.courseInfo.main.course.name,
-        openWebView: widget.openWebView,
-        webUrl: _discussionUrl(),
-        webTitle: widget.title,
-      ),
-    );
-    if (added == null || !mounted) return;
-    await _controller.appendPost(added);
-    TaskUiDelegate.instance.toast(R.current.forumSendDone);
-    // 重抓是為了拿伺服器排好的順序與新的 capabilities；失敗時 controller 會
-    // 退回 Stale，剛送出的那一則留在畫面上——寫入確實成功了，不可以變成錯誤頁。
-    // `keepVisible`：這一趟途中畫面維持原狀，不要先閃成一頁轉圈。
-    await _controller.loadPosts(keepVisible: true);
-    if (_controller.posts.value is Stale<List<MoodleForumPost>>) {
-      TaskUiDelegate.instance.toast(R.current.forumSendDoneRefreshFailed);
-    }
-  }
-
-  Widget _body(MoodleForumPost p) {
-    final scheme = Theme.of(context).colorScheme;
-    final text = Theme.of(context).textTheme;
-    if (p.isdeleted) {
-      return Text(R.current.forumPostDeleted,
-          style: text.bodyMedium?.copyWith(
-              fontStyle: FontStyle.italic, color: scheme.onSurfaceVariant));
-    }
-    if (p.message.trim().isEmpty) {
-      return Text(R.current.nothingHere,
-          style: text.bodyMedium?.copyWith(color: scheme.onSurfaceVariant));
-    }
-    return MoodleHtmlView(
-      html: p.message,
-      title: widget.title,
-      dirName: widget.courseInfo.main.course.name,
-      openWebView: widget.openWebView,
-    );
-  }
-
-  /// isdeleted 的貼文 timecreated 是 null（post_exporter 這時不載內容）。
-  String _time(MoodleForumPost p) {
-    final unix = p.timecreated ?? p.timemodified ?? 0;
-    return unix > 0
-        ? DateFormat.yMd()
-            .add_jm()
-            .format(DateTime.fromMillisecondsSinceEpoch(unix * 1000))
-        : "";
-  }
+  bool _canDelete(MoodleForumPost p) =>
+      _controller.fresh &&
+      MoodleWebApiConnector.canDeleteForumPost &&
+      p.capabilities?.delete == true &&
+      !p.isdeleted;
 }

@@ -15,7 +15,14 @@ class MoodleCanAddDiscussion {
   @JsonKey(name: 'status', defaultValue: false)
   bool status;
 
-  /// VALUE_OPTIONAL。附件不在範圍內，留著只是為了形狀誠實。
+  /// **新主題那條路的附件閘門，一趟都不用多打。**
+  ///
+  /// 伺服器算的是 `forum_can_create_attachment()`，也就是三件事的 AND：
+  /// `has_capability('mod/forum:createattachment')` ∧ `maxattachments > 0`
+  /// ∧ `maxbytes != 1`。VALUE_OPTIONAL，**null ＝不知道 ⇒ 不給附件**。
+  ///
+  /// 為什麼一定要看它：`add_discussion` 在沒有 createattachment 時把
+  /// `attachmentsid` **靜靜改成 0**，附件整批消失而貼文照樣回成功。
   @JsonKey(name: 'cancreateattachment')
   bool? cancreateattachment;
 

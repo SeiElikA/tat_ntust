@@ -1,0 +1,189 @@
+import 'package:flutter_app/src/model/moodle_webapi/moodle_mod_forum_get_discussion_posts.dart';
+import 'package:flutter_app/src/util/moodle_forum_edit_utils.dart';
+import 'package:flutter_app/src/util/moodle_forum_utils.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+/// 編輯與附件那條路的純函式規格。不碰網路、不碰 R.current。
+void main() {
+  const html = MoodleForumUtils.formatHtml;
+  const plain = MoodleForumUtils.formatPlain;
+  const moodle = MoodleForumUtils.formatMoodle;
+
+  group('isPlainRoundTrip', () {
+    test('FORMAT_PLAIN 與 FORMAT_MOODLE 一律安全——伺服器存的就是純文字', () {
+      expect(
+          MoodleForumEditUtils.isPlainRoundTrip('<b>不是標籤</b>', plain), isTrue);
+      expect(MoodleForumEditUtils.isPlainRoundTrip('a < b', moodle), isTrue);
+    });
+
+    test('App 自己產的 HTML（escape + <br>）過得了——不然使用者剛用 App 發的文自己編輯不了', () {
+      for (final source in [
+        '謝謝老師',
+        '第一行\n第二行',
+        'a < b && c > d',
+        '他說「"引號"」與 \'單引號\'',
+        '空白行\n\n中間',
+      ]) {
+        final stored = MoodleForumUtils.plainTextToHtml(source);
+        expect(MoodleForumEditUtils.isPlainRoundTrip(stored, html), isTrue,
+            reason: '這是 App 自己發的：$stored');
+        expect(MoodleForumEditUtils.htmlToPlain(stored), source);
+      }
+    });
+
+    test('含排版標籤 → 不安全：純文字覆蓋會把粗體與連結弄丟', () {
+      expect(
+          MoodleForumEditUtils.isPlainRoundTrip('<p>期中考 <b>重要</b></p>', html),
+          isFalse);
+      expect(
+          MoodleForumEditUtils.isPlainRoundTrip(
+              '<a href="https://x">連結</a>', html),
+          isFalse);
+    });
+
+    test('含 <img> 或 @@PLUGINFILE@@ → 不安全：內嵌圖片會斷、舊檔案變孤兒', () {
+      expect(
+          MoodleForumEditUtils.isPlainRoundTrip('看這張 <img src="a.png">', html),
+          isFalse);
+      expect(
+          MoodleForumEditUtils.isPlainRoundTrip(
+              '看這張 @@PLUGINFILE@@/a.png', html),
+          isFalse);
+      // 大小寫不同也要擋下來。
+      expect(MoodleForumEditUtils.isPlainRoundTrip('<IMG SRC="a.png">', html),
+          isFalse);
+    });
+
+    test('`<br />` 這種變體判成不安全——保守勝過把別人的排版覆蓋掉', () {
+      expect(MoodleForumEditUtils.isPlainRoundTrip('一<br />二', html), isFalse);
+    });
+
+    test('認不得的 format（MARKDOWN=4）一律不安全', () {
+      expect(MoodleForumEditUtils.isPlainRoundTrip('**粗體**', 4), isFalse);
+    });
+  });
+
+  group('htmlToPlain', () {
+    test('&amp; 最後解：使用者打的 &lt; 不會被還原成 <', () {
+      // 使用者實際打的是「&lt;」這五個字。
+      final stored = MoodleForumUtils.plainTextToHtml('&lt;');
+      expect(stored, '&amp;lt;');
+      expect(MoodleForumEditUtils.htmlToPlain(stored), '&lt;');
+    });
+
+    test('空字串回空字串', () {
+      expect(MoodleForumEditUtils.htmlToPlain(''), '');
+    });
+  });
+
+  group('effectiveMaxBytes', () {
+    test('取正值中的最小', () {
+      expect(
+          MoodleForumEditUtils.effectiveMaxBytes(
+              siteMax: 5000000, forumMax: 512000),
+          512000);
+      expect(
+          MoodleForumEditUtils.effectiveMaxBytes(
+              siteMax: 100000, forumMax: 512000),
+          100000);
+    });
+
+    test('siteMax == -1 是 USER_CAN_IGNORE_FILE_SIZE_LIMITS，不參與比較', () {
+      expect(
+          MoodleForumEditUtils.effectiveMaxBytes(siteMax: -1, forumMax: 512000),
+          512000);
+    });
+
+    test('forumMax == 0（用課程／站台預設）不參與比較', () {
+      expect(MoodleForumEditUtils.effectiveMaxBytes(siteMax: 5000, forumMax: 0),
+          5000);
+    });
+
+    test('一個正值都沒有 → 0＝不知道／不限', () {
+      expect(
+          MoodleForumEditUtils.effectiveMaxBytes(siteMax: -1, forumMax: 0), 0);
+    });
+
+    test('areaMax 是伺服器解析過的真值，比近似值小就用它', () {
+      expect(
+          MoodleForumEditUtils.effectiveMaxBytes(
+              siteMax: 5000000, forumMax: 512000, areaMax: 262144),
+          262144);
+    });
+  });
+
+  group('hasVisibleReplies', () {
+    List<MoodleForumPost> thread() => [
+          MoodleForumPost(id: 900),
+          MoodleForumPost(id: 901, hasparent: true, parentid: 900),
+          MoodleForumPost(id: 902, hasparent: true, parentid: 901),
+        ];
+
+    test('有子貼文的算有回覆，葉節點沒有', () {
+      expect(MoodleForumEditUtils.hasVisibleReplies(thread(), 900), isTrue);
+      expect(MoodleForumEditUtils.hasVisibleReplies(thread(), 901), isTrue);
+      expect(MoodleForumEditUtils.hasVisibleReplies(thread(), 902), isFalse);
+    });
+
+    test('自己指向自己不算回覆', () {
+      final posts = [MoodleForumPost(id: 900, hasparent: true, parentid: 900)];
+      expect(MoodleForumEditUtils.hasVisibleReplies(posts, 900), isFalse);
+    });
+  });
+
+  group('duplicateFilename', () {
+    test('大小寫視為相同——clean_param 會改寫檔名，寧可保守', () {
+      expect(
+          MoodleForumEditUtils.duplicateFilename(['a.pdf', 'A.PDF']), 'A.PDF');
+      expect(
+          MoodleForumEditUtils.duplicateFilename(['a.pdf', 'b.pdf']), isNull);
+      expect(MoodleForumEditUtils.duplicateFilename([]), isNull);
+    });
+  });
+
+  group('missingAttachments', () {
+    test('伺服器沒收下的那些——這是靜默丟棄唯一可靠的一層', () {
+      final got = [MoodleForumFile(filename: 'slides.pdf')];
+      expect(
+          MoodleForumEditUtils.missingAttachments(
+              ['slides.pdf', 'note.txt'], got),
+          ['note.txt']);
+      expect(MoodleForumEditUtils.missingAttachments(['slides.pdf'], got),
+          isEmpty);
+    });
+
+    test('伺服器回的檔名大小寫不同不算少', () {
+      final got = [MoodleForumFile(filename: 'Slides.PDF')];
+      expect(MoodleForumEditUtils.missingAttachments(['slides.pdf'], got),
+          isEmpty);
+    });
+
+    test('一個都沒送出去時（attachmentsid 被靜靜改成 0）整份都算少', () {
+      expect(
+          MoodleForumEditUtils.missingAttachments(['a.pdf', 'b.pdf'], const []),
+          ['a.pdf', 'b.pdf']);
+    });
+  });
+
+  group('exceedsCount / exceedsSize', () {
+    test('上限為 0（不知道）時一律不擋，交給伺服器回答', () {
+      expect(MoodleForumEditUtils.exceedsCount(5, 0), isFalse);
+      expect(MoodleForumEditUtils.exceedsSize(999999, 0), isFalse);
+    });
+
+    test('正好等於上限不算超過', () {
+      expect(MoodleForumEditUtils.exceedsCount(3, 3), isFalse);
+      expect(MoodleForumEditUtils.exceedsCount(4, 3), isTrue);
+      expect(MoodleForumEditUtils.exceedsSize(100, 100), isFalse);
+      expect(MoodleForumEditUtils.exceedsSize(101, 100), isTrue);
+    });
+  });
+
+  group('basename', () {
+    test('兩種分隔符都認', () {
+      expect(MoodleForumEditUtils.basename('/a/b/c.pdf'), 'c.pdf');
+      expect(MoodleForumEditUtils.basename(r'C:\a\c.pdf'), 'c.pdf');
+      expect(MoodleForumEditUtils.basename('c.pdf'), 'c.pdf');
+    });
+  });
+}

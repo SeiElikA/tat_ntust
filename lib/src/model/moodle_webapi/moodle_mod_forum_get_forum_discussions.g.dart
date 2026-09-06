@@ -13,6 +13,7 @@ MoodleModForumGetForumDiscussions _$MoodleModForumGetForumDiscussionsFromJson(
           ?.map((e) => Discussions.fromJson(e as Map<String, dynamic>))
           .toList(),
       forumFound: json['forumFound'] as bool? ?? true,
+      forumId: (json['forumId'] as num?)?.toInt() ?? 0,
     );
 
 Map<String, dynamic> _$MoodleModForumGetForumDiscussionsToJson(
@@ -20,6 +21,7 @@ Map<String, dynamic> _$MoodleModForumGetForumDiscussionsToJson(
     <String, dynamic>{
       'discussions': instance.discussions,
       'forumFound': instance.forumFound,
+      'forumId': instance.forumId,
     };
 
 Discussions _$DiscussionsFromJson(Map<String, dynamic> json) => Discussions(

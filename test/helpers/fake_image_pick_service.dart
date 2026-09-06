@@ -14,9 +14,17 @@ class FakeImagePickService implements ImagePickService {
 
   final List<ImagePickSource> calls = [];
 
+  /// 最後一次要求的縮圖參數。頭貼一定要有值（Moodle 只吃 GIF/JPEG/PNG），
+  /// 討論區附件一定要是 null（白板照片縮到 1024 就讀不出字了）。
+  double? lastMaxEdge;
+  int? lastQuality;
+
   @override
-  Future<File?> pick(ImagePickSource source) async {
+  Future<File?> pick(ImagePickSource source,
+      {double? maxEdge, int? quality}) async {
     calls.add(source);
+    lastMaxEdge = maxEdge;
+    lastQuality = quality;
     final reason = failure;
     if (reason != null) throw ImagePickFailure(reason);
     return next;

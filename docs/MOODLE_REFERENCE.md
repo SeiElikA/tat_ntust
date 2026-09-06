@@ -22,6 +22,11 @@
 | `mod_forum_add_discussion_post` | 回覆一篇貼文（`postid` 是**貼文** id，不是討論串 id；必送 `messageformat=2` 加 `options[topreferredformat]=1`，見下方「會咬人的地方」；`discussionsubscribe` / `private` / `attachmentsid` 一律不送） | `addDiscussionPost` |
 | `mod_forum_add_discussion` | 開新主題，回 `discussionid`（**沒有** `messageformat`，伺服器寫死 FORMAT_HTML，內文要自己 escape；`groupid: 0` 等於「用我目前的群組」） | `addDiscussion` |
 | `mod_forum_can_add_discussion` | 這個討論區現在能不能開新主題（`status`，**不含發文節流**） | `canAddDiscussion` |
+| `mod_forum_get_forum_access_information` | 這個討論區的 capability 快照。**只為了 `cancreateattachment`（回覆路徑的附件閘門）而打**；欄位集合是執行期由 `load_capability_def` 攤出來的，全部 VALUE_OPTIONAL，**沒有 `caneditownpost`** | `getForumAccess` |
+| `mod_forum_get_discussion_post` | 按下編輯時打的那一趟：拿新鮮的 `capabilities.edit` 與**資料庫裡的原文**（不跑 `format_text`）。**不可以正規化、不可以進快取** | `getPostForEdit` |
+| `mod_forum_prepare_draft_area_for_post` | 編輯時把貼文現有的附件整批複製進 draft 區（`area=attachment`）。**空的 `filestokeep` 是「全部保留」，不是「全部刪掉」**；`files[]` 是 `external_files`，網址欄位叫 `fileurl` | `prepareForumDraftArea` |
+| `mod_forum_update_discussion_post` | 編輯自己的貼文。**不可以送 `topreferredformat`**（白名單沒有它）；空 subject／空 message ＝不改而不是清空 | `updateDiscussionPost` |
+| `mod_forum_delete_post` | 刪除自己的貼文；**沒有父貼文時連整串一起刪** | `deleteForumPost` |
 | `gradereport_user_get_grade_items` | 課程成績（結構化，取代先前解析 HTML 表格的 `gradereport_user_get_grades_table`） | `getGradeItems` |
 | `gradereport_overview_get_course_grades` | 「Moodle 目前成績」頁：這個帳號全部課程的目前總分（只送 `userid`；`grades[]` 一定在，可能是空陣列，`warnings` 伺服器端永遠是空的，所以不傳 `treatWarningsAsError`）。**`grade` 是伺服器格式化好的字串**：總分被藏起來或還沒有成績時是字面上的 `"-"`（`grade_format_gradevalue` 對 null 回 `'-'`，兩者從客戶端分不出來），課程總分是無評分／文字型態時是空字串，量尺與等第會過 `format_string`（實體要還原），小數點分隔符跟的是**伺服器上的 Moodle 帳號語言**——一律不解析成數字。`rawgrade` 與 `rank` 刻意不建模：前者是 PARAM_RAW 直傳的 DB 值（字串／float／null 都可能，沒有小數位設定、量尺與等第對照），後者要站台開了 `report_overview_showrank` 才有。**被跳過的課沒有任何 warning**：課程設定關掉「顯示成績」、學生在該課沒有 gradebookrole、課程被隱藏、缺 `moodle/grade:view` 四種情況都是 `continue`，那門課單純不在 `grades[]` 裡。**伺服器端會先把所有課重算一次成績**（`regrade_all_courses_if_needed` 在 WS 路徑上呼叫的是無條件的 `grade_regrade_final_grades`），掛著 `'type' => 'read'` 卻是重呼叫，只在使用者真的開那一頁時發，不預載 | `getCourseGrades` |
 | `core_enrol_get_enrolled_users` | 課程成員 | `getMember` |
@@ -101,6 +106,70 @@ POST 欄位。TAT 用 `parameter.data` 加 `getJsonByPost`，行為相同，
 這一項沒有問題，列出來是為了避免日後有人改成 GET。
 
 ### 會咬人的地方
+
+- **討論區的附件、編輯與刪除（2026 這一版新增的五支）有六個坑。**
+  - **`$CFG->maxeditingtime` 沒有任何 web service 讀得到。** site_info 沒有這個
+    欄位，`tool_mobile_get_config` 的七個 section 也沒有；`add_discussion_post`
+    的 `messages[].postaddedtimeleft` 是 `format_time()` 出來的**伺服器語系人話
+    字串**，不可解析。所以**客戶端不可以自己算編輯倒數**：唯一的訊號是
+    post_exporter 每篇貼文的 `capabilities.edit` / `delete`，而那是抓取當下的
+    快照。因此編輯／刪除的入口只在 `Result` 是 `Ok` 時畫（`Stale` 一律不畫），
+    按下去之後一定先打一趟 `mod_forum_get_discussion_post` 拿最新的能力。
+  - **沒有 `mod/forum:createattachment` 時 `attachmentsid` 被靜靜改成 0。**
+    `add_discussion_post` 與 `add_discussion` 兩支都是
+    `if (!has_capability(...)) { $value = 0; }` ——不是拋錯。附件整批消失、
+    貼文照樣回成功。同理，超過 `maxbytes` / `maxfiles` 的檔案在
+    `file_save_draft_area_files()` 的迴圈裡是 `continue`（lib/filelib.php
+    1178–1187），伺服器**不回任何 warning**。而課程層級的 `$COURSE->maxbytes`
+    **沒有任何 App 拿得到的 API**（`core_enrol_get_users_courses` 不回它），
+    本地上限只能是 `min(site_info.usermaxuploadfilesize, forum.maxbytes)` 的
+    近似值。**所以任何一趟帶附件的寫入，事後都必須把伺服器實際收下的附件檔名
+    比對回送出的清單**（回覆看回應自帶的 `post.attachments`，新主題重讀第一篇）。
+  - **`update_discussion_post` 的空字串是「不改」而不是「清空」，然後照樣回
+    `status: true`。** 使用者把內文刪光按儲存會看到「已更新」而東西沒變，所以
+    本地一定要擋掉空內容（UI 與 repository 各擋一次）。它也**不接受
+    `topreferredformat`**：那一支借用 `add_discussion_post_parameters()` 做
+    validate_parameters，但選項白名單在函式本體，只認 `pinned` /
+    `discussionsubscribe` / `inlineattachmentsid` / `attachmentsid`。從回覆那一段
+    複製貼上是最自然的寫法，而且只有真的按下編輯才會炸。
+  - **不送 `attachmentsid` 的編輯會把 `forum_posts.attachment` 旗標清成空字串。**
+    `forum_update_post()` 最後無條件呼叫 `forum_add_attachment()`，而
+    `$post->attachments === IGNORE_FILE_MERGE (-1)` 時 `empty(-1) === false`
+    過不了那個 early return，於是 `file_get_draft_area_info(-1)` 回 filecount 0
+    → `$DB->set_field('forum_posts','attachment','')`。檔案本身還在（exporter 與
+    網頁都走 file storage），但 `mod_forum_get_forum_discussions` 的 `attachment`
+    欄位會憑空消失，主題清單的迴紋針不見。**因應：貼文原本沒有附件、使用者也
+    沒加時才不送；其餘全部要送一個由 `prepare_draft_area_for_post` 種出來的
+    draftitemid。這段「多餘」的 prepare 呼叫不可以被優化掉。** 站台沒開那一支
+    時**不降級**：有附件的貼文連編輯入口都不給（`_canEdit` 擋一次、repository
+    再擋一次），因為「更新內容但保留附件」在協定上做不到——說成「已更新內容，
+    附件維持原樣」是說反話。
+  - **刪掉主文之後不可以再打 `mod_forum_get_discussion_posts`。** 那一支的
+    `$discussionvault->get_from_id()` 沒有 null 檢查，下一行
+    `$discussion->get_forum_id()` 會在討論串不存在時丟 PHP `Error`（回應裡沒有
+    forum errorcode，只有 `exception`），看起來就像「刪除失敗」而其實已經刪掉了。
+    正確的動作是 pop 回主題清單並重載清單，順手把
+    `cache_moodle_forum_posts/<id>` 移除。另外 `capabilities.delete` 匯出時的
+    `$hasreplies` 吃預設值 `false`——**根本沒有算回覆數**，true 的貼文照樣可能
+    拿到 `couldnotdeletereplies`；而本地由 `parentid` 推出來的回覆數**會少算**
+    （伺服器端 `$canseeprivatereplies` 寫死 true）。
+  - **兩個 errorcode 會騙人。** `prepare_draft_area_for_post` 在
+    `can_edit_post()` 為假時丟 **`noviewdiscussionspermission`**，字面是「沒有
+    檢視權限」，實際意思是「你不能編輯這一篇」（多半是超過時限）；
+    `couldnotdeleteratings` 的 module 是 **rating** 不是 forum。還有兩個一定要
+    分清楚的形狀：`prepare_draft_area_for_post` 的 `files[]` 是 `external_files`
+    （**`fileurl`**、有 mimetype），貼文的 `attachments[]` 是
+    `stored_file_exporter`（**`url`**、沒有 mimetype）——共用一個 Dart 模型會讓
+    draft 區的檔案全部拿到空網址。
+  - **`mod/forum:editownpost` 這個 capability 不存在**（`mod/forum/db/access.php`
+    沒有它），所以 `get_forum_access_information` **答不出**「我能不能編輯我自己
+    的貼文」；`candeleteownpost` 有，但它只是五個條件裡的一個，是必要非充分。
+    另外那份回應有五個 capability 的名字本身以 `can` 開頭，欄位會攤成
+    `cancanposttomygroups` 這種雙 can 的形狀。
+  - **超過時限、`mailnow`、有回覆、被評過分的貼文，網頁版也一樣改不了／刪不掉**
+    ——`mod/forum/post.php` 與 `deletepost.php` 走的是同一個 `can_edit_post()` /
+    `validate_delete_post()`。這幾種情況的文案**不可以**配一顆「在網頁開啟」的鈕
+    假裝那裡做得到。
 
 - **測驗的三支各有一個容易踩的地方。**
   - `mod_quiz_get_user_attempts` 在 Moodle 5.0 被標記 deprecated（6.0 移除），

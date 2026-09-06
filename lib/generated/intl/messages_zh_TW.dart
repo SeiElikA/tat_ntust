@@ -293,17 +293,80 @@ class MessageLookup extends MessageLookupByLibrary {
     "financial_support": MessageLookupByLibrary.simpleMessage("助學資訊"),
     "folderEmpty": MessageLookupByLibrary.simpleMessage("這個資料夾沒有檔案"),
     "folderFileCount": MessageLookupByLibrary.simpleMessage("%s 個檔案"),
+    "forumAddAttachment": MessageLookupByLibrary.simpleMessage("加入附件"),
+    "forumAttachFromCamera": MessageLookupByLibrary.simpleMessage("拍照"),
+    "forumAttachFromFiles": MessageLookupByLibrary.simpleMessage("選擇檔案"),
+    "forumAttachFromGallery": MessageLookupByLibrary.simpleMessage("從相簿選擇"),
+    "forumAttachmentCountExceeded": MessageLookupByLibrary.simpleMessage(
+      "這個討論區最多只能附 %s 個檔案",
+    ),
+    "forumAttachmentDisabled": MessageLookupByLibrary.simpleMessage(
+      "這個討論區不開放附件",
+    ),
+    "forumAttachmentDuplicateName": MessageLookupByLibrary.simpleMessage(
+      "有兩個檔案同名，Moodle 只會收下第一個，請先改名",
+    ),
+    "forumAttachmentLimit": MessageLookupByLibrary.simpleMessage("最多 %s 個檔案"),
+    "forumAttachmentMissing": MessageLookupByLibrary.simpleMessage(
+      "%s 沒有上傳成功，請到網頁確認",
+    ),
+    "forumAttachmentSizeLimit": MessageLookupByLibrary.simpleMessage(
+      "單一檔案上限 %s",
+    ),
+    "forumAttachmentTooLarge": MessageLookupByLibrary.simpleMessage(
+      "「%s」超過單一檔案上限 %s",
+    ),
+    "forumAttachmentUploadDisabled": MessageLookupByLibrary.simpleMessage(
+      "學校的 Moodle 已停用檔案上傳",
+    ),
     "forumAttachments": MessageLookupByLibrary.simpleMessage("附件"),
+    "forumCancelReplyTarget": MessageLookupByLibrary.simpleMessage("改回覆第一篇"),
     "forumCannotCheckPosting": MessageLookupByLibrary.simpleMessage(
       "目前無法確認能不能在這裡發文",
+    ),
+    "forumCannotDeleteHasReplies": MessageLookupByLibrary.simpleMessage(
+      "這則貼文底下已經有回覆，不能刪除",
+    ),
+    "forumCannotDeletePost": MessageLookupByLibrary.simpleMessage(
+      "這則貼文已經不能刪除了",
+    ),
+    "forumCannotDeleteRated": MessageLookupByLibrary.simpleMessage(
+      "這則貼文已經被評分，不能刪除",
     ),
     "forumCannotPost": MessageLookupByLibrary.simpleMessage(
       "這個討論區不開放在 App 內發文",
     ),
+    "forumCannotPostHere": MessageLookupByLibrary.simpleMessage("這個討論區不開放發文"),
+    "forumDeleteDone": MessageLookupByLibrary.simpleMessage("已刪除"),
+    "forumDeleteError": MessageLookupByLibrary.simpleMessage(
+      "刪除失敗；請重新整理確認這則貼文是不是還在",
+    ),
+    "forumDeletePost": MessageLookupByLibrary.simpleMessage("刪除貼文"),
+    "forumDeletePostConfirm": MessageLookupByLibrary.simpleMessage("要刪除這則貼文嗎？"),
+    "forumDeleteTopicConfirm": MessageLookupByLibrary.simpleMessage(
+      "這是主題的第一篇，刪掉會連同整串回覆一起消失。要刪除嗎？",
+    ),
     "forumDiscardDraft": MessageLookupByLibrary.simpleMessage("要放棄這則還沒送出的內容嗎？"),
+    "forumEditAttachmentsWebOnly": MessageLookupByLibrary.simpleMessage(
+      "這則貼文有附件，學校的 Moodle 沒開放 App 在不弄壞附件標記的情況下編輯，請到網頁編輯",
+    ),
+    "forumEditDone": MessageLookupByLibrary.simpleMessage("已更新"),
+    "forumEditError": MessageLookupByLibrary.simpleMessage(
+      "更新失敗；請重新整理確認是否已更新，不要直接再存一次",
+    ),
+    "forumEditInWeb": MessageLookupByLibrary.simpleMessage("在網頁編輯"),
+    "forumEditPost": MessageLookupByLibrary.simpleMessage("編輯貼文"),
+    "forumEditRichWebOnly": MessageLookupByLibrary.simpleMessage(
+      "這則貼文有 App 排不出來的排版或圖片，在 App 內編輯會把它們弄掉。",
+    ),
+    "forumEditWindowClosed": MessageLookupByLibrary.simpleMessage("已超過可以編輯的時間"),
+    "forumEdited": MessageLookupByLibrary.simpleMessage("已編輯"),
     "forumEmpty": MessageLookupByLibrary.simpleMessage("這個討論區還沒有主題"),
     "forumErrorCannotCreateDiscussion": MessageLookupByLibrary.simpleMessage(
       "這個討論區不接受新主題",
+    ),
+    "forumErrorNoEditPermission": MessageLookupByLibrary.simpleMessage(
+      "你不能編輯這則貼文",
     ),
     "forumErrorNoPermission": MessageLookupByLibrary.simpleMessage(
       "你現在不能在這則討論串發言",
@@ -314,18 +377,24 @@ class MessageLookup extends MessageLookupByLibrary {
     "forumErrorTooManyPosts": MessageLookupByLibrary.simpleMessage(
       "你在這個討論區的發文次數已達上限",
     ),
+    "forumFormattingInWeb": MessageLookupByLibrary.simpleMessage(
+      "需要粗體、清單或表格請在網頁版編輯。",
+    ),
     "forumMessageHint": MessageLookupByLibrary.simpleMessage("寫下你想說的話…"),
     "forumMessageRequired": MessageLookupByLibrary.simpleMessage("請先寫點內容"),
     "forumNewDiscussion": MessageLookupByLibrary.simpleMessage("發表新主題"),
     "forumOpenInWeb": MessageLookupByLibrary.simpleMessage("在網頁開啟討論區"),
-    "forumPlainTextOnly": MessageLookupByLibrary.simpleMessage(
-      "App 內只能發純文字。附件、排版、私訊回覆與編輯請在網頁版操作。",
-    ),
+    "forumPostActions": MessageLookupByLibrary.simpleMessage("這則貼文"),
     "forumPostDeleted": MessageLookupByLibrary.simpleMessage("這則貼文已被刪除"),
+    "forumRemoveAttachment": MessageLookupByLibrary.simpleMessage("移除這個附件"),
     "forumReplies": MessageLookupByLibrary.simpleMessage("%s 則回覆"),
     "forumReply": MessageLookupByLibrary.simpleMessage("回覆"),
+    "forumReplyHint": MessageLookupByLibrary.simpleMessage("回覆…"),
     "forumReplyingTo": MessageLookupByLibrary.simpleMessage("回覆 %s"),
+    "forumReplyingToTopic": MessageLookupByLibrary.simpleMessage("回覆主題：%s"),
+    "forumSaveEdit": MessageLookupByLibrary.simpleMessage("儲存"),
     "forumSend": MessageLookupByLibrary.simpleMessage("送出"),
+    "forumSendCancelled": MessageLookupByLibrary.simpleMessage("已取消上傳"),
     "forumSendDone": MessageLookupByLibrary.simpleMessage("已送出"),
     "forumSendDoneRefreshFailed": MessageLookupByLibrary.simpleMessage(
       "已送出，但討論串沒有重新載入",

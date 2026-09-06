@@ -69,6 +69,13 @@ class ForumDiscussionCard extends StatelessWidget {
                           ?.copyWith(color: scheme.onSurfaceVariant),
                     ),
                   ),
+                  // App 現在做得出附件，清單就該看得出誰有。伺服器那一欄是
+                  // PARAM_RAW（`"1"` 或空字串），模型已經轉成 bool。
+                  if (discussion.attachment) ...[
+                    const SizedBox(width: 8),
+                    Icon(LucideIcons.paperclip,
+                        size: 13, color: scheme.onSurfaceVariant),
+                  ],
                   if (discussion.numreplies > 0) ...[
                     const SizedBox(width: 8),
                     Icon(LucideIcons.messageSquare,

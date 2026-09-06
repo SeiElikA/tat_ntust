@@ -1,5 +1,6 @@
 import 'package:flutter_app/src/connector/moodle_webapi_connector.dart';
 import 'package:flutter_app/src/model/moodle_webapi/moodle_profile_entity.dart';
+import 'package:flutter_app/src/util/moodle_forum_edit_utils.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../helpers/moodle_forum_fixtures.dart';
@@ -468,6 +469,377 @@ void main() {
     test('site_info 還沒載入時 fail-open', () {
       expect(MoodleWebApiConnector.canPostToForum, isTrue);
       expect(MoodleWebApiConnector.canCreateDiscussion, isTrue);
+    });
+  });
+
+  group('accessOf', () {
+    test('36 個 can* 全部讀得到，**沒有 caneditownpost 這個欄位**', () {
+      final raw = loadMoodleForumFixture('get_forum_access_information');
+      // access.php 沒有 mod/forum:editownpost 這個 capability：能不能編輯自己
+      // 的貼文只有 post_exporter 的 capabilities.edit 答得出來。
+      expect(raw.containsKey('caneditownpost'), isFalse);
+      // 名字本身以 can 開頭的那五個會攤成雙 can，照著文件手打很容易打錯。
+      expect(raw.containsKey('cancanposttomygroups'), isTrue);
+
+      final access = MoodleWebApiConnector.accessOf(raw);
+      expect(access!.cancreateattachment, isTrue);
+      expect(access.candeleteownpost, isTrue);
+      expect(access.canreplypost, isTrue);
+      expect(access.canstartdiscussion, isTrue);
+    });
+
+    test('欄位缺席 → null＝不知道，不是 false', () {
+      final access = MoodleWebApiConnector.accessOf(const {'warnings': []});
+
+      expect(access!.cancreateattachment, isNull);
+      expect(access.candeleteownpost, isNull);
+    });
+
+    test('形狀不對回 null', () {
+      expect(MoodleWebApiConnector.accessOf(null), isNull);
+      expect(MoodleWebApiConnector.accessOf('[]'), isNull);
+    });
+  });
+
+  group('postForEditOf', () {
+    test('回的是**原文**與抓取當下的 capabilities.edit', () {
+      final edit = fixturePostForEdit();
+
+      expect(edit.id, 950);
+      expect(edit.canEdit, isTrue);
+      expect(edit.rawFormat, 1);
+      // 原文原封不動：沒有經過 _normalizePost，也沒有換掉 @@PLUGINFILE@@。
+      expect(edit.rawMessage, '謝謝老師！<br>我會準時到。');
+      // subject 進純文字 sink，實體要還原。
+      expect(edit.subject, 'Re: 期中考 & 補考公告');
+    });
+
+    test('含 @@PLUGINFILE@@ 的原文原樣回來——由 util 的 round-trip 述詞去擋', () {
+      final edit = fixturePostForEdit('get_discussion_post_rich');
+
+      expect(edit.rawMessage, contains('@@PLUGINFILE@@'));
+    });
+
+    test('沒有 post、或 id 不是數字 → null（呼叫端當成失敗）', () {
+      expect(
+          MoodleWebApiConnector.postForEditOf(const {'warnings': []}), isNull);
+      expect(
+          MoodleWebApiConnector.postForEditOf(const {
+            'post': {'subject': 'x'}
+          }),
+          isNull);
+    });
+  });
+
+  group('prepareForumDraftArea', () {
+    test('送 area=attachment、draftitemid=0；filestokeep 空的時候整個鍵都不出現', () async {
+      Map<String, dynamic>? sent;
+      MoodleWebApiConnector.wsToken = 'tok';
+      MoodleWebApiConnector.wsPost = (parameter) async {
+        sent = Map<String, dynamic>.from(parameter.data as Map);
+        return loadMoodleForumFixture('prepare_draft_area_for_post');
+      };
+
+      final area =
+          await MoodleWebApiConnector.prepareForumDraftArea(postId: 950);
+
+      expect(area.draftitemid, 884411);
+      expect(
+          sent!['wsfunction'], MoodleWebApiConnector.prepareDraftAreaFunction);
+      expect(sent!['postid'], '950');
+      expect(sent!['area'], 'attachment');
+      expect(sent!['draftitemid'], '0');
+      // 空的 filestokeep ＝全部保留，所以連鍵都不送。
+      expect(sent!.keys.join(','), isNot(contains('filestokeep')));
+    });
+
+    test('filestokeep 逐筆展開成 filename/filepath', () async {
+      Map<String, dynamic>? sent;
+      MoodleWebApiConnector.wsToken = 'tok';
+      MoodleWebApiConnector.wsPost = (parameter) async {
+        sent = Map<String, dynamic>.from(parameter.data as Map);
+        return loadMoodleForumFixture('prepare_draft_area_for_post');
+      };
+
+      await MoodleWebApiConnector.prepareForumDraftArea(
+        postId: 950,
+        filesToKeep: const [(filename: 'slides.pdf', filepath: '/')],
+      );
+
+      expect(sent!['filestokeep[0][filename]'], 'slides.pdf');
+      expect(sent!['filestokeep[0][filepath]'], '/');
+    });
+
+    test('files[] 的網址欄位是 fileurl（external_files），不是貼文附件的 url', () {
+      final area = fixtureDraftArea();
+
+      expect(area.files.first.filename, 'slides.pdf');
+      expect(area.files.first.fileurl, contains('/draftfile.php/'));
+      expect(area.files.first.mimetype, 'application/pdf');
+    });
+
+    test('areaoptions 的 value 是字串，maxbytes 是伺服器解析過的真值', () {
+      final area = fixtureDraftArea();
+
+      expect(area.maxbytes, 262144);
+      expect(area.maxfiles, 3);
+    });
+
+    test('沒有可用的 draftitemid → 丟例外，不可以拿一個假的去覆蓋附件', () async {
+      MoodleWebApiConnector.wsToken = 'tok';
+      MoodleWebApiConnector.wsPost = (_) async => const {'warnings': []};
+
+      await expectLater(
+        () => MoodleWebApiConnector.prepareForumDraftArea(postId: 950),
+        throwsA(isA<MoodleApiException>()
+            .having((e) => e.errorcode, 'errorcode', 'couldnotadd')),
+      );
+    });
+
+    test('can_edit_post 為假時伺服器丟 noviewdiscussionspermission，原樣往上拋', () async {
+      MoodleWebApiConnector.wsToken = 'tok';
+      MoodleWebApiConnector.wsPost = (_) async => const {
+            'exception': 'moodle_exception',
+            'errorcode': 'noviewdiscussionspermission',
+            'message': 'You cannot view discussions in this forum',
+          };
+
+      await expectLater(
+        () => MoodleWebApiConnector.prepareForumDraftArea(postId: 950),
+        throwsA(isA<MoodleApiException>().having(
+            (e) => e.errorcode, 'errorcode', 'noviewdiscussionspermission')),
+      );
+    });
+  });
+
+  group('updateDiscussionPost', () {
+    test('**不含 topreferredformat**——那個選項在這一支會回 errorinvalidparam', () async {
+      Map<String, dynamic>? sent;
+      MoodleWebApiConnector.wsToken = 'tok';
+      MoodleWebApiConnector.wsPost = (parameter) async {
+        sent = Map<String, dynamic>.from(parameter.data as Map);
+        return loadMoodleForumFixture('update_discussion_post_ok');
+      };
+
+      await MoodleWebApiConnector.updateDiscussionPost(
+          postId: 950, subject: '改過的標題', message: '改過的內文');
+
+      expect(sent!['wsfunction'],
+          MoodleWebApiConnector.updateDiscussionPostFunction);
+      expect(sent!['postid'], '950');
+      expect(sent!['subject'], '改過的標題');
+      expect(sent!['message'], '改過的內文');
+      expect(sent!['messageformat'], '2');
+      expect(sent!.keys.join(','), isNot(contains('topreferredformat')));
+      // 不送 attachmentsid ＝既有附件原封不動。
+      expect(sent!.keys.join(','), isNot(contains('attachmentsid')));
+    });
+
+    test('attachmentsid 只在該送時才出現，而且是 options[0]', () async {
+      Map<String, dynamic>? sent;
+      MoodleWebApiConnector.wsToken = 'tok';
+      MoodleWebApiConnector.wsPost = (parameter) async {
+        sent = Map<String, dynamic>.from(parameter.data as Map);
+        return loadMoodleForumFixture('update_discussion_post_ok');
+      };
+
+      await MoodleWebApiConnector.updateDiscussionPost(
+          postId: 950, subject: 's', message: 'm', attachmentsId: 884411);
+
+      expect(sent!['options[0][name]'], 'attachmentsid');
+      expect(sent!['options[0][value]'], '884411');
+    });
+
+    test('cannotupdatepost 一路往上拋', () async {
+      MoodleWebApiConnector.wsToken = 'tok';
+      MoodleWebApiConnector.wsPost = (_) async =>
+          loadMoodleForumFixture('update_discussion_post_cannotupdate');
+
+      await expectLater(
+        () => MoodleWebApiConnector.updateDiscussionPost(
+            postId: 950, subject: 's', message: 'm'),
+        throwsA(isA<MoodleApiException>()
+            .having((e) => e.errorcode, 'errorcode', 'cannotupdatepost')),
+      );
+    });
+
+    test('status 不是 true 一律當失敗——證明不了寫入發生過就是失敗', () async {
+      MoodleWebApiConnector.wsToken = 'tok';
+      MoodleWebApiConnector.wsPost =
+          (_) async => const {'status': false, 'warnings': []};
+
+      await expectLater(
+        () => MoodleWebApiConnector.updateDiscussionPost(
+            postId: 950, subject: 's', message: 'm'),
+        throwsA(isA<MoodleApiException>()),
+      );
+    });
+  });
+
+  group('deleteForumPost', () {
+    test('只送 postid，status: true 才算成功', () async {
+      Map<String, dynamic>? sent;
+      MoodleWebApiConnector.wsToken = 'tok';
+      MoodleWebApiConnector.wsPost = (parameter) async {
+        sent = Map<String, dynamic>.from(parameter.data as Map);
+        return loadMoodleForumFixture('delete_post_ok');
+      };
+
+      await MoodleWebApiConnector.deleteForumPost(950);
+
+      expect(sent!['wsfunction'], MoodleWebApiConnector.deletePostFunction);
+      expect(sent!['postid'], '950');
+    });
+
+    test('couldnotdeletereplies 一路往上拋（module 是 forum）', () async {
+      MoodleWebApiConnector.wsToken = 'tok';
+      MoodleWebApiConnector.wsPost = (_) async =>
+          loadMoodleForumFixture('delete_post_couldnotdeletereplies');
+
+      await expectLater(
+        () => MoodleWebApiConnector.deleteForumPost(950),
+        throwsA(isA<MoodleApiException>()
+            .having((e) => e.errorcode, 'errorcode', 'couldnotdeletereplies')),
+      );
+    });
+
+    test('couldnotdeleteratings 的 module 是 rating，不是 forum', () async {
+      MoodleWebApiConnector.wsToken = 'tok';
+      MoodleWebApiConnector.wsPost = (_) async =>
+          loadMoodleForumFixture('delete_post_couldnotdeleteratings');
+
+      await expectLater(
+        () => MoodleWebApiConnector.deleteForumPost(950),
+        throwsA(isA<MoodleApiException>()
+            .having((e) => e.errorcode, 'errorcode', 'couldnotdeleteratings')),
+      );
+    });
+
+    test('回不出 status（捕獲入口頁之類）也算失敗', () async {
+      MoodleWebApiConnector.wsToken = 'tok';
+      MoodleWebApiConnector.wsPost = (_) async => '<html>captive portal</html>';
+
+      await expectLater(
+        () => MoodleWebApiConnector.deleteForumPost(950),
+        throwsA(isA<MoodleApiException>()),
+      );
+    });
+  });
+
+  group('帶附件的兩支新增', () {
+    test('addDiscussionPost 的 attachmentsid 是 options[1]，topreferredformat 還在',
+        () async {
+      Map<String, dynamic>? sent;
+      MoodleWebApiConnector.wsToken = 'tok';
+      MoodleWebApiConnector.wsPost = (parameter) async {
+        sent = Map<String, dynamic>.from(parameter.data as Map);
+        return loadMoodleForumFixture('add_discussion_post_with_attachment');
+      };
+
+      final post = await MoodleWebApiConnector.addDiscussionPost(
+          postId: 900, subject: 's', message: 'm', attachmentsId: 884411);
+
+      expect(sent!['options[0][name]'], 'topreferredformat');
+      expect(sent!['options[1][name]'], 'attachmentsid');
+      expect(sent!['options[1][value]'], '884411');
+      // 回應自帶伺服器實際收下的附件，事後驗證不必再打一趟。
+      expect(
+          post.attachments.map((f) => f.filename), ['slides.pdf', 'note.txt']);
+    });
+
+    test('伺服器靜靜丟掉一個附件：回應是成功、warnings 是空的，只有比對看得出來', () async {
+      MoodleWebApiConnector.wsToken = 'tok';
+      MoodleWebApiConnector.wsPost = (_) async =>
+          loadMoodleForumFixture('add_discussion_post_attachment_dropped');
+
+      final post = await MoodleWebApiConnector.addDiscussionPost(
+          postId: 900, subject: 's', message: 'm', attachmentsId: 884411);
+
+      // 送兩個、收下一個，而且伺服器一句話都沒說。
+      expect(post.attachments.map((f) => f.filename), ['slides.pdf']);
+      expect(
+        MoodleForumEditUtils.missingAttachments(
+            ['slides.pdf', 'note.txt'], post.attachments),
+        ['note.txt'],
+      );
+    });
+
+    test('addDiscussion 的 attachmentsid 是 options[0]（那一支沒有 topreferredformat）',
+        () async {
+      Map<String, dynamic>? sent;
+      MoodleWebApiConnector.wsToken = 'tok';
+      MoodleWebApiConnector.wsPost = (parameter) async {
+        sent = Map<String, dynamic>.from(parameter.data as Map);
+        return loadMoodleForumFixture('add_discussion');
+      };
+
+      await MoodleWebApiConnector.addDiscussion(
+          forumId: 5499, subject: 's', htmlMessage: 'm', attachmentsId: 884411);
+
+      expect(sent!['options[0][name]'], 'attachmentsid');
+      expect(sent!['options[0][value]'], '884411');
+      expect(sent!.keys.join(','), isNot(contains('messageformat')));
+    });
+  });
+
+  group('upload.php 的錯誤形狀', () {
+    test('filenameexist 是**陣列裡的一個元素**，HTTP 照樣 200', () {
+      expect(
+        () => MoodleWebApiConnector.draftFileOf(
+            loadMoodleForumListFixture('upload_filenameexist')),
+        throwsA(isA<MoodleApiException>()
+            .having((e) => e.errorcode, 'errorcode', 'filenameexist')),
+      );
+    });
+  });
+
+  group('編輯後重讀', () {
+    test('附件走 stored_file_exporter，欄位是 url（不是 draft 區的 fileurl）', () {
+      final edit = fixturePostForEdit('get_discussion_post_with_attachments');
+
+      expect(
+          edit.attachments.map((f) => f.filename), ['slides.pdf', 'note.txt']);
+      expect(edit.attachments.first.url, contains('/pluginfile.php/'));
+      // 少了一個就是伺服器靜靜丟掉了。
+      expect(
+        MoodleForumEditUtils.missingAttachments(
+            ['slides.pdf', 'note.txt', 'extra.pdf'], edit.attachments),
+        ['extra.pdf'],
+      );
+    });
+  });
+
+  group('五支新 function 的站台開關', () {
+    test('functions[] 沒列出來時四個 getter 都是 false，而且一個請求都不送', () async {
+      var calls = 0;
+      MoodleWebApiConnector.wsToken = 'tok';
+      MoodleWebApiConnector.wsPost = (_) async {
+        calls++;
+        return const {};
+      };
+      MoodleWebApiConnector.siteInfo = MoodleProfileEntity(functions: [
+        MoodleProfileFunctions(
+            name: MoodleWebApiConnector.discussionPostsFunction,
+            version: '4.5'),
+      ]);
+
+      expect(MoodleWebApiConnector.canEditForumPost, isFalse);
+      expect(MoodleWebApiConnector.canDeleteForumPost, isFalse);
+      expect(MoodleWebApiConnector.canPrepareForumDraftArea, isFalse);
+      expect(MoodleWebApiConnector.canReadForumPost, isFalse);
+      await expectLater(
+        () => MoodleWebApiConnector.deleteForumPost(950),
+        throwsA(isA<MoodleApiException>()
+            .having((e) => e.skippedBeforeRequest, 'skipped', isTrue)),
+      );
+      expect(calls, 0);
+    });
+
+    test('site_info 還沒載入時 fail-open', () {
+      expect(MoodleWebApiConnector.canEditForumPost, isTrue);
+      expect(MoodleWebApiConnector.canDeleteForumPost, isTrue);
+      expect(MoodleWebApiConnector.canPrepareForumDraftArea, isTrue);
+      expect(MoodleWebApiConnector.canReadForumPost, isTrue);
     });
   });
 }
