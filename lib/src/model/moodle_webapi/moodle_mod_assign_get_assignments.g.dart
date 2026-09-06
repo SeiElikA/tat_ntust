@@ -46,6 +46,10 @@ MoodleAssignment _$MoodleAssignmentFromJson(Map<String, dynamic> json) =>
       cutoffdate: (json['cutoffdate'] as num?)?.toInt() ?? 0,
       nosubmissions: (json['nosubmissions'] as num?)?.toInt() ?? 0,
       teamsubmission: (json['teamsubmission'] as num?)?.toInt() ?? 0,
+      requireallteammemberssubmit:
+          (json['requireallteammemberssubmit'] as num?)?.toInt() ?? 0,
+      preventsubmissionnotingroup:
+          (json['preventsubmissionnotingroup'] as num?)?.toInt() ?? 0,
       submissiondrafts: (json['submissiondrafts'] as num?)?.toInt() ?? 0,
       requiresubmissionstatement:
           (json['requiresubmissionstatement'] as num?)?.toInt() ?? 0,
@@ -76,6 +80,8 @@ Map<String, dynamic> _$MoodleAssignmentToJson(MoodleAssignment instance) =>
       'cutoffdate': instance.cutoffdate,
       'nosubmissions': instance.nosubmissions,
       'teamsubmission': instance.teamsubmission,
+      'requireallteammemberssubmit': instance.requireallteammemberssubmit,
+      'preventsubmissionnotingroup': instance.preventsubmissionnotingroup,
       'submissiondrafts': instance.submissiondrafts,
       'requiresubmissionstatement': instance.requiresubmissionstatement,
       'submissionstatement': instance.submissionstatement,

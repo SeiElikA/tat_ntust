@@ -77,6 +77,16 @@ class MoodleAssignment {
   @JsonKey(name: 'teamsubmission', defaultValue: 0)
   int teamsubmission;
 
+  /// 1 = 每一位組員都要各自送出，整組才算送出（`update_team_submission` 的
+  /// allsubmitted 分支）。也只有它為 1 時
+  /// `submissiongroupmemberswhoneedtosubmit` 才會非空。
+  @JsonKey(name: 'requireallteammemberssubmit', defaultValue: 0)
+  int requireallteammemberssubmit;
+
+  /// 1 = 沒有分到組的人不能交（`can_edit_submission` 直接回 false）。
+  @JsonKey(name: 'preventsubmissionnotingroup', defaultValue: 0)
+  int preventsubmissionnotingroup;
+
   /// 1 = 有草稿階段：`save_submission` 只存成草稿，還要再送出評分。
   /// 0 = 存檔就是繳交（伺服器直接標成 submitted 並寄出繳交回條）。
   @JsonKey(name: 'submissiondrafts', defaultValue: 0)
@@ -99,7 +109,12 @@ class MoodleAssignment {
   @JsonKey(name: 'attemptreopenmethod', defaultValue: "")
   String attemptreopenmethod;
 
-  /// 秒，> 0 代表有作答時限，要走 `mod_assign_start_submission`，本功能不支援。
+  /// 秒，> 0 代表有作答時限。
+  ///
+  /// **這一欄是原始欄位值，沒有套 override**（`externallib.php` 寫的是
+  /// `'timelimit' => $module->timelimit`，跟隔壁的 `duedate` 走
+  /// `get_instance()` 不一樣），而且它也反映不出站台層級的 `enabletimelimit`。
+  /// 真正要拿來倒數的是 `lastattempt.timelimit`，這一欄只能當清單上的提示。
   @JsonKey(name: 'timelimit', defaultValue: 0)
   int timelimit;
 
@@ -126,6 +141,8 @@ class MoodleAssignment {
     this.cutoffdate = 0,
     this.nosubmissions = 0,
     this.teamsubmission = 0,
+    this.requireallteammemberssubmit = 0,
+    this.preventsubmissionnotingroup = 0,
     this.submissiondrafts = 0,
     this.requiresubmissionstatement = 0,
     this.submissionstatement,
@@ -154,6 +171,13 @@ class MoodleAssignment {
   bool get hasIntro => intro != null;
 
   bool get isTeamSubmission => teamsubmission != 0;
+
+  bool get requiresAllTeamMembersSubmit => requireallteammemberssubmit != 0;
+
+  bool get preventsSubmissionNotInGroup => preventsubmissionnotingroup != 0;
+
+  /// -1 = 不限次數。
+  bool get hasAttemptLimit => maxattempts > 0;
 
   /// 離線評分、沒有東西要交。
   bool get noSubmissionRequired => nosubmissions != 0;

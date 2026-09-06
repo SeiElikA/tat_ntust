@@ -42,6 +42,37 @@ enum MoodleWebApiConnectorStatus { loginSuccess, loginFail }
 
 /// Moodle 的失敗一律是 HTTP 200 加 `{exception, errorcode, message}` 或
 /// `warnings[]`，不判讀就是無聲失敗。刻意不留整包 body（裡面有個資）。
+/// `mod_assign_start_submission` 的結果。[notOpen] 是唯一真的失敗；
+/// 其餘三種都應該繼續進編輯頁。
+enum AssignStartOutcome {
+  /// 伺服器寫下了 `timestarted`，計時開始。
+  started,
+
+  /// `opensubmissionexists`：已經有一次在跑了，接續它。
+  alreadyRunning,
+
+  /// `timelimitnotenabled`：站台層級的 `enabletimelimit` 是關的。
+  /// 沒有任何 WS 讀得到那個開關，這一則 warning 是唯一的線索。
+  noTimeLimit,
+
+  /// `submissionnotopen`：這份作業現在不開放繳交。
+  notOpen,
+}
+
+/// [MoodleWebApiConnector.startSubmission] 的回傳值。沒有 `.g.dart`：
+/// 不落地也不上傳。
+class MoodleAssignStartResult {
+  const MoodleAssignStartResult({
+    required this.outcome,
+    required this.submissionId,
+  });
+
+  final AssignStartOutcome outcome;
+
+  /// 有任何 warning 時伺服器什麼都沒寫，這裡會是 0。
+  final int submissionId;
+}
+
 class MoodleApiException implements Exception {
   MoodleApiException({
     required this.wsFunction,
@@ -171,6 +202,25 @@ class MoodleWebApiConnector {
   /// 把草稿送出評分（type=write）。回傳形狀同上。
   static const String submitForGradingFunction =
       "mod_assign_submit_for_grading";
+
+  /// 移除一次繳交（type=write，@since Moodle 4.5）。參數是 `assignid` +
+  /// `userid`，不是 `assignmentid`；回的是 **Map**（`{status, warnings}`），
+  /// 跟隔壁兩支的裸陣列不一樣，見 [writeObjectShapeErrorOf]。
+  static const String removeSubmissionFunction = "mod_assign_remove_submission";
+
+  /// 開始一次有時限的作答（type=write，@since Moodle 4.0）。參數只有
+  /// `assignid`，伺服器寫死 `$USER->id`；回的也是 Map。
+  static const String startSubmissionFunction = "mod_assign_start_submission";
+
+  /// 把上一次的繳交複製進這一次（type=write）。參數是第三種拼法
+  /// `assignmentid`，回的是裸陣列。
+  ///
+  /// **這一支在 `mod/assign/db/services.php` 裡沒有 `services` 鍵**，是全部
+  /// `mod_assign_*` 裡唯一的一個，所以它不在 MOODLE_OFFICIAL_MOBILE_SERVICE
+  /// 內，一般站台的 `site_info.functions[]` 不會列出它。
+  /// [canCopyPreviousAttempt] 多數站台會是 false，那是常態不是例外。
+  static const String copyPreviousAttemptFunction =
+      "mod_assign_copy_previous_attempt";
 
   /// FORMAT_HTML。onlinetext 的 format 是 PARAM_INT。
   static const int onlineTextFormatHtml = 1;
@@ -408,7 +458,38 @@ class MoodleWebApiConnector {
   /// 所有 wsfunction 的傳輸層；可替換是為了讓測試不必連網路。
   @visibleForTesting
   static Future<dynamic> Function(ConnectorParameter parameter) wsPost =
-      Connector.getJsonByPost;
+      _wsPost;
+
+  /// 伺服器時鐘減裝置時鐘（秒）。作答倒數是拿伺服器寫下的 `timestarted` 加
+  /// 時限，再跟現在相減——裝置時間錯幾分鐘，剩餘時間就少報或多報同樣多，
+  /// 甚至會在 running 與 expired 之間翻面。Moodle 網頁的 `timer.js` 是從
+  /// 伺服器算好的剩餘秒數起跳，這一條是它在 WS 上的替代品。
+  static int serverClockSkewSeconds = 0;
+
+  /// 依伺服器時鐘的現在。倒數與截止提示一律用它，不要直接讀 `DateTime.now()`。
+  static DateTime serverNow() =>
+      DateTime.now().add(Duration(seconds: serverClockSkewSeconds));
+
+  /// 預設的傳輸層：順手記下 `Date` 標頭。走 Response 而不是
+  /// [Connector.getJsonByPost] 只為了這一件事，回給呼叫端的仍然是 body。
+  static Future<dynamic> _wsPost(ConnectorParameter parameter) async {
+    final response = await Connector.getDataByPostResponse(parameter);
+    _recordServerClock(response.headers.value('date'));
+    return response.data;
+  }
+
+  /// `Date` 只到秒，而且還含一趟往返的時間，所以這個差是粗的——但它要修的是
+  /// 分鐘級的裝置時間偏差，秒級的誤差無所謂。解析不出來就當作沒有這條線索。
+  static void _recordServerClock(String? httpDate) {
+    if (httpDate == null || httpDate.isEmpty) return;
+    try {
+      final server = HttpDate.parse(httpDate).millisecondsSinceEpoch ~/ 1000;
+      serverClockSkewSeconds =
+          server - DateTime.now().millisecondsSinceEpoch ~/ 1000;
+    } catch (_) {
+      // 標頭壞掉就沿用上一次的差；倒數退回本機時鐘不會比亂猜差。
+    }
+  }
 
   /// 上傳的傳輸層；可替換是為了讓測試不必連網路，同 [wsPost]。
   @visibleForTesting
@@ -448,7 +529,8 @@ class MoodleWebApiConnector {
     autologinDisabled = false;
     autologinClock = DateTime.now;
     autologinTimeout = _defaultAutologinTimeout;
-    wsPost = Connector.getJsonByPost;
+    serverClockSkewSeconds = 0;
+    wsPost = _wsPost;
     uploadPost = Connector.postMultipart;
     fileDownloader = _downloadWithDio;
   }
@@ -662,6 +744,23 @@ class MoodleWebApiConnector {
       wsFunction: wsFunction,
       errorcode: "badresponse",
       message: "$wsFunction 回的不是 warnings 陣列（${result.runtimeType}）",
+      siteFunctionVersion: siteInfo?.wsVersion(wsFunction),
+    );
+  }
+
+  /// 同 [writeShapeErrorOf]，但問的是回 `external_single_structure` 的那兩支
+  /// （remove / start）：它們的合法回應是 Map，不是 Map 就是這一趟根本沒到
+  /// Moodle。對稱要補齊，否則 captive portal 的 HTML 會一路通過
+  /// [moodleErrorOf]（`data is! Map` 直接放行）與 `treatWarningsAsError`。
+  static MoodleApiException? writeObjectShapeErrorOf(
+    dynamic result, {
+    required String wsFunction,
+  }) {
+    if (result is Map) return null;
+    return MoodleApiException(
+      wsFunction: wsFunction,
+      errorcode: "badresponse",
+      message: "$wsFunction 回的不是物件（${result.runtimeType}）",
       siteFunctionVersion: siteInfo?.wsVersion(wsFunction),
     );
   }
@@ -1643,7 +1742,8 @@ class MoodleWebApiConnector {
   }
 
   /// 形狀不對回 null。`gradefordisplay` 是 HTML 片段（如 `85.00&nbsp;/&nbsp;100.00`），
-  /// 在這裡 [HtmlUtils.clean] 成純文字，下游只進 Text。
+  /// 在這裡 [HtmlUtils.clean] 成純文字，下游只進 Text。`previousattempts` 底下
+  /// 那幾筆是同一個 PARAM_RAW 欄位，同樣要清。
   static MoodleAssignSubmissionStatus? submissionStatusOf(dynamic result) {
     if (result is! Map) return null;
     final status = MoodleAssignSubmissionStatus.fromJson(
@@ -1651,6 +1751,12 @@ class MoodleWebApiConnector {
     final feedback = status.feedback;
     if (feedback != null) {
       feedback.gradefordisplay = HtmlUtils.clean(feedback.gradefordisplay);
+    }
+    for (final attempt in status.previousattempts) {
+      final grade = attempt.grade;
+      if (grade != null) {
+        grade.gradefordisplay = HtmlUtils.clean(grade.gradefordisplay);
+      }
     }
     return status;
   }
@@ -1723,6 +1829,137 @@ class MoodleWebApiConnector {
       return true;
     } catch (e, stack) {
       _reportAndRethrow(submitForGradingFunction, e, stack);
+    }
+  }
+
+  /// 站台有沒有對這個 token 開放「移除繳交」。site_info 還沒載入時 fail-open，
+  /// 態度與 [wsFunctionBlocked] 一致。
+  static bool get canRemoveSubmission =>
+      wsFunctionBlocked(removeSubmissionFunction) == null;
+
+  /// 同上，問的是「開始計時作答」。
+  static bool get canStartSubmission =>
+      wsFunctionBlocked(startSubmissionFunction) == null;
+
+  /// 同上，問的是「沿用上一次繳交」。**多數站台會是 false**：這一支不在
+  /// MOODLE_OFFICIAL_MOBILE_SERVICE 內，見 [copyPreviousAttemptFunction]。
+  static bool get canCopyPreviousAttempt =>
+      wsFunctionBlocked(copyPreviousAttemptFunction) == null;
+
+  /// 移除一次繳交。成功回 true，其餘一律拋 [MoodleApiException]。
+  ///
+  /// `userid` 一定要送真的 id：這一支沒有 VALUE_DEFAULT，而 0 **不代表**
+  /// 「我自己」——`can_edit_submission($userid, $USER->id)` 的自己那一支是
+  /// `$userid == $graderid`，帶 0 會落到 `mod/assign:editothersubmission`，
+  /// 學生沒有那個權限，回來的是 couldnotremovesubmission。
+  ///
+  /// `status` 要**獨立於 warnings** 判：`assign::remove_submission()` 在
+  /// `!$submission`（跟另一台裝置搶）時回 false 而且一句錯誤都不留，
+  /// `{status: false, warnings: []}` 是真的到得了的回應，把它當成功就是把
+  /// 什麼都沒做報成刪除成功。
+  static Future<bool> removeSubmission({required int assignId}) async {
+    try {
+      final uid = await _ensureUserId();
+      if (uid == null) {
+        throw MoodleApiException(
+          wsFunction: removeSubmissionFunction,
+          message: '拿不到 userid，這一支不能用 0 代表自己',
+        );
+      }
+      final result = await _callWs(
+        removeSubmissionFunction,
+        {"assignid": assignId.toString(), "userid": uid},
+        treatWarningsAsError: true,
+      );
+      final shape =
+          writeObjectShapeErrorOf(result, wsFunction: removeSubmissionFunction);
+      if (shape != null) throw shape;
+      if ((result as Map)["status"] != true) {
+        throw MoodleApiException(
+          wsFunction: removeSubmissionFunction,
+          errorcode: "couldnotremovesubmission",
+          message: 'status 是 false 但沒有任何 warning',
+          siteFunctionVersion: siteInfo?.wsVersion(removeSubmissionFunction),
+        );
+      }
+      return true;
+    } catch (e, stack) {
+      _reportAndRethrow(removeSubmissionFunction, e, stack);
+    }
+  }
+
+  /// 開始一次有時限的作答。
+  ///
+  /// 刻意**不**傳 `treatWarningsAsError`：這一支的三個 warning 裡只有
+  /// `submissionnotopen` 是真的失敗。`timelimitnotenabled` 是「站台把計時
+  /// 功能整個關了」——那等於沒有計時器，照常進編輯頁；`opensubmissionexists`
+  /// 是「已經在跑了」，那是接續不是錯誤。認不得的 code 才拋。
+  static Future<MoodleAssignStartResult> startSubmission(
+      {required int assignId}) async {
+    try {
+      final result = await _callWs(
+          startSubmissionFunction, {"assignid": assignId.toString()});
+      final shape =
+          writeObjectShapeErrorOf(result, wsFunction: startSubmissionFunction);
+      if (shape != null) throw shape;
+      final map = result as Map;
+      final outcome = _startOutcomeOf(map["warnings"]);
+      return MoodleAssignStartResult(
+        outcome: outcome,
+        submissionId: int.tryParse('${map["submissionid"] ?? 0}') ?? 0,
+      );
+    } catch (e, stack) {
+      _reportAndRethrow(startSubmissionFunction, e, stack);
+    }
+  }
+
+  /// warnings[] → 結果。有任何 warning 時伺服器什麼都沒寫、`submissionid`
+  /// 是 0；warnings 是可以累加的（同時關閉又沒時限會回兩則），所以
+  /// 「真的失敗」的那一個優先。
+  static AssignStartOutcome _startOutcomeOf(dynamic warnings) {
+    if (warnings is! List || warnings.isEmpty) {
+      return AssignStartOutcome.started;
+    }
+    final codes = <String>{
+      for (final w in warnings)
+        if (w is Map && w["warningcode"] != null) w["warningcode"].toString(),
+    };
+    if (codes.contains('submissionnotopen')) return AssignStartOutcome.notOpen;
+    if (codes.contains('timelimitnotenabled')) {
+      return AssignStartOutcome.noTimeLimit;
+    }
+    if (codes.contains('opensubmissionexists')) {
+      return AssignStartOutcome.alreadyRunning;
+    }
+    throw MoodleApiException(
+      wsFunction: startSubmissionFunction,
+      errorcode: codes.isEmpty ? null : codes.first,
+      message: '認不得的 warningcode',
+      siteFunctionVersion: siteInfo?.wsVersion(startSubmissionFunction),
+    );
+  }
+
+  /// 把上一次的繳交複製進這一次。回的是**裸的 warnings 陣列**，跟
+  /// `save_submission` 同一個陷阱，所以判讀點也一樣是
+  /// [writeShapeErrorOf] + [writeWarningOf]，不能用 `treatWarningsAsError`。
+  ///
+  /// 唯一的 warningcode 是 `couldnotcopyprevioussubmission`，而它**不在**
+  /// `generate_warning` 的訊息表裡，回來的 `message` 會是
+  /// 「Unknown warning type.」，真正的原因只在伺服器語言的 `item` 裡。
+  /// 所以那個 code 只能對映到一句涵蓋性的話，其餘由重抓的狀態卡自己說。
+  static Future<bool> copyPreviousAttempt({required int assignId}) async {
+    try {
+      final result = await _callWs(
+          copyPreviousAttemptFunction, {"assignmentid": assignId.toString()});
+      final shape =
+          writeShapeErrorOf(result, wsFunction: copyPreviousAttemptFunction);
+      if (shape != null) throw shape;
+      final warning =
+          writeWarningOf(result, wsFunction: copyPreviousAttemptFunction);
+      if (warning != null) throw warning;
+      return true;
+    } catch (e, stack) {
+      _reportAndRethrow(copyPreviousAttemptFunction, e, stack);
     }
   }
 

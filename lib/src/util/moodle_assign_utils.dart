@@ -9,6 +9,9 @@ enum AssignDisplayStatus {
   submitted,
   graded,
   overdue,
+
+  /// 老師重開了一次，這一次是空的（`add_attempt` 建的那一列）。
+  reopened,
   noSubmissionRequired,
 }
 
@@ -44,8 +47,9 @@ class MoodleAssignUtils {
     return due > 0 && now.millisecondsSinceEpoch ~/ 1000 >= due;
   }
 
-  /// 判定順序：已評分 > 不需繳交 > 已繳交 > 已逾期 > 草稿 > 未繳交。
+  /// 判定順序：已評分 > 不需繳交 > 已繳交 > 已逾期 > 草稿 > 重新開放 > 未繳交。
   /// 草稿過了截止算已逾期：草稿不會被評分，對學生來說等同沒交。
+  /// 重新開放過了截止也一樣算逾期，跟草稿同一條規則。
   static AssignDisplayStatus resolveStatus(
     MoodleAssignment a,
     MoodleAssignSubmissionStatus s, {
@@ -57,6 +61,7 @@ class MoodleAssignUtils {
     if (sub != null && sub.isSubmitted) return AssignDisplayStatus.submitted;
     if (isOverdue(a, s, now)) return AssignDisplayStatus.overdue;
     if (sub != null && sub.isDraft) return AssignDisplayStatus.draft;
+    if (sub != null && sub.isReopened) return AssignDisplayStatus.reopened;
     return AssignDisplayStatus.notSubmitted;
   }
 

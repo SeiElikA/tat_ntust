@@ -1,9 +1,12 @@
 import 'package:dio/dio.dart' show CancelToken;
 import 'package:flutter_app/src/R.dart';
+import 'package:flutter_app/src/connector/moodle_webapi_connector.dart'
+    show AssignStartOutcome;
 import 'package:flutter_app/src/model/moodle_webapi/moodle_mod_assign_get_assignments.dart';
 import 'package:flutter_app/src/model/moodle_webapi/moodle_mod_assign_get_submission_status.dart';
 import 'package:flutter_app/src/repository/moodle_repository.dart';
 import 'package:flutter_app/src/repository/result.dart';
+import 'package:flutter_app/src/util/moodle_assign_attempt_utils.dart';
 import 'package:flutter_app/src/util/moodle_assign_submit_utils.dart';
 import 'package:get/get.dart';
 
@@ -17,22 +20,62 @@ class CourseAssignSubmitController {
     final sub = status.submissionFor(assignment);
     _serverFiles = sub?.files ?? const [];
     _serverOnlineText = sub?.onlineText ?? '';
-    files.assignAll([
+    _serverDrafts = [
       for (final f in _serverFiles)
         OnlineDraftFile(f.filename, f.fileurl,
             mimetype: f.mimetype, filesize: f.filesize),
-    ]);
+    ];
+    files.assignAll(_serverDrafts);
     onlineText.value = MoodleAssignSubmitUtils.htmlToPlain(_serverOnlineText);
   }
 
   final MoodleAssignment assignment;
+
+  /// 進頁時的那一份。只有它決定草稿的初值——重抓回來的那一份不可以拿去
+  /// 重新 seed，使用者可能已經在打字了。
   final MoodleAssignSubmissionStatus status;
+
+  /// 「開始作答」寫入之後重抓回來的那一份。`start_submission` 只會寫
+  /// `timestarted`，繳交內容不動，所以只換這一個參考、不重 seed。
+  final Rxn<MoodleAssignSubmissionStatus> refreshed =
+      Rxn<MoodleAssignSubmissionStatus>();
+
+  /// 現在該拿來算倒數與狀態的那一份。
+  MoodleAssignSubmissionStatus get currentStatus => refreshed.value ?? status;
 
   late final List<MoodleAssignFile> _serverFiles;
   late final String _serverOnlineText;
+  late final List<OnlineDraftFile> _serverDrafts;
 
   /// 伺服器上已經交了的檔案，給畫面比對用。
   List<MoodleAssignFile> get serverFiles => _serverFiles;
+
+  /// 伺服器上那幾份的草稿列，照伺服器的順序，**被標記移除的也還在裡面**。
+  /// 畫面要照這一份畫，不是照 [files]：`files_filemanager` 是同步不是附加，
+  /// 從清單裡消失就等於儲存時會被 Moodle 刪掉，那件事不可以只用一下無聲的
+  /// 消失來表示。
+  List<OnlineDraftFile> get serverDrafts => _serverDrafts;
+
+  /// 這一次儲存會從 Moodle 上刪掉幾個已經交出去的檔案。
+  int get pendingServerRemovals =>
+      filesChanged ? _serverDrafts.where((f) => !files.contains(f)).length : 0;
+
+  /// 把伺服器上的那一份標記成「儲存後移除」。那一列不會消失，只是換一個樣子，
+  /// 而且刪除要等到真的按下儲存才發生。
+  void removeServerFile(OnlineDraftFile file) => files.remove(file);
+
+  /// 取消移除。一定要插回原來的位置：[MoodleAssignSubmitUtils.fileListChanged]
+  /// 是逐格比對的，接在最後面會讓「什麼都沒動」被算成有變更，白白重傳整份清單。
+  void restoreServerFile(OnlineDraftFile file) {
+    if (files.contains(file)) return;
+    final target = _serverDrafts.indexOf(file);
+    if (target < 0) return;
+    var at = 0;
+    for (var i = 0; i < target; i++) {
+      if (files.contains(_serverDrafts[i])) at++;
+    }
+    files.insert(at, file);
+  }
 
   /// 初值＝伺服器上的那一份。
   final RxList<AssignDraftFile> files = <AssignDraftFile>[].obs;
@@ -45,6 +88,16 @@ class CourseAssignSubmitController {
   /// 有沒有一趟寫入正在跑。跟 [progress] 分開：只改線上文字時沒有任何檔案
   /// 可以量，那時候要畫不定量的進度條，而不是一條停在 0% 的實心條。
   final RxBool busy = false.obs;
+
+  /// 有沒有一趟「開始作答」正在跑。跟 [busy] 分開：它不是傳輸，動作列畫的
+  /// 還是同一顆鈕，只是不能再按第二下——第二下會拿到 opensubmissionexists。
+  final RxBool starting = false.obs;
+
+  /// 「開始作答」那一趟寫入回報的事實。**沒有任何狀態欄位講得出這兩件事**：
+  /// 站台關掉 `enabletimelimit` 時 `timelimit` 照樣是原值，重抓失敗時
+  /// `timestarted` 照樣是 0，兩者看起來都跟「還沒開始」一模一樣，而動作列在
+  /// 那個狀態下只畫得出「開始作答」——沒有這一顆，儲存鈕永遠出不來。
+  final Rxn<AssignStartFact> startFact = Rxn<AssignStartFact>();
 
   /// 0..1；量不出來時是 null。
   final Rxn<double> progress = Rxn<double>();
@@ -115,14 +168,51 @@ class CourseAssignSubmitController {
   bool get _statementOk =>
       !(statementRequired && !assignment.tracksDrafts) || accepted.value;
 
-  /// 沒有任何變更就不給按：那一趟必定被伺服器判成 submissionempty。
-  bool get canSave =>
-      !isBusy &&
-      (filesChanged || textChanged) &&
-      _statementOk &&
-      !filesEmptied &&
-      !onlineTextIsRich &&
-      !overWordLimit;
+  /// 儲存鈕為什麼不能按；null = 可以存。**作答時限到期不在裡面**：伺服器
+  /// 照收只標記遲交，本地擋下來就是把寫好的東西鎖死在畫面上。
+  AssignSaveBlock? get saveBlock => MoodleAssignSubmitUtils.saveBlockOf(
+        onlineTextIsRich: onlineTextIsRich,
+        filesEmptied: filesEmptied,
+        overWordLimit: overWordLimit,
+        statementOk: _statementOk,
+        dirty: filesChanged || textChanged,
+      );
+
+  /// [isBusy] 刻意不是 [AssignSaveBlock] 的一員：忙碌時動作列畫的是傳輸列
+  /// 而不是這顆鈕，那個理由字串永遠不會被畫出來。
+  bool get canSave => !isBusy && saveBlock == null;
+
+  /// 開始一次有時限的作答。回 null 代表已經有一趟在跑；否則 error 為 null
+  /// 才是成功。不開對話框也不 toast：controller -> ui 是上行邊。
+  Future<({String? error})?> startTimedAttempt() async {
+    if (starting.value) return null;
+    starting.value = true;
+    try {
+      final result = await MoodleRepository.instance
+          .startAssignAttempt(assignment: assignment);
+      final data = result.dataOrNull;
+      final fresh = data?.status;
+      if (fresh != null) refreshed.value = fresh;
+      final outcome = data?.outcome;
+      if (outcome != null) startFact.value = _factOf(outcome);
+      return switch (result) {
+        Ok() || Stale() => (error: null),
+        Failed(:final reason) => (error: reason.message),
+      };
+    } finally {
+      starting.value = false;
+    }
+  }
+
+  static AssignStartFact? _factOf(AssignStartOutcome outcome) =>
+      switch (outcome) {
+        AssignStartOutcome.noTimeLimit => AssignStartFact.noTimeLimit,
+        AssignStartOutcome.started ||
+        AssignStartOutcome.alreadyRunning =>
+          AssignStartFact.started,
+        // notOpen 走的是 Failed，這裡拿不到它。
+        AssignStartOutcome.notOpen => null,
+      };
 
   /// 送出一次繳交。不開對話框、不 toast：controller → ui 是上行邊，確認框與
   /// 提示由頁面負責。
@@ -137,7 +227,7 @@ class CourseAssignSubmitController {
     try {
       final result = await MoodleRepository.instance.saveAssignSubmission(
         assignment: assignment,
-        status: status,
+        status: currentStatus,
         draft: AssignSubmissionDraft(
           // 線上文字外掛只要開著就一定要送：伺服器端的 save() 沒有 isset
           // 把關，不送等於用空值覆蓋掉學生現有的文字。沒動過就把伺服器自己
@@ -193,6 +283,9 @@ class CourseAssignSubmitController {
     transferFile.close();
     transferPhase.close();
     accepted.close();
+    refreshed.close();
+    starting.close();
+    startFact.close();
     busy.close();
     progress.close();
   }

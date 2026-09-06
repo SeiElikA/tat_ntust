@@ -25,6 +25,7 @@ import 'package:flutter_app/src/repository/retry.dart';
 import 'package:flutter_app/src/repository/run.dart';
 import 'package:flutter_app/src/store/cache_store.dart';
 import 'package:flutter_app/src/util/file_utils.dart';
+import 'package:flutter_app/src/util/moodle_assign_attempt_utils.dart';
 import 'package:flutter_app/src/util/moodle_assign_submit_utils.dart';
 import 'package:flutter_app/src/util/moodle_assign_utils.dart';
 import 'package:flutter_app/src/util/moodle_avatar_utils.dart';
@@ -706,6 +707,19 @@ class MoodleRepository {
           assignId: assignId, acceptStatement: acceptStatement);
 
   @visibleForTesting
+  Future<bool> writeRemoveSubmission({required int assignId}) =>
+      MoodleWebApiConnector.removeSubmission(assignId: assignId);
+
+  @visibleForTesting
+  Future<MoodleAssignStartResult> writeStartSubmission(
+          {required int assignId}) =>
+      MoodleWebApiConnector.startSubmission(assignId: assignId);
+
+  @visibleForTesting
+  Future<bool> writeCopyPreviousAttempt({required int assignId}) =>
+      MoodleWebApiConnector.copyPreviousAttempt(assignId: assignId);
+
+  @visibleForTesting
   Future<bool> downloadOnlineFile(String fileUrl, String savePath,
           {CancelToken? cancelToken,
           void Function(int received, int total)? onProgress}) =>
@@ -779,14 +793,19 @@ class MoodleRepository {
               assignId: assignment.id,
               acceptStatement: acceptStatement,
             );
-          } on MoodleApiException catch (e) {
+          } catch (e) {
             // 拒絕也要重抓：`couldnotsubmitforgrading` 不說原因，而伺服器可能
             // 早就是 SUBMITTED（另一個裝置送過了）。Failed 帶不了資料，所以
             // 走 Ok 加 error，由呼叫端 toast。
+            //
+            // 不分例外型別：連線斷在請求送出之後時伺服器可能已經寫進去了，
+            // 而 `MoodleApiException` 只涵蓋 HTTP 200 的那一種失敗。
             return MoodleAssignSubmitResult(
               status: await _refreshStatus(assignment.id),
               submitted: false,
-              error: assignSubmitFailureMessage(e),
+              error: e is MoodleApiException
+                  ? assignSubmitFailureMessage(e)
+                  : R.current.assignSubmitForGradingRejected,
             );
           }
           return MoodleAssignSubmitResult(
@@ -794,6 +813,135 @@ class MoodleRepository {
             submitted: true,
           );
         },
+      );
+
+  /// 移除這一次的繳交。
+  ///
+  /// `retry: none`：這是破壞性的寫入，`run()` 的重試會把它再跑一次。
+  /// `background: false`：token 死掉時仍然要開得了 Moodle 登入頁。
+  ///
+  /// **不論成敗都重抓狀態**。這是所有寫入裡最不能停在舊快取的一條：
+  /// 留著寫入前那一份，離線再開就會理直氣壯地畫出已經不存在的檔案。
+  Future<Result<MoodleAssignSubmitResult>> removeAssignSubmission({
+    required MoodleAssignment assignment,
+    required MoodleAssignSubmissionStatus status,
+  }) =>
+      run<MoodleAssignSubmitResult>(
+        requires: const {SystemId.moodleWebApi},
+        retry: RetryPolicy.none,
+        errorMessage: R.current.assignRemoveRejected,
+        debugLabel: 'moodleRemoveAssignSubmission',
+        fetch: () async {
+          // 縱深防禦：按鈕畫出來到按下去之間，伺服器那邊可能已經關了。
+          if (!MoodleAssignAttemptUtils.actionsFor(assignment, status,
+                  api: currentAssignAvailability())
+              .contains(AssignAction.removeSubmission)) {
+            throw TaskFailure(FetchFailed(R.current.assignRemoveRejected));
+          }
+          try {
+            await writeRemoveSubmission(assignId: assignment.id);
+          } catch (e) {
+            // 型別不拘：`MoodleApiException` 只涵蓋 HTTP 200 的那一種失敗，
+            // 連線斷在請求送出之後（`remove_submission` 是先刪再回應）落到的是
+            // `DioException`，而那正是最不能停在舊快取的一種——留著寫入前那一份，
+            // 離線再開就會理直氣壯地畫出已經不存在的檔案。
+            return MoodleAssignSubmitResult(
+              status: await _refreshStatus(assignment.id),
+              submitted: false,
+              error: e is MoodleApiException
+                  ? assignSubmitFailureMessage(e)
+                  : R.current.assignRemoveRejected,
+            );
+          }
+          return MoodleAssignSubmitResult(
+            status: await _refreshStatus(assignment.id),
+            submitted: false,
+          );
+        },
+      );
+
+  /// 沿用上一次的繳交。呼叫端必須先看
+  /// [MoodleWebApiConnector.canCopyPreviousAttempt]——多數站台沒開放這一支，
+  /// 那時要畫成網頁連結而不是按鈕。這裡的 `wsFunctionBlocked` 只是後盾。
+  ///
+  /// `submissiondrafts == 0` 的作業複製過來就是**直接繳交**（伺服器在複製
+  /// 外掛內容之前就把狀態翻成 SUBMITTED 並寄出回條），確認框要說清楚。
+  Future<Result<MoodleAssignSubmitResult>> copyPreviousAssignAttempt({
+    required MoodleAssignment assignment,
+    required MoodleAssignSubmissionStatus status,
+  }) =>
+      run<MoodleAssignSubmitResult>(
+        requires: const {SystemId.moodleWebApi},
+        retry: RetryPolicy.none,
+        errorMessage: R.current.assignCopyPreviousRejected,
+        debugLabel: 'moodleCopyPreviousAssignAttempt',
+        fetch: () async {
+          if (!MoodleAssignAttemptUtils.actionsFor(assignment, status,
+                  api: currentAssignAvailability())
+              .contains(AssignAction.copyPrevious)) {
+            throw TaskFailure(
+                FetchFailed(R.current.assignCopyPreviousRejected));
+          }
+          try {
+            await writeCopyPreviousAttempt(assignId: assignment.id);
+          } catch (e) {
+            // 狀態翻轉發生在外掛複製迴圈之前，被拒絕時伺服器上可能已經是
+            // 半套的：拒絕也要重抓，而且不分例外型別（同 removeAssignSubmission）。
+            return MoodleAssignSubmitResult(
+              status: await _refreshStatus(assignment.id),
+              submitted: false,
+              error: e is MoodleApiException
+                  ? assignSubmitFailureMessage(e)
+                  : R.current.assignCopyPreviousRejected,
+            );
+          }
+          return MoodleAssignSubmitResult(
+            status: await _refreshStatus(assignment.id),
+            // 沒有草稿階段的作業，複製過來伺服器就標成 submitted 了。
+            submitted: !assignment.tracksDrafts,
+          );
+        },
+      );
+
+  /// 開始一次有時限的作答。
+  ///
+  /// `started` / `alreadyRunning` / `noTimeLimit` 三種都繼續進編輯頁，只有
+  /// `notOpen` 是錯誤。前兩種要重抓狀態，否則畫面不知道 `timestarted`，
+  /// 倒數會從頭算起。
+  Future<Result<MoodleAssignStartAttempt>> startAssignAttempt({
+    required MoodleAssignment assignment,
+  }) =>
+      run<MoodleAssignStartAttempt>(
+        requires: const {SystemId.moodleWebApi},
+        retry: RetryPolicy.none,
+        errorMessage: R.current.assignStartNotOpen,
+        debugLabel: 'moodleStartAssignAttempt',
+        fetch: () async {
+          final MoodleAssignStartResult result;
+          try {
+            result = await writeStartSubmission(assignId: assignment.id);
+          } on MoodleApiException catch (e) {
+            throw TaskFailure(FetchFailed(assignSubmitFailureMessage(e)));
+          }
+          if (result.outcome == AssignStartOutcome.notOpen) {
+            throw TaskFailure(FetchFailed(R.current.assignStartNotOpen));
+          }
+          // noTimeLimit 時伺服器什麼都沒寫，狀態不會變，沒有重抓的必要。
+          final fresh = result.outcome == AssignStartOutcome.noTimeLimit
+              ? null
+              : await _refreshStatus(assignment.id);
+          return MoodleAssignStartAttempt(
+              outcome: result.outcome, status: fresh);
+        },
+      );
+
+  /// 站台現在對這三支寫入 function 的開放狀況。抽成方法是為了讓
+  /// [MoodleAssignAttemptUtils] 保持不知道 connector 的存在。
+  @visibleForTesting
+  AssignAvailability currentAssignAvailability() => (
+        canRemove: MoodleWebApiConnector.canRemoveSubmission,
+        canStart: MoodleWebApiConnector.canStartSubmission,
+        canCopy: MoodleWebApiConnector.canCopyPreviousAttempt,
       );
 
   Future<MoodleAssignSubmitResult?> _saveAssignSubmission({
@@ -858,6 +1006,16 @@ class MoodleRepository {
         status: await _refreshStatus(assignment.id),
         submitted: false,
         error: message,
+      );
+    } catch (_) {
+      // save_submission 已經送出去了，之後才斷線／逾時：伺服器可能已經寫進去，
+      // 也可能已經同步掉了幾個檔案，停在寫入前的快取是最糟的一種說謊。
+      // 還沒送出的（挑檔案、上傳、TaskFailure）原封往上丟。
+      if (!sentSubmission) rethrow;
+      return MoodleAssignSubmitResult(
+        status: await _refreshStatus(assignment.id),
+        submitted: false,
+        error: R.current.assignSubmitError,
       );
     } finally {
       await _removeTempDir(tempDir);
@@ -1054,6 +1212,16 @@ String assignSubmitFailureMessage(MoodleApiException e) =>
     switch (e.errorcode) {
       'couldnotsavesubmission' => R.current.assignSubmitRejected,
       'couldnotsubmitforgrading' => R.current.assignSubmitForGradingRejected,
+      // 兩個 code 都不說原因，而且 `submissionnotfoundtoremove` 是拿**自己**
+      // 那一列判的（團隊作業真正動的是群組那一列），所以文案不可以斷言
+      // 「沒有東西可以移除」——只說沒移除成功，真相由重抓的狀態卡自己講。
+      'submissionnotfoundtoremove' ||
+      'couldnotremovesubmission' =>
+        R.current.assignRemoveRejected,
+      // 這一個 code 不在伺服器的訊息表裡，message 會是「Unknown warning type.」。
+      'couldnotcopyprevioussubmission' => R.current.assignCopyPreviousRejected,
+      'submissionnotopen' => R.current.assignStartNotOpen,
+      'badresponse' => R.current.assignSubmitError,
       'submissionslocked' => R.current.assignSubmitLocked,
       'nopermissions' ||
       'required_capability_exception' ||
@@ -1068,6 +1236,17 @@ String assignSubmitFailureMessage(MoodleApiException e) =>
       'virusfounduser' => R.current.assignFileVirusFound,
       _ => R.current.assignSubmitError,
     };
+
+/// 一次「開始作答」的結果。沒有 `.g.dart`：不落地也不上傳。
+class MoodleAssignStartAttempt {
+  const MoodleAssignStartAttempt({required this.outcome, this.status});
+
+  final AssignStartOutcome outcome;
+
+  /// 重抓回來的繳交狀態；`noTimeLimit` 時是 null（伺服器沒動任何東西），
+  /// 重抓失敗時也是 null。
+  final MoodleAssignSubmissionStatus? status;
+}
 
 /// 換頭貼的結果。沒有 `.g.dart`：不落地也不上傳，沒有東西序列化它。
 class MoodleAvatarChange {

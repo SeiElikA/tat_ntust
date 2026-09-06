@@ -110,10 +110,13 @@ void main() {
       expect(s.submissionFor(team), isNotNull);
       expect(s.submissionFor(team)!.isSubmitted, isTrue);
 
-      final keys = s.lastattempt!.toJson().keys;
-      expect(keys, isNot(contains('submissiongroup')));
-      expect(keys, isNot(contains('usergroups')));
-      expect(keys, isNot(contains('submissiongroupmemberswhoneedtosubmit')));
+      // 群組欄位現在有建模：畫面要靠它們分辨「沒有組」與「跨了多組」。
+      expect(s.lastattempt!.usergroups, [12]);
+      expect(s.lastattempt!.submissiongroup, 12);
+      expect(s.lastattempt!.submissiongroupmemberswhoneedtosubmit, [5253]);
+      expect(s.hasSubmissionGroup, isTrue);
+      expect(s.groupCount, 1);
+      expect(s.pendingGroupMembers, [5253]);
     });
 
     test('非團隊作業只看自己的那一筆，沒有就是沒有', () {
@@ -190,10 +193,42 @@ void main() {
       expect(back.feedback!.files.single.filename, 'hw1_marked.pdf');
     });
 
+    test('升級前存下的 blob 少了新欄位：解析成安全的預設值，不是拋', () {
+      // cache_moodle_assign_status 沒有版本號，舊 blob 會原封不動被讀回來。
+      // 這幾個欄位缺席時必須是「沒有計時、第一次、沒有組」——也就是
+      // 「什麼動作都畫不出來」的那一邊；反過來猜就會在離線時畫出
+      // 一顆會打壞伺服器的鈕。詳情頁另外用「兩者都要是 Ok」再擋一層。
+      final old = MoodleAssignSubmissionStatus.fromJson({
+        'lastattempt': {
+          'canedit': true,
+          'cansubmit': false,
+          'locked': false,
+          'graded': false,
+          'submissionsenabled': true,
+          'gradingstatus': 'notgraded',
+          'submission': {
+            'timemodified': 1756600000,
+            'status': 'draft',
+            'plugins': <dynamic>[],
+          },
+        },
+      });
+
+      expect(old.previousattempts, isEmpty);
+      expect(old.lastattempt!.usergroups, isEmpty);
+      expect(old.lastattempt!.submissiongroup, isNull);
+      expect(old.lastattempt!.submissiongroupmemberswhoneedtosubmit, isEmpty);
+      expect(old.lastattempt!.caneditowner, isFalse);
+      expect(old.lastattempt!.submission!.attemptnumber, 0);
+      expect(old.lastattempt!.submission!.timestarted, 0);
+      expect(old.hasSubmissionGroup, isFalse);
+      expect(old.groupCount, 0);
+    });
+
     test('快取 blob 只有畫面讀的 key：沒有 warnings，也沒有各層的 id / userid', () {
       final s = rawFixtureStatus('status_graded');
 
-      expect(s.toJson().keys, {'lastattempt', 'feedback'});
+      expect(s.toJson().keys, {'lastattempt', 'feedback', 'previousattempts'});
       expect(s.lastattempt!.toJson().keys, {
         'submission',
         'teamsubmission',
@@ -206,9 +241,18 @@ void main() {
         'submissionsenabled',
         'blindmarking',
         'timelimit',
+        'usergroups',
+        'submissiongroup',
+        'submissiongroupmemberswhoneedtosubmit',
+        'caneditowner',
       });
-      expect(s.lastattempt!.submission!.toJson().keys,
-          {'timemodified', 'status', 'plugins'});
+      expect(s.lastattempt!.submission!.toJson().keys, {
+        'timemodified',
+        'status',
+        'plugins',
+        'attemptnumber',
+        'timestarted'
+      });
       expect(s.lastattempt!.submission!.plugins.first.toJson().keys,
           {'type', 'fileareas', 'editorfields'});
       expect(s.feedback!.grade!.toJson().keys, {'grade'});

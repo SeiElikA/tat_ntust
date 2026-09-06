@@ -16,6 +16,7 @@ void main() {
 
   MoodleAssignment assignment({
     int teamsubmission = 0,
+    int preventsubmissionnotingroup = 0,
     int timelimit = 0,
     int blindmarking = 0,
     int nosubmissions = 0,
@@ -24,6 +25,7 @@ void main() {
       MoodleAssignment(
         id: 1,
         teamsubmission: teamsubmission,
+        preventsubmissionnotingroup: preventsubmissionnotingroup,
         timelimit: timelimit,
         blindmarking: blindmarking,
         nosubmissions: nosubmissions,
@@ -39,6 +41,8 @@ void main() {
     bool blindmarking = false,
     int timelimit = 0,
     bool hasLastAttempt = true,
+    List<int> usergroups = const [7],
+    int? submissiongroup = 7,
   }) =>
       MoodleAssignSubmissionStatus(
         lastattempt: hasLastAttempt
@@ -49,6 +53,8 @@ void main() {
                 submissionsenabled: submissionsenabled,
                 blindmarking: blindmarking,
                 timelimit: timelimit,
+                usergroups: usergroups,
+                submissiongroup: submissiongroup,
               )
             : null,
       );
@@ -58,34 +64,92 @@ void main() {
       expect(MoodleAssignSubmitUtils.blockOf(assignment(), status()), isNull);
     });
 
-    test('團隊作業', () {
+    test('團隊作業有分到組就不擋——那是 App 現在交得出去的', () {
       expect(
           MoodleAssignSubmitUtils.blockOf(
               assignment(teamsubmission: 1), status()),
-          AssignSubmitBlock.team);
+          isNull);
     });
 
-    test('作業層的 timelimit', () {
+    test('團隊作業但沒有分到組', () {
+      expect(
+          MoodleAssignSubmitUtils.blockOf(
+              assignment(teamsubmission: 1, preventsubmissionnotingroup: 1),
+              status(usergroups: const [], submissiongroup: null)),
+          AssignSubmitBlock.noGroup);
+    });
+
+    test('團隊作業但同時在多組', () {
+      expect(
+          MoodleAssignSubmitUtils.blockOf(
+              assignment(teamsubmission: 1, preventsubmissionnotingroup: 1),
+              status(usergroups: const [7, 8], submissiongroup: null)),
+          AssignSubmitBlock.multipleGroups);
+    });
+
+    test('preventsubmissionnotingroup 關著時沒有組別也不擋：伺服器會收進預設組別', () {
+      for (final groups in [
+        const <int>[],
+        const [7, 8]
+      ]) {
+        expect(
+            MoodleAssignSubmitUtils.blockOf(assignment(teamsubmission: 1),
+                status(usergroups: groups, submissiongroup: null)),
+            isNull);
+      }
+    });
+
+    test('有作答時限不再是理由：那條路現在走得通', () {
       expect(
           MoodleAssignSubmitUtils.blockOf(assignment(timelimit: 600), status()),
-          AssignSubmitBlock.timed);
-    });
-
-    test('lastattempt 的 timelimit 也算', () {
+          isNull);
       expect(
           MoodleAssignSubmitUtils.blockOf(assignment(), status(timelimit: 600)),
-          AssignSubmitBlock.timed);
+          isNull);
     });
 
-    test('匿名評分（作業層與 lastattempt 各一）', () {
+    test('匿名評分不再是理由：伺服器端的寫入路徑從頭到尾沒有檢查它', () {
       expect(
           MoodleAssignSubmitUtils.blockOf(
               assignment(blindmarking: 1), status()),
-          AssignSubmitBlock.blind);
+          isNull);
       expect(
           MoodleAssignSubmitUtils.blockOf(
               assignment(), status(blindmarking: true)),
-          AssignSubmitBlock.blind);
+          isNull);
+    });
+
+    test('第三方繳交外掛：plugindata 給不出來，只能導網頁', () {
+      expect(
+          MoodleAssignSubmitUtils.blockOf(
+              assignment(configs: [
+                cfg('file', 'enabled', '1'),
+                cfg('turnitintooltwo', 'enabled', '1'),
+              ]),
+              status()),
+          AssignSubmitBlock.unsupportedPlugin);
+    });
+
+    test('comments 是唯讀的，不算不支援', () {
+      expect(
+          MoodleAssignSubmitUtils.blockOf(
+              assignment(configs: [
+                cfg('file', 'enabled', '1'),
+                cfg('comments', 'enabled', '1'),
+              ]),
+              status()),
+          isNull);
+    });
+
+    test('assignfeedback 底下的外掛不看：那不是繳交外掛', () {
+      expect(
+          MoodleAssignSubmitUtils.blockOf(
+              assignment(configs: [
+                cfg('file', 'enabled', '1'),
+                cfg('editpdf', 'enabled', '1', subtype: 'assignfeedback'),
+              ]),
+              status()),
+          isNull);
     });
 
     test('nosubmissions 是離線評分', () {
@@ -123,11 +187,22 @@ void main() {
       }
     });
 
-    test('判定順序：團隊作業又 canedit=false 時回 team，使用者才看得到可行動的理由', () {
+    test('判定順序：沒有組又 canedit=false 時回 noGroup，那才是可行動的理由', () {
       expect(
         MoodleAssignSubmitUtils.blockOf(
-            assignment(teamsubmission: 1), status(canedit: false)),
-        AssignSubmitBlock.team,
+            assignment(teamsubmission: 1, preventsubmissionnotingroup: 1),
+            status(
+                canedit: false, usergroups: const [], submissiongroup: null)),
+        AssignSubmitBlock.noGroup,
+      );
+    });
+
+    test('判定順序：不支援的外掛排在 noPlugin 之前', () {
+      expect(
+        MoodleAssignSubmitUtils.blockOf(
+            assignment(configs: [cfg('turnitintooltwo', 'enabled', '1')]),
+            status()),
+        AssignSubmitBlock.unsupportedPlugin,
       );
     });
 
@@ -139,12 +214,60 @@ void main() {
       );
     });
 
-    test('fixture：被鎖定的與有時限的都擋下來', () {
+    test('fixture：被鎖定的擋下來，有時限的放行', () {
       final a = fixtureSubmittableAssignment();
       expect(MoodleAssignSubmitUtils.blockOf(a, fixtureStatus('status_locked')),
           AssignSubmitBlock.closed);
       expect(MoodleAssignSubmitUtils.blockOf(a, fixtureStatus('status_timed')),
-          AssignSubmitBlock.timed);
+          isNull);
+    });
+  });
+
+  /// 儲存鈕的理由表。順序是規格的一部分：只回第一個理由，而且**時限到期
+  /// 永遠不在裡面**——伺服器照收只標記遲交，本地擋下來就是把寫好的東西鎖死。
+  group('saveBlockOf', () {
+    AssignSaveBlock? call({
+      bool rich = false,
+      bool emptied = false,
+      bool over = false,
+      bool statementOk = true,
+      bool dirty = true,
+    }) =>
+        MoodleAssignSubmitUtils.saveBlockOf(
+          onlineTextIsRich: rich,
+          filesEmptied: emptied,
+          overWordLimit: over,
+          statementOk: statementOk,
+          dirty: dirty,
+        );
+
+    test('全部過關就是 null', () {
+      expect(call(), isNull);
+    });
+
+    test('五個理由各自認得出來', () {
+      expect(call(rich: true), AssignSaveBlock.richOnlineText);
+      expect(call(emptied: true), AssignSaveBlock.filesEmptied);
+      expect(call(over: true), AssignSaveBlock.overWordLimit);
+      expect(call(statementOk: false), AssignSaveBlock.statementNotAccepted);
+      expect(call(dirty: false), AssignSaveBlock.noChanges);
+    });
+
+    test('同時成立時照宣告順序回第一個', () {
+      expect(
+          call(
+              rich: true,
+              emptied: true,
+              over: true,
+              statementOk: false,
+              dirty: false),
+          AssignSaveBlock.richOnlineText);
+      expect(call(emptied: true, over: true, statementOk: false, dirty: false),
+          AssignSaveBlock.filesEmptied);
+      expect(call(over: true, statementOk: false, dirty: false),
+          AssignSaveBlock.overWordLimit);
+      expect(call(statementOk: false, dirty: false),
+          AssignSaveBlock.statementNotAccepted);
     });
   });
 

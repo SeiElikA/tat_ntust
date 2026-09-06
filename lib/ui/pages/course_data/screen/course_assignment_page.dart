@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_app/src/R.dart';
+import 'package:flutter_app/src/connector/moodle_webapi_connector.dart'
+    show MoodleWebApiConnector;
 import 'package:flutter_app/src/controller/course_data/course_data_controller.dart';
 import 'package:flutter_app/src/model/course_table/course_table_json.dart';
 import 'package:flutter_app/src/model/moodle_webapi/moodle_mod_assign_get_assignments.dart';
@@ -72,8 +74,10 @@ class _CourseAssignmentPageState extends State<CourseAssignmentPage>
       );
     }
 
-    // now 只取一次：排序、每一列的提示與狀態籤用同一個時間點。
-    final now = DateTime.now();
+    // now 只取一次：排序、每一列的提示與狀態籤用同一個時間點。而且要跟詳情頁
+    // 同一個時鐘——那邊的截止時間全是伺服器寫的，兩邊各用各的就會在同一份
+    // 作業上一個說已逾期、一個說還沒。
+    final now = MoodleWebApiConnector.serverNow();
     // 在 ResultView 的 Obx 之內，所以背景抓到狀態時清單會跟著重排。
     final items = MoodleAssignUtils.sortForList(
       list,

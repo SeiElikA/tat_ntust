@@ -5,7 +5,14 @@ import 'package:flutter_app/src/model/moodle_webapi/moodle_mod_assign_get_submis
 import 'package:flutter_app/src/repository/result.dart';
 import 'package:flutter_app/src/util/moodle_assign_utils.dart';
 import 'package:flutter_app/ui/pages/course_data/screen/widgets/status_pill.dart';
+import 'package:intl/intl.dart';
 import 'package:sprintf/sprintf.dart';
+
+/// Unix 秒 → 畫面上的日期時間。作業詳情頁、繳交頁的表頭與清單共用同一種
+/// 格式，放在這裡是因為頁面之間不互相 import（見 docs/ARCHITECTURE.md）。
+String assignFormatUnix(int unix) => DateFormat.yMd()
+    .add_jm()
+    .format(DateTime.fromMillisecondsSinceEpoch(unix * 1000));
 
 /// [DueHint] 對映成畫面文字。住在 UI 層是因為要 R.current；
 /// 作業分頁與詳情頁共用。
@@ -59,6 +66,7 @@ class AssignStatusChip extends StatelessWidget {
         AssignDisplayStatus.submitted => R.current.assignStatusSubmitted,
         AssignDisplayStatus.graded => R.current.assignStatusGraded,
         AssignDisplayStatus.overdue => R.current.assignStatusOverdue,
+        AssignDisplayStatus.reopened => R.current.assignStatusReopened,
         AssignDisplayStatus.noSubmissionRequired =>
           R.current.assignStatusNoSubmissionRequired,
       };
@@ -70,7 +78,8 @@ class AssignStatusChip extends StatelessWidget {
       AssignDisplayStatus.notSubmitted ||
       AssignDisplayStatus.noSubmissionRequired =>
         (scheme.surfaceContainerHighest, scheme.onSurfaceVariant),
-      AssignDisplayStatus.draft => (
+      // 重新開放跟草稿同一組顏色：兩者都是「還沒交出去，但已經動起來了」。
+      AssignDisplayStatus.draft || AssignDisplayStatus.reopened => (
           scheme.tertiaryContainer,
           scheme.onTertiaryContainer
         ),

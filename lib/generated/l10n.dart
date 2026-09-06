@@ -1919,6 +1919,16 @@ class S {
     );
   }
 
+  /// `Saving deletes %s file(s) you already submitted from Moodle, and that cannot be undone`
+  String get assignRemoveFilesWarning {
+    return Intl.message(
+      'Saving deletes %s file(s) you already submitted from Moodle, and that cannot be undone',
+      name: 'assignRemoveFilesWarning',
+      desc: '',
+      args: [],
+    );
+  }
+
   /// `Draft saved`
   String get assignDraftSaved {
     return Intl.message(
@@ -1969,11 +1979,11 @@ class S {
     );
   }
 
-  /// `No files selected yet`
-  String get assignFilesEmpty {
+  /// `Undo removing this file`
+  String get assignRestoreFile {
     return Intl.message(
-      'No files selected yet',
-      name: 'assignFilesEmpty',
+      'Undo removing this file',
+      name: 'assignRestoreFile',
       desc: '',
       args: [],
     );
@@ -2239,36 +2249,6 @@ class S {
     );
   }
 
-  /// `This is a group assignment; submit it on the web`
-  String get assignSubmitWebOnlyTeam {
-    return Intl.message(
-      'This is a group assignment; submit it on the web',
-      name: 'assignSubmitWebOnlyTeam',
-      desc: '',
-      args: [],
-    );
-  }
-
-  /// `This assignment has a time limit; submit it on the web`
-  String get assignSubmitWebOnlyTimed {
-    return Intl.message(
-      'This assignment has a time limit; submit it on the web',
-      name: 'assignSubmitWebOnlyTimed',
-      desc: '',
-      args: [],
-    );
-  }
-
-  /// `This assignment uses blind marking; submit it on the web`
-  String get assignSubmitWebOnlyBlind {
-    return Intl.message(
-      'This assignment uses blind marking; submit it on the web',
-      name: 'assignSubmitWebOnlyBlind',
-      desc: '',
-      args: [],
-    );
-  }
-
   /// `No permission to read files; enable it in system settings and try again`
   String get assignFilePickerDenied {
     return Intl.message(
@@ -2334,6 +2314,521 @@ class S {
     return Intl.message(
       'Sent, but the latest status could not be loaded; refresh to confirm',
       name: 'assignStatusRefreshFailed',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Saving keeps this as a draft; go back and tap Submit for grading to hand it in`
+  String get assignConsequenceDraft {
+    return Intl.message(
+      'Saving keeps this as a draft; go back and tap Submit for grading to hand it in',
+      name: 'assignConsequenceDraft',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `This assignment has no draft stage: saving submits it`
+  String get assignConsequenceDirect {
+    return Intl.message(
+      'This assignment has no draft stage: saving submits it',
+      name: 'assignConsequenceDirect',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Saving replaces what you have already submitted`
+  String get assignConsequenceOverwrite {
+    return Intl.message(
+      'Saving replaces what you have already submitted',
+      name: 'assignConsequenceOverwrite',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `This is reopened attempt %s; saving does not change your previous grade`
+  String get assignConsequenceReopened {
+    return Intl.message(
+      'This is reopened attempt %s; saving does not change your previous grade',
+      name: 'assignConsequenceReopened',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `This is reopened attempt %s; saving keeps it as a draft, so go back and tap Submit for grading to hand it in. Your previous grade is not affected`
+  String get assignConsequenceReopenedDraft {
+    return Intl.message(
+      'This is reopened attempt %s; saving keeps it as a draft, so go back and tap Submit for grading to hand it in. Your previous grade is not affected',
+      name: 'assignConsequenceReopenedDraft',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Accept the submission statement first`
+  String get assignBlockedStatement {
+    return Intl.message(
+      'Accept the submission statement first',
+      name: 'assignBlockedStatement',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Nothing has changed yet`
+  String get assignBlockedNoChanges {
+    return Intl.message(
+      'Nothing has changed yet',
+      name: 'assignBlockedNoChanges',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `You have reached the %s-file limit`
+  String get assignFileLimitReached {
+    return Intl.message(
+      'You have reached the %s-file limit',
+      name: 'assignFileLimitReached',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Already on Moodle`
+  String get assignFileOnServer {
+    return Intl.message(
+      'Already on Moodle',
+      name: 'assignFileOnServer',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Will be removed from Moodle when you save`
+  String get assignFileWillBeRemoved {
+    return Intl.message(
+      'Will be removed from Moodle when you save',
+      name: 'assignFileWillBeRemoved',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Added now · %s`
+  String get assignFileJustAdded {
+    return Intl.message(
+      'Added now · %s',
+      name: 'assignFileJustAdded',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Read-only`
+  String get assignReadOnly {
+    return Intl.message(
+      'Read-only',
+      name: 'assignReadOnly',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Confirmed at submit time`
+  String get assignStatementAtSubmit {
+    return Intl.message(
+      'Confirmed at submit time',
+      name: 'assignStatementAtSubmit',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Time limit`
+  String get assignTimeLimit {
+    return Intl.message(
+      'Time limit',
+      name: 'assignTimeLimit',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Start`
+  String get assignStartAttempt {
+    return Intl.message(
+      'Start',
+      name: 'assignStartAttempt',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Starting gives you %s to work; the clock cannot be paused`
+  String get assignTimeLimitNotice {
+    return Intl.message(
+      'Starting gives you %s to work; the clock cannot be paused',
+      name: 'assignTimeLimitNotice',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `The clock starts now and will not stop. Begin?`
+  String get assignStartConfirm {
+    return Intl.message(
+      'The clock starts now and will not stop. Begin?',
+      name: 'assignStartConfirm',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `%s left`
+  String get assignTimeLeft {
+    return Intl.message('%s left', name: 'assignTimeLeft', desc: '', args: []);
+  }
+
+  /// `Time remaining`
+  String get assignTimeRemaining {
+    return Intl.message(
+      'Time remaining',
+      name: 'assignTimeRemaining',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Your time is up; you can still save, but it will be marked late`
+  String get assignTimeExpiredStillEditable {
+    return Intl.message(
+      'Your time is up; you can still save, but it will be marked late',
+      name: 'assignTimeExpiredStillEditable',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Your attempt has started, but the time remaining is unavailable; please refresh`
+  String get assignTimerStartedUnknown {
+    return Intl.message(
+      'Your attempt has started, but the time remaining is unavailable; please refresh',
+      name: 'assignTimerStartedUnknown',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `This assignment is not open for submission right now`
+  String get assignStartNotOpen {
+    return Intl.message(
+      'This assignment is not open for submission right now',
+      name: 'assignStartNotOpen',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `This site does not allow starting the timer in the app; start it on the web`
+  String get assignTimerNotAvailable {
+    return Intl.message(
+      'This site does not allow starting the timer in the app; start it on the web',
+      name: 'assignTimerNotAvailable',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Group assignment`
+  String get assignTeamSubmission {
+    return Intl.message(
+      'Group assignment',
+      name: 'assignTeamSubmission',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `This is the group's shared submission; everyone in the group sees your changes`
+  String get assignTeamNotice {
+    return Intl.message(
+      'This is the group\'s shared submission; everyone in the group sees your changes',
+      name: 'assignTeamNotice',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Saving replaces the whole group's current submission`
+  String get assignTeamOverwriteWarning {
+    return Intl.message(
+      'Saving replaces the whole group\'s current submission',
+      name: 'assignTeamOverwriteWarning',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `%s group member(s) have not submitted yet`
+  String get assignTeamPendingMembers {
+    return Intl.message(
+      '%s group member(s) have not submitted yet',
+      name: 'assignTeamPendingMembers',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Everyone in the group has submitted`
+  String get assignTeamAllSubmitted {
+    return Intl.message(
+      'Everyone in the group has submitted',
+      name: 'assignTeamAllSubmitted',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `You are not in a group yet; ask your teacher`
+  String get assignTeamNoGroup {
+    return Intl.message(
+      'You are not in a group yet; ask your teacher',
+      name: 'assignTeamNoGroup',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `You belong to more than one group; choose which one on the web`
+  String get assignTeamMultipleGroups {
+    return Intl.message(
+      'You belong to more than one group; choose which one on the web',
+      name: 'assignTeamMultipleGroups',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Attempt %s`
+  String get assignAttemptLabel {
+    return Intl.message(
+      'Attempt %s',
+      name: 'assignAttemptLabel',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Attempt %s of %s`
+  String get assignAttemptLabelOf {
+    return Intl.message(
+      'Attempt %s of %s',
+      name: 'assignAttemptLabelOf',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Current attempt`
+  String get assignCurrentAttempt {
+    return Intl.message(
+      'Current attempt',
+      name: 'assignCurrentAttempt',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Previous attempts`
+  String get assignPreviousAttempts {
+    return Intl.message(
+      'Previous attempts',
+      name: 'assignPreviousAttempts',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Reopened`
+  String get assignStatusReopened {
+    return Intl.message(
+      'Reopened',
+      name: 'assignStatusReopened',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Start a new attempt`
+  String get assignStartNewAttempt {
+    return Intl.message(
+      'Start a new attempt',
+      name: 'assignStartNewAttempt',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Copy previous attempt`
+  String get assignCopyPrevious {
+    return Intl.message(
+      'Copy previous attempt',
+      name: 'assignCopyPrevious',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `This copies the files and text from your last attempt over anything you have entered`
+  String get assignCopyPreviousConfirm {
+    return Intl.message(
+      'This copies the files and text from your last attempt over anything you have entered',
+      name: 'assignCopyPreviousConfirm',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `This assignment has no draft stage: the copy is submitted immediately`
+  String get assignCopyPreviousSubmitsNow {
+    return Intl.message(
+      'This assignment has no draft stage: the copy is submitted immediately',
+      name: 'assignCopyPreviousSubmitsNow',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `This site does not allow copying in the app; do it on the web`
+  String get assignCopyPreviousWebOnly {
+    return Intl.message(
+      'This site does not allow copying in the app; do it on the web',
+      name: 'assignCopyPreviousWebOnly',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Copied from your last attempt`
+  String get assignCopyPreviousDone {
+    return Intl.message(
+      'Copied from your last attempt',
+      name: 'assignCopyPreviousDone',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Moodle did not copy your last attempt; refresh and try again`
+  String get assignCopyPreviousRejected {
+    return Intl.message(
+      'Moodle did not copy your last attempt; refresh and try again',
+      name: 'assignCopyPreviousRejected',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Remove submission`
+  String get assignRemoveSubmission {
+    return Intl.message(
+      'Remove submission',
+      name: 'assignRemoveSubmission',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `This deletes every file and all the text in this submission, and cannot be undone`
+  String get assignRemoveConfirm {
+    return Intl.message(
+      'This deletes every file and all the text in this submission, and cannot be undone',
+      name: 'assignRemoveConfirm',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `This wipes the whole group's submission; every member is affected`
+  String get assignRemoveConfirmTeam {
+    return Intl.message(
+      'This wipes the whole group\'s submission; every member is affected',
+      name: 'assignRemoveConfirmTeam',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `This assignment is already submitted; you would have to submit again`
+  String get assignRemoveConfirmSubmitted {
+    return Intl.message(
+      'This assignment is already submitted; you would have to submit again',
+      name: 'assignRemoveConfirmSubmitted',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Removing does not reset the time limit`
+  String get assignRemoveKeepsTimer {
+    return Intl.message(
+      'Removing does not reset the time limit',
+      name: 'assignRemoveKeepsTimer',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Submission removed`
+  String get assignRemoved {
+    return Intl.message(
+      'Submission removed',
+      name: 'assignRemoved',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Moodle did not remove the submission; refresh and try again`
+  String get assignRemoveRejected {
+    return Intl.message(
+      'Moodle did not remove the submission; refresh and try again',
+      name: 'assignRemoveRejected',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `This site does not allow removing in the app; do it on the web`
+  String get assignRemoveWebOnly {
+    return Intl.message(
+      'This site does not allow removing in the app; do it on the web',
+      name: 'assignRemoveWebOnly',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `This assignment uses a submission type the app does not support yet; submit it on the web`
+  String get assignSubmitWebOnlyPlugin {
+    return Intl.message(
+      'This assignment uses a submission type the app does not support yet; submit it on the web',
+      name: 'assignSubmitWebOnlyPlugin',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `This assignment is blind-marked; your teacher does not see your name`
+  String get assignBlindMarkingNote {
+    return Intl.message(
+      'This assignment is blind-marked; your teacher does not see your name',
+      name: 'assignBlindMarkingNote',
       desc: '',
       args: [],
     );
