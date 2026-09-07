@@ -115,3 +115,28 @@ Firebase，而 Moodle 的推播管道是 airnotifier，跟 TAT 的 Firebase 是�
 `tab.isEmpty` 的保護，不然清單被濾空時會留下一條空的分頁列。
 
 ---
+
+## 課表分享與匯入（QR）
+
+`可行` `工作量 中` `已調查` → **完整開發計畫見 [docs/COURSE_TABLE_SHARE.md](COURSE_TABLE_SHARE.md)**
+
+用 QR 交換「學期 + 課號清單」，收到的人還原成完整課表，疊在自己的課表上找共
+同空堂。**零後端，而且收方不需要登入學校帳號**——還原走的是免憑證的
+querycourse。
+
+關鍵事實已經查證：課號是固定 9 碼全大寫英數，所以整包能待在 QR 的
+alphanumeric 模式（10 門課只要 version 6）；`getCourseIdList()`
+（`course_table_json.dart:188`）能吐出清單，
+`getCourseMainInfoListByCourseId()`（`course_connector.dart:171`）能還原回來。
+
+**不要做 base64 或 gzip**——會把 payload 踢進 byte 模式，比明碼更大。
+
+分兩階段，分界點在「完全不碰平台設定」：階段一只做 App 內掃描（相機、相簿選
+圖、貼上代碼），階段二才加 Universal Links / App Links 讓系統相機能直接開 App。
+階段一的 QR 就已經是完整 URL 格式，所以階段二上線時流通中的 QR 會自動生效。
+
+兩個已經知道會撞到的限制：`addCourseDetailByCourseInfo()` 一遇衝堂就
+`return false`，疊圖不能重用它；`getCourseMainInfoListByCourseId()` 是一門課一
+個 POST 且循序，10 門課要好幾秒，得併發加進度。
+
+---
