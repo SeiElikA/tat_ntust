@@ -137,6 +137,7 @@ void main() {
     ForumAttachPolicy policy = offPolicy,
     List<File> picked = const [],
     List<ForumEditOutcome?>? popped,
+    String? formattingNote,
   }) async {
     sizeUp(tester);
     await tester.pumpWidget(GetMaterialApp(
@@ -161,6 +162,7 @@ void main() {
                   webUrl:
                       'https://moodle2.ntust.edu.tw/mod/forum/discuss.php?d=7701',
                   webTitle: '期中考公告',
+                  formattingNote: formattingNote,
                 ),
               );
               popped?.add(result);
@@ -428,6 +430,17 @@ void main() {
   });
 
   group('編輯模式', () {
+    testWidgets('原始碼那條路換掉那句話——框裡打得出粗體，不可以叫人去網頁版', (tester) async {
+      await pumpEdit(
+        tester,
+        onSend: (s, t, k, a) async => const Ok(ForumEditOutcome()),
+        initialText: '**重點**\n- 一',
+        formattingNote: R.current.forumMarkdownSource,
+      );
+
+      expect(find.text(R.current.forumMarkdownSource), findsOneWidget);
+      expect(find.text(R.current.forumFormattingInWeb), findsNothing);
+    });
     testWidgets('帶入標題與內文的初值，送出鈕是「儲存」', (tester) async {
       await pumpEdit(tester, onSend: (s, t, k, a) async => const Ok(_edited));
 

@@ -180,8 +180,10 @@ void main() {
       expect(posts.first.message, isNot(contains('@@PLUGINFILE@@')));
       expect(
         posts.first.message,
-        contains('https://moodle2.ntust.edu.tw/webservice/pluginfile.php/123'
-            '/mod_forum/post/900/inline%20image.png'),
+        // `@@PLUGINFILE@@` 換出來的前綴是 url 砍掉 query 之後的那一段：
+        // stored_file_exporter 的 url 一定帶著 `?forcedownload=1`。
+        contains('https://moodle2.ntust.edu.tw/pluginfile.php/123'
+            '/mod_forum/post/900/inline%20image.png"'),
       );
     });
 
@@ -191,8 +193,8 @@ void main() {
       expect(f.filename, 'slides.pdf');
       expect(
           f.url,
-          'https://moodle2.ntust.edu.tw/webservice/pluginfile.php/123'
-          '/mod_forum/attachment/900/slides.pdf');
+          'https://moodle2.ntust.edu.tw/pluginfile.php/123'
+          '/mod_forum/attachment/900/slides.pdf?forcedownload=1');
       expect(f.filesize, 88888);
       expect(f.isimage, isFalse);
     });
@@ -270,8 +272,8 @@ void main() {
       expect(post.message, isNot(contains('@@PLUGINFILE@@')));
       expect(
         post.message,
-        contains('https://moodle2.ntust.edu.tw/webservice/pluginfile.php/123'
-            '/mod_forum/post/950/inline%20image.png'),
+        contains('https://moodle2.ntust.edu.tw/pluginfile.php/123'
+            '/mod_forum/post/950/inline%20image.png"'),
       );
       expect(post.parentid, 900);
       expect(post.capabilities?.reply, isTrue);

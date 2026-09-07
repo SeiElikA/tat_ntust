@@ -41,14 +41,14 @@
         "filepath": "/",
         "filesize": 204800,
         "isimage": false,
-        "url": "https://moodle2.ntust.edu.tw/webservice/pluginfile.php/123/mod_forum/attachment/950/slides.pdf"
+        "url": "https://moodle2.ntust.edu.tw/pluginfile.php/123/mod_forum/attachment/950/slides.pdf?forcedownload=1"
       },
       {
         "filename": "note.txt",
         "filepath": "/",
         "filesize": 42,
         "isimage": false,
-        "url": "https://moodle2.ntust.edu.tw/webservice/pluginfile.php/123/mod_forum/attachment/950/note.txt"
+        "url": "https://moodle2.ntust.edu.tw/pluginfile.php/123/mod_forum/attachment/950/note.txt?forcedownload=1"
       }
     ],
     "messageinlinefiles": [],

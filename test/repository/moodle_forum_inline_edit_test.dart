@@ -100,7 +100,9 @@ void main() {
     AuthSession.instance = FakeAuthSession();
     TaskUiDelegate.instance = RecordingUi();
     ConnectivityProbe.instance = FakeConnectivityProbe();
-    MoodleWebApiConnector.wsToken = 'tok';
+    // 真的 token 是 32 個十六進位字元。用 'tok' 這種短字串會讓「內文提到
+    // token=」被當成 token 本身出現，測出來的綠是假的。
+    MoodleWebApiConnector.wsToken = '0f1e2d3c4b5a69788796a5b4c3d2e1f0';
     MoodleWebApiConnector.siteInfo = MoodleProfileEntity();
     // 探測「已完成、不支援」，`fileUrlWithToken` 於是固定回 `?token=`；
     // 不釘住的話它會在測試裡開一趟真的探測。
@@ -115,10 +117,14 @@ void main() {
     resetAppStatics();
   });
 
+  /// `messageinlinefiles[].url` 真正的樣子：`stored_file_exporter` 用
+  /// `make_pluginfile_url($…, $forcedownload = true)` 組，所以是
+  /// **`pluginfile.php` 加上 `?forcedownload=1`**，不是 `webservice/` 那一支。
   MoodleForumFile inlineFile(String name) => MoodleForumFile(
         filename: name,
         filepath: '/',
-        url: '$host/webservice/pluginfile.php/8801/mod_forum/post/951/$name',
+        url: '$host/pluginfile.php/8801/mod_forum/post/951/$name'
+            '?forcedownload=1',
       );
 
   /// 編輯器裡看到的樣子：網址已經帶著憑證。
@@ -218,6 +224,35 @@ void main() {
       expect(repo.prepareAreas, isEmpty);
       expect(repo.updateInlineIds.single, isNull);
       // IGNORE_FILE_MERGE：內容原樣存，既有檔案動都不動。
+      expect(repo.updateMessages.single, html);
+    });
+
+    test('檔案區裡有孤兒、但內文引用不到時，也一樣不碰 draft 區', () async {
+      // 使用者在網頁版刪掉 <img> 之後 Moodle 不會把檔案從 filearea 拿掉，
+      // messageinlinefiles 於是留著 orphan.png。改用「內文有沒有引用」判斷之
+      // 前，這裡會去開一個 messagetext 裡沒有 draftfile 網址的 draft 區，
+      // 前綴挑不出來 → 這則貼文從此永遠存不回去。
+      const html = '<p><strong>重要</strong>：期中考改期</p>';
+      repo.messageText = html;
+
+      final result =
+          await edit(html: html, inlineFiles: [inlineFile('orphan.png')]);
+
+      expect(result, isA<Ok<ForumEditOutcome>>());
+      expect(repo.prepareAreas, isEmpty);
+      expect(repo.updateInlineIds.single, isNull);
+      expect(repo.updateMessages.single, html);
+    });
+
+    test('內文有別的 filearea 的絕對檔案網址時照樣存得進去', () async {
+      // 從課程頁複製過來的網址永遠不會出現在內嵌清單裡。擋掉它等於把
+      // 「請去網頁編輯」那條死路原封不動搬到儲存鈕上。
+      const html = '<p>參考：<a href="$host/pluginfile.php/1200102/'
+          'mod_resource/content/2/intro.pptx">投影片</a>，token= 那一段</p>';
+
+      final result = await edit(html: html, inlineFiles: const []);
+
+      expect(result, isA<Ok<ForumEditOutcome>>());
       expect(repo.updateMessages.single, html);
     });
   });

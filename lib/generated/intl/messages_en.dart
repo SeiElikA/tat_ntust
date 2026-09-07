@@ -669,6 +669,9 @@ class MessageLookup extends MessageLookupByLibrary {
     "forumFormattingInWeb": MessageLookupByLibrary.simpleMessage(
       "Bold, lists and tables need the website editor.",
     ),
+    "forumMarkdownSource": MessageLookupByLibrary.simpleMessage(
+      "This post is Markdown source: **bold**, - lists and tables all work right here.",
+    ),
     "forumMessageHint": MessageLookupByLibrary.simpleMessage(
       "Write your message…",
     ),
@@ -684,6 +687,9 @@ class MessageLookup extends MessageLookupByLibrary {
     "forumPostActions": MessageLookupByLibrary.simpleMessage("This post"),
     "forumPostDeleted": MessageLookupByLibrary.simpleMessage(
       "This post has been deleted",
+    ),
+    "forumRawSourceEdit": MessageLookupByLibrary.simpleMessage(
+      "This post uses the site\'s own format and is saved back exactly as typed.",
     ),
     "forumRemoveAttachment": MessageLookupByLibrary.simpleMessage(
       "Remove this attachment",

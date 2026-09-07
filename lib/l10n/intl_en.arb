@@ -464,6 +464,8 @@
   "forumAttachmentDisabled": "This forum does not allow attachments",
   "forumAttachmentUploadDisabled": "File upload is disabled on the school's Moodle",
   "forumFormattingInWeb": "Bold, lists and tables need the website editor.",
+  "forumMarkdownSource": "This post is Markdown source: **bold**, - lists and tables all work right here.",
+  "forumRawSourceEdit": "This post uses the site's own format and is saved back exactly as typed.",
   "forumEdited": "edited",
   "forumEditPost": "Edit post",
   "forumSaveEdit": "Save",

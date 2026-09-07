@@ -131,6 +131,37 @@ void main() {
     expect(calls, isEmpty);
   });
 
+  test('退路要換成 webservice/pluginfile.php——pluginfile.php 不吃 token', () async {
+    final calls = <String>[];
+    stubProbe(true, calls);
+    loginAs();
+    // stored_file_exporter 給的形狀（討論區的附件與內嵌圖片就是這一種）。
+    const exporterUrl = '${MoodleWebApiConnector.host}'
+        '/pluginfile.php/8801/mod_forum/post/951/scope.png?forcedownload=1';
+
+    final url = MoodleWebApiConnector.fileUrlWithToken(exporterUrl);
+
+    // pluginfile.php 走的是瀏覽器 session，帶著 token 一樣被踢去登入頁。
+    expect(
+        url,
+        startsWith('${MoodleWebApiConnector.host}'
+            '/webservice/pluginfile.php/8801/mod_forum/post/951/scope.png?'));
+    expect(url, contains('forcedownload=1'));
+    expect(url, contains('token=$wsToken'));
+    await MoodleWebApiConnector.tokenPluginFileProbe;
+  });
+
+  test('已經是 webservice/pluginfile.php 的網址不重複改寫', () async {
+    final calls = <String>[];
+    stubProbe(true, calls);
+    loginAs();
+
+    final url = MoodleWebApiConnector.fileUrlWithToken(fileUrl);
+
+    expect('/webservice/'.allMatches(url), hasLength(1));
+    await MoodleWebApiConnector.tokenPluginFileProbe;
+  });
+
   test('wsToken 是 null 時原樣回傳', () {
     MoodleWebApiConnector.siteInfo =
         MoodleProfileEntity.fromJson({'userprivateaccesskey': accessKey});

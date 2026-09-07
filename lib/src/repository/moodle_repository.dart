@@ -812,12 +812,17 @@ class MoodleRepository {
   /// 所見即所得那條路的內文：編輯器吐出來的 HTML → 可以送回伺服器的字串
   /// 加上（或不加）`inlineattachmentsid`。
   ///
-  /// **只有兩種一致的模式，不可以混。** [inlineFiles] 是空的（貼文本來就沒有
-  /// 內嵌圖片）時完全不打 `prepare_draft_area_for_post`、也不送
-  /// `inlineattachmentsid`——伺服器端 `$updatepost->itemid` 維持
-  /// `IGNORE_FILE_MERGE`，`file_save_draft_area_files()` early return，
-  /// 內容原樣存、既有檔案動都不動。反之一定要三件事一起做：開 draft 區、
-  /// 把圖片網址換成那一區的 draftfile 網址、送出那個 itemid。
+  /// **只有兩種一致的模式，不可以混。** 這段 HTML 現在指不到任何一個內嵌檔案
+  /// 時完全不打 `prepare_draft_area_for_post`、也不送 `inlineattachmentsid`
+  /// ——伺服器端 `$updatepost->itemid` 維持 `IGNORE_FILE_MERGE`，
+  /// `file_save_draft_area_files()` early return，內容原樣存、既有檔案動都
+  /// 不動。反之一定要三件事一起做：開 draft 區、把圖片網址換成那一區的
+  /// draftfile 網址、送出那個 itemid。
+  ///
+  /// 判斷依據是**內容**而不是 `inlineFiles.isNotEmpty`：使用者在網頁版刪掉
+  /// `<img>` 之後 Moodle 不會把檔案從貼文的 filearea 拿掉，`messageinlinefiles`
+  /// 於是留著孤兒。拿它當條件就會去開一個 messagetext 裡根本沒有 draftfile
+  /// 網址的 draft 區，前綴挑不出來，這則貼文從此永遠存不回去。
   ///
   /// 少做其中任何一件都是永久性的傷害：送 draftfile 網址卻不送 itemid，
   /// 那些絕對網址會原樣存進資料庫，而 draft 區在 `$CFG->draftfilelifetime`
@@ -834,7 +839,7 @@ class MoodleRepository {
     var message = html;
     int? inlineAttachmentsId;
 
-    if (inlineFiles.isNotEmpty) {
+    if (MoodleDraftUrlUtils.referencesInlineFiles(html, inlineFiles)) {
       final area = await writeForumDraftArea(
         postId: postId,
         // **一定是空的。** 非空的 filestokeep 會刪掉不在名單上的檔案，
@@ -853,11 +858,8 @@ class MoodleRepository {
         Log.e('draft prefix missing for post $postId');
         throw TaskFailure(FetchFailed(R.current.forumEditorUnsafeContent));
       }
-      message = MoodleDraftUrlUtils.applyUrlMap(
-        html,
-        MoodleDraftUrlUtils.inlineUrlMapForSave(
-            inlineFiles, prefix, MoodleWebApiConnector.fileUrlWithToken),
-      );
+      message = MoodleDraftUrlUtils.rewriteInlineUrlsForSave(
+          html, inlineFiles, prefix);
       inlineAttachmentsId = area.draftitemid;
     }
 
@@ -868,6 +870,7 @@ class MoodleRepository {
       host: MoodleWebApiConnector.host,
       wsToken: MoodleWebApiConnector.wsToken,
       accessKey: MoodleWebApiConnector.siteInfo?.userprivateaccesskey,
+      inlineTails: MoodleDraftUrlUtils.inlineTailsOf(inlineFiles),
     );
     if (leak != null) {
       // 只記長度：真的外洩時那一段字串本身就是 token。

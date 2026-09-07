@@ -503,12 +503,18 @@ class MessageLookup extends MessageLookupByLibrary {
     "forumFormattingInWeb": MessageLookupByLibrary.simpleMessage(
       "需要粗體、清單或表格請在網頁版編輯。",
     ),
+    "forumMarkdownSource": MessageLookupByLibrary.simpleMessage(
+      "這則貼文是 Markdown 原始碼，**粗體**、- 清單、表格都直接打在這裡就會生效。",
+    ),
     "forumMessageHint": MessageLookupByLibrary.simpleMessage("寫下你想說的話…"),
     "forumMessageRequired": MessageLookupByLibrary.simpleMessage("請先寫點內容"),
     "forumNewDiscussion": MessageLookupByLibrary.simpleMessage("發表新主題"),
     "forumOpenInWeb": MessageLookupByLibrary.simpleMessage("在網頁開啟討論區"),
     "forumPostActions": MessageLookupByLibrary.simpleMessage("這則貼文"),
     "forumPostDeleted": MessageLookupByLibrary.simpleMessage("這則貼文已被刪除"),
+    "forumRawSourceEdit": MessageLookupByLibrary.simpleMessage(
+      "這則貼文用的是這個站台自己的格式，會照你打的原樣存回去。",
+    ),
     "forumRemoveAttachment": MessageLookupByLibrary.simpleMessage("移除這個附件"),
     "forumReplies": MessageLookupByLibrary.simpleMessage("%s 則回覆"),
     "forumReply": MessageLookupByLibrary.simpleMessage("回覆"),

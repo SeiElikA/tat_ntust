@@ -464,6 +464,8 @@
   "forumAttachmentDisabled": "這個討論區不開放附件",
   "forumAttachmentUploadDisabled": "學校的 Moodle 已停用檔案上傳",
   "forumFormattingInWeb": "需要粗體、清單或表格請在網頁版編輯。",
+  "forumMarkdownSource": "這則貼文是 Markdown 原始碼，**粗體**、- 清單、表格都直接打在這裡就會生效。",
+  "forumRawSourceEdit": "這則貼文用的是這個站台自己的格式，會照你打的原樣存回去。",
   "forumEdited": "已編輯",
   "forumEditPost": "編輯貼文",
   "forumSaveEdit": "儲存",

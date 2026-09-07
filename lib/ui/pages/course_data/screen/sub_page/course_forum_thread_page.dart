@@ -405,8 +405,15 @@ class _CourseForumThreadPageState extends State<CourseForumThreadPage> {
       case ForumEditorKind.rich:
         await _startRichEdit(p, fresh, isTopicPost: isTopicPost);
       case ForumEditorKind.plainText:
-      case ForumEditorKind.rawSource:
         await _startPlainEdit(p, fresh, isTopicPost: isTopicPost);
+      // 框裡是原始碼，不是還原出來的純文字：那一行說明也要跟著換，否則畫面會
+      // 叫使用者去網頁版做一件他現在就做得到的事。
+      case ForumEditorKind.rawSource:
+        await _startPlainEdit(p, fresh,
+            isTopicPost: isTopicPost,
+            formattingNote: fresh.rawFormat == MoodleForumUtils.formatMarkdown
+                ? R.current.forumMarkdownSource
+                : R.current.forumRawSourceEdit);
     }
   }
 
@@ -414,7 +421,7 @@ class _CourseForumThreadPageState extends State<CourseForumThreadPage> {
   /// 無條件套 `htmlToPlain` 會把 FORMAT_PLAIN 貼文裡真的打出來的 `a &amp; b`
   /// 悄悄改成 `a & b`，而 `plainEditPayload` 對非 HTML 是原樣送回。
   Future<void> _startPlainEdit(MoodleForumPost p, ForumPostEdit fresh,
-      {required bool isTopicPost}) async {
+      {required bool isTopicPost, String? formattingNote}) async {
     final outcome = await Get.to<ForumEditOutcome>(
       () => CourseForumComposePage.edit(
         postId: p.id,
@@ -453,6 +460,7 @@ class _CourseForumThreadPageState extends State<CourseForumThreadPage> {
         openWebView: widget.openWebView,
         webUrl: _discussionUrl(),
         webTitle: _title,
+        formattingNote: formattingNote,
       ),
     );
     await _afterEdit(outcome, isTopicPost: isTopicPost);
@@ -467,12 +475,10 @@ class _CourseForumThreadPageState extends State<CourseForumThreadPage> {
   Future<void> _startRichEdit(MoodleForumPost p, ForumPostEdit fresh,
       {required bool isTopicPost}) async {
     final inlineFiles = p.messageinlinefiles;
-    final resolved = MoodleForumUtils.resolveInlinePluginFiles(
-        fresh.rawMessage, inlineFiles);
-    final html = MoodleDraftUrlUtils.applyUrlMap(
-      resolved,
-      MoodleDraftUrlUtils.inlineUrlMapForDisplay(
-          inlineFiles, MoodleWebApiConnector.fileUrlWithToken),
+    final html = MoodleDraftUrlUtils.rewriteInlineUrlsForDisplay(
+      MoodleForumUtils.resolveInlinePluginFiles(fresh.rawMessage, inlineFiles),
+      inlineFiles,
+      MoodleWebApiConnector.fileUrlWithToken,
     );
     final outcome = await Get.to<ForumEditOutcome>(
       () => CourseForumRichEditPage(

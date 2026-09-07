@@ -4189,6 +4189,26 @@ class S {
     );
   }
 
+  /// `This post is Markdown source: **bold**, - lists and tables all work right here.`
+  String get forumMarkdownSource {
+    return Intl.message(
+      'This post is Markdown source: **bold**, - lists and tables all work right here.',
+      name: 'forumMarkdownSource',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `This post uses the site's own format and is saved back exactly as typed.`
+  String get forumRawSourceEdit {
+    return Intl.message(
+      'This post uses the site\'s own format and is saved back exactly as typed.',
+      name: 'forumRawSourceEdit',
+      desc: '',
+      args: [],
+    );
+  }
+
   /// `edited`
   String get forumEdited {
     return Intl.message('edited', name: 'forumEdited', desc: '', args: []);

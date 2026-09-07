@@ -446,7 +446,25 @@ class MoodleWebApiConnector {
         unawaited(_probeTokenPluginFile(tokenUrl));
       }
     }
-    return Connector.uriAddQuery(fileUrl, {"token": token});
+    return Connector.uriAddQuery(_webservicePluginFileUrl(fileUrl), {
+      "token": token,
+    });
+  }
+
+  /// `?token=` 只有 `webservice/pluginfile.php` 認得：`pluginfile.php` 走的是
+  /// 瀏覽器 session（`NO_MOODLE_COOKIES` 只設在前者），帶著 token 一樣被踢去
+  /// 登入頁。討論區的附件與內嵌圖片走 `stored_file_exporter`，它組網址用的是
+  /// `make_pluginfile_url()`——正是不吃 token 的那一支，所以加憑證之前要先換
+  /// 過去。官方 App 的 `CoreSites.fixPluginfileURL()` 做的也是同一件事。
+  static String _webservicePluginFileUrl(String fileUrl) {
+    // 只動 '?' 前面那一段：query 裡也可能出現 pluginfile.php。
+    final queryAt = fileUrl.indexOf('?');
+    final path = queryAt < 0 ? fileUrl : fileUrl.substring(0, queryAt);
+    if (path.contains("/webservice/pluginfile.php")) return fileUrl;
+    final at = path.indexOf("/pluginfile.php");
+    if (at < 0) return fileUrl;
+    final query = queryAt < 0 ? "" : fileUrl.substring(queryAt);
+    return "${path.substring(0, at)}/webservice${path.substring(at)}$query";
   }
 
   /// 用 privatetoken 換一把一次性的 autologin 鑰匙（IP 綁定、60 秒後失效）。
