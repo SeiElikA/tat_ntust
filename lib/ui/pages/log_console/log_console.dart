@@ -4,6 +4,7 @@ import 'package:flutter_app/debug/log/console_output.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:logger/logger.dart';
+import 'package:flutter_app/ui/other/lucide_icons.dart';
 
 import 'ansi_parser.dart';
 
@@ -106,7 +107,7 @@ class _LogConsoleState extends State<LogConsole> {
           leading: Builder(
             builder: (context) => IconButton(
               tooltip: MaterialLocalizations.of(context).backButtonTooltip,
-              icon: const Icon(Icons.arrow_back),
+              icon: const Icon(LucideIcons.arrowLeft),
               onPressed: () => Get.back(),
             ),
           ),
@@ -116,7 +117,7 @@ class _LogConsoleState extends State<LogConsole> {
             // console，整頁沒有一個字翻譯過。整頁要在地化時這三個字串一起處理。
             IconButton(
               tooltip: "Clear log",
-              icon: const Icon(Icons.clear),
+              icon: const Icon(LucideIcons.x),
               onPressed: () {
                 LogBuffer.clear();
                 didChangeDependencies();
@@ -124,7 +125,7 @@ class _LogConsoleState extends State<LogConsole> {
             ),
             IconButton(
               tooltip: "Increase font size",
-              icon: const Icon(Icons.add),
+              icon: const Icon(LucideIcons.plus),
               onPressed: () {
                 setState(() {
                   _logFontSize++;
@@ -133,7 +134,7 @@ class _LogConsoleState extends State<LogConsole> {
             ),
             IconButton(
               tooltip: "Decrease font size",
-              icon: const Icon(Icons.remove),
+              icon: const Icon(LucideIcons.minus),
               onPressed: () {
                 setState(() {
                   _logFontSize--;
@@ -165,7 +166,7 @@ class _LogConsoleState extends State<LogConsole> {
               clipBehavior: Clip.antiAlias,
               onPressed: _scrollToBottom,
               child: Icon(
-                Icons.arrow_downward,
+                LucideIcons.arrowDown,
                 color: widget.dark ? Colors.white : Colors.lightBlue[900],
               ),
             ),

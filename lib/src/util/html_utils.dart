@@ -35,6 +35,10 @@ class HtmlUtils {
   /// 呼叫端有義務保證輸出只會流進純文字 sink（Text、AppBar 標題……）；
   /// 一旦接到 HtmlWidget、WebView 或檔案路徑上，就等於開了注入的門。
   ///
+  /// 討論串的 `subject` 與 `replysubject` 都走這裡：前者印在卡片子標題，
+  /// 後者除了印在撰寫頁的引用卡，還會原樣送回 `mod_forum_add_discussion_post`
+  /// 的 `subject`（PARAM_TEXT，伺服器自己會剝標籤），兩者都不是 HTML sink。
+  ///
   /// `test/util/html_utils_sink_inventory_test.dart` 把現有的 sink 盤點寫成
   /// 可執行的清單：新增 `clean()` 的呼叫端、在 lib 底下新增 `HtmlWidget`，
   /// 或把 `Modules.name` 餵進 `HtmlWidget`，那個測試就會變紅並要求重跑盤點。

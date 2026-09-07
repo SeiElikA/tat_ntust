@@ -12,12 +12,16 @@ MoodleModForumGetForumDiscussions _$MoodleModForumGetForumDiscussionsFromJson(
       discussions: (json['discussions'] as List<dynamic>?)
           ?.map((e) => Discussions.fromJson(e as Map<String, dynamic>))
           .toList(),
+      forumFound: json['forumFound'] as bool? ?? true,
+      forumId: (json['forumId'] as num?)?.toInt() ?? 0,
     );
 
 Map<String, dynamic> _$MoodleModForumGetForumDiscussionsToJson(
         MoodleModForumGetForumDiscussions instance) =>
     <String, dynamic>{
       'discussions': instance.discussions,
+      'forumFound': instance.forumFound,
+      'forumId': instance.forumId,
     };
 
 Discussions _$DiscussionsFromJson(Map<String, dynamic> json) => Discussions(
@@ -38,7 +42,9 @@ Discussions _$DiscussionsFromJson(Map<String, dynamic> json) => Discussions(
       message: json['message'] as String? ?? "",
       messageformat: (json['messageformat'] as num?)?.toInt() ?? 0,
       messagetrust: (json['messagetrust'] as num?)?.toInt() ?? 0,
-      attachment: json['attachment'] as bool? ?? false,
+      attachment: json['attachment'] == null
+          ? false
+          : hasAttachmentFromJson(json['attachment']),
       attachments: (json['attachments'] as List<dynamic>?)
           ?.map((e) => Attachments.fromJson(e as Map<String, dynamic>))
           .toList(),

@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter_app/src/connector/interceptors/redacting_log_interceptor.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -72,9 +73,9 @@ void main() {
 
   group('query 參數', () {
     test('wstoken 被遮掉，其餘保留', () {
-      final out = RedactingLogInterceptor.redactUri(Uri.parse(
-          'https://moodle.ntust.edu.tw/webservice/rest/server.php'
-          '?wstoken=deadbeef&wsfunction=core_course_get_contents'));
+      final out = RedactingLogInterceptor.redactUri(
+          Uri.parse('https://moodle.ntust.edu.tw/webservice/rest/server.php'
+              '?wstoken=deadbeef&wsfunction=core_course_get_contents'));
 
       expect(out, isNot(contains('deadbeef')));
       expect(out, contains('wsfunction=core_course_get_contents'));
@@ -84,6 +85,23 @@ void main() {
     test('沒有 query 時原樣回傳', () {
       const url = 'https://ssoam2.ntust.edu.tw/';
       expect(RedactingLogInterceptor.redactUri(Uri.parse(url)), url);
+    });
+  });
+
+  group('FormData（上傳頭貼那條路）', () {
+    test('只印欄位名與檔名，token 的值不會出現', () {
+      final out = RedactingLogInterceptor.redactBody(FormData.fromMap({
+        'token': 'super-secret-wstoken',
+        'file_1': MultipartFile.fromString('x', filename: 'profile.jpg'),
+      }));
+
+      expect(out, isA<Map>());
+      final map = out as Map;
+      expect(map['fields'], ['token']);
+      expect(map['files'], ['profile.jpg']);
+      // 連遮蔽後的長度提示都不該有：這一路乾脆完全不印值。
+      expect(map.toString(), isNot(contains('super-secret-wstoken')));
+      expect(map.toString(), isNot(contains('已遮蔽')));
     });
   });
 

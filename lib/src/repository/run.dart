@@ -8,11 +8,8 @@ import 'package:flutter_app/src/service/error_dialog_parameter.dart';
 import 'package:flutter_app/src/service/task_ui_delegate.dart';
 import 'package:flutter_app/src/store/cache_store.dart';
 
-/// 取資料的共用外殼：登入、進度框、快取回退、重試迴圈。
-///
-/// 相依全部透過各自的 `instance` 靜態欄位取得，與 [CacheStore]、
-/// [TaskUiDelegate] 一致。**不要改用 `Get.find`**：那會讓 repository 層依賴
-/// GetX 的服務定位，測試也必須先起一個容器。
+/// 取資料的共用外殼：登入、進度框、快取回退、重試迴圈。相依一律走各自的
+/// `instance` 靜態欄位，不要改用 `Get.find`：repository 層不該依賴 GetX。
 Future<Result<T>> run<T>({
   /// 這次取資料需要哪些系統已登入。
   required Set<SystemId> requires,
@@ -27,18 +24,12 @@ Future<Result<T>> run<T>({
   /// 離線快取。null 代表不快取。
   CacheKey<T>? cache,
 
-  /// 先讀快取，命中就完全不打網路。
-  ///
-  /// **只給識別子對照表用**（例如 courseId → Moodle 內部 id）。
-  /// 一般的結果快取維持「只在失敗時讀」：不是 stale-while-revalidate，
-  /// 畫面不會先閃一次舊資料再跳成新的。
+  /// 先讀快取，命中就完全不打網路。只給識別子對照表用；一般結果快取維持
+  /// 「只在失敗時讀」，畫面才不會先閃一次舊資料再跳成新的。
   bool cacheFirst = false,
 
-  /// 有值就顯示進度框，以 try/finally 收尾。
-  ///
-  /// 關掉的必須是 [TaskUiDelegate.beginProgress] 給的 handle，不是全域的
-  /// hideProgress——後者底下是 BotToast.cleanAll()，會把並行分頁的遮罩一起
-  /// 收掉。
+  /// 有值就顯示進度框。關掉的必須是 [TaskUiDelegate.beginProgress] 給的 handle，
+  /// 不是全域 hideProgress——那底下是 cleanAll()，會收掉並行分頁的遮罩。
   String? progressMessage,
 
   /// fetch 回 null 且沒丟 [TaskFailure] 時，錯誤訊息用這個。
@@ -50,17 +41,9 @@ Future<Result<T>> run<T>({
   /// 只出現在 log 裡，用來認出是哪一條路徑。
   String debugLabel = 'run',
 
-  /// 背景取資料：使用者沒有要求，所以**不准有任何東西蓋在他正在看的畫面上**。
-  ///
-  /// 為 true 時做兩件事：
-  /// - 忽略 [progressMessage]，不開進度框。
-  /// - 以 `interactive: false` 呼叫 [AuthSession.ensure]，登入只做安靜的那一段，
-  ///   不升級到可見的登入頁。
-  ///
-  /// 第二點是重點：`retry: RetryPolicy.none` 只擋掉重試／錯誤對話框，擋不掉
-  /// 互動式登入——那個升級發生在 `ensure()` 裡面，而 `run()` 在看 `retry` 之前
-  /// 就已經呼叫過它了。少了這個旗標，背景預載會在 SSO 過期時把登入頁蓋在
-  /// 使用者正在看的畫面上。
+  /// 背景取資料：不開進度框，並以 `interactive: false` 呼叫 ensure，也不吐
+  /// Stale toast。`retry: none` 擋不掉互動式登入，那個升級發生在 `ensure()`
+  /// 裡面，少了這個旗標背景預載會把登入頁蓋在使用者正在看的畫面上。
   bool background = false,
 }) async {
   final auth = AuthSession.instance;
@@ -73,7 +56,7 @@ Future<Result<T>> run<T>({
     Log.d(
         '$debugLabel ${cached == null ? "failed" : "stale"}: ${reason.message}');
     if (cached == null) return Failed<T>(reason);
-    ui.toast(R.current.loadingCache);
+    if (!background) ui.toast(R.current.loadingCache);
     return Stale<T>(cached, reason);
   }
 
@@ -115,8 +98,7 @@ Future<Result<T>> run<T>({
       reason = e.reason;
     } catch (e, stack) {
       Log.eWithStack('$debugLabel: $e', stack);
-      // 途中斷線要重新分類成 Offline，否則使用者只會看到一個沒有幫助的
-      // 錯誤訊息，而不是「請檢查網路」。
+      // 途中斷線要重新分類成 Offline，否則訊息不會是「請檢查網路」。
       reason = await net.isOnline()
           ? FetchFailed(errorMessage ?? e.toString())
           : const Offline();
@@ -139,13 +121,8 @@ Future<Result<T>> run<T>({
   }
 }
 
-/// [AuthFailure] 到 [FailureReason] 的對映。
-///
-/// 分成兩個型別是為了不讓 auth 層 import repository 層——auth 是
-/// repository 的相依，反過來會是上行邊。
-///
-/// **[AuthError.message] 要帶下去**，否則站台實際回的原因（「帳號或密碼
-/// 錯誤」）會被換成一句通用訊息。
+/// 分成兩個型別是為了不讓 auth 層 import repository 層。[AuthError.message]
+/// 要帶下去，否則站台實際回的原因會被換成一句通用訊息。
 FailureReason _reasonOf(AuthError error) => switch (error.failure) {
       AuthFailure.notSignedIn => const NotSignedIn(),
       AuthFailure.loginFailed => LoginFailed(error.message),

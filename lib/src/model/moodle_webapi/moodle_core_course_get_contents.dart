@@ -75,8 +75,6 @@ class Modules extends Object {
   @JsonKey(name: 'contents')
   late List<Contents> contents;
 
-  bool folderIsNone;
-
   Modules({
     this.id = 0,
     this.url = "",
@@ -88,7 +86,6 @@ class Modules extends Object {
     this.modname = "",
     this.modplural = "",
     this.indent = 0,
-    this.folderIsNone = false,
     List<Contents>? contents,
   }) {
     this.contents = contents ?? [];

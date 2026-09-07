@@ -43,6 +43,16 @@ void main() {
     if (eq < 0) return false;
     final head = line.substring(2, eq).trim();
     if (head.isEmpty) return false;
+    // 參數預設值裡的 `=` 會讓「有參數的方法」看起來像欄位宣告，例如
+    // `List<Widget> _f({bool refresh = false}) => [...]`。方法每次呼叫都重新
+    // 求值，不會凍住語言。用「括號沒閉合」判定：函式型別的欄位
+    // （`void Function(int) cb = ...`）括號是閉合的，不會被這一條誤殺。
+    var depth = 0;
+    for (final c in head.split('')) {
+      if (c == '(') depth++;
+      if (c == ')') depth--;
+    }
+    if (depth > 0) return false;
     final parts = head.split(RegExp(r'\s+'));
     // 至少要「型別或修飾詞 + 名稱」兩段，而且名稱得是識別字。
     if (parts.length < 2) return false;

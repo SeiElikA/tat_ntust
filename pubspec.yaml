@@ -66,10 +66,8 @@ dependencies:
   flutter_inappwebview: ^6.1.0
   webview_flutter_android: ^4.10.11
   #---------icon----------#
-  eva_icons_flutter: ^3.1.0
-  #https://akveo.github.io/eva-icons/#/
-  fluttericon: ^2.0.0
-  #https://oblador.github.io/react-native-vector-icons/
+  #Lucide 圖示不裝套件，改自帶 assets/fonts/lucide.ttf，
+  #見 lib/ui/other/lucide_icons.dart。
   #---------json----------#
   json_annotation: ^4.8.0
   #----------other----------#
@@ -92,6 +90,18 @@ dependencies:
   open_filex: ^4.7.0
   permission_handler: ^12.0.1
   mime_type: ^1.0.0
+  image_picker: ^1.2.3
+  # 直接宣告 android 實作，才拿得到 ImagePickerAndroid.useAndroidPhotoPicker：
+  # 那個旗標預設 false，而 AndroidManifest 用 tools:node="remove" 拿掉了
+  # READ_MEDIA_IMAGES，不切到系統相片挑選器就得靠 ACTION_GET_CONTENT。
+  # 卡在 +17：+18 起要求 Dart SDK 3.12，本專案的 Flutter 3.38.5 帶的是 3.10.4。
+  image_picker_android: ^0.8.13+17
+  # 只為了 ImagePickerPlatform.instance：image_picker 的 export 清單裡沒有它，
+  # 不明確宣告就會被 depend_on_referenced_packages 擋下。
+  image_picker_platform_interface: ^2.11.1
+  # 交作業要挑 PDF / docx，image_picker 只挑得到圖。
+  # 卡在 ^11：12.x 要求更新的 Dart SDK，同 image_picker_android 的理由。
+  file_picker: ^11.0.3
   github: ^9.11.0
   #----------Widget----------#
   get: ^4.6.5
@@ -165,20 +175,31 @@ flutter:
   uses-material-design: true
   assets:
     - assets/
-    - assets/image/
+    # 子目錄不會被 `- assets/` 涵蓋，漏掉這一行的話編輯器在真機上 404，
+    # 而所有測試照樣是綠的。
+    - assets/editor/
     - assets/image/files/
     - assets/launcher/
     # 隱私政策的離線備援。宣告 repo 根目錄那一份而不是複本：GitHub raw 服務
     # 的就是同一個檔案。見 PrivacyPolicyController.load。
     - privacy-policy.md
 
-  # 沒有任何內建字體。
+  # 只有 Lucide 一組圖示字體。
   #
   # MyFont（源泉圓體，三個 TTC 共 45 MB）改成用 google_fonts 在執行期抓
   # Noto Sans TC，見 lib/src/config/app_themes.dart。
   #
   # MyIcon（assets/fonts/MyIcon.ttf，5.7 KB）一併刪除：整個 repo 沒有任何
   # 一處用到那個 family，是一份只宣告沒使用的設定。
+  #
+  # lucide.ttf 取自 lucide_icons_flutter 3.1.18（Lucide 本體為 ISC 授權）。
+  # 不直接裝那個套件，是因為它另外宣告了 6 組 LucideVariable-w{100..600}
+  # 字重家族共 2.78 MB；本專案一個都沒用到，而 icon tree-shaking 只裁得掉
+  # 有 IconData 指向的字體，那 6 份會原封不動打進 APK。
+  fonts:
+    - family: Lucide
+      fonts:
+        - asset: assets/fonts/lucide.ttf
 
 flutter_intl:
   enabled: true

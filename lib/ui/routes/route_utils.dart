@@ -1,13 +1,13 @@
 import 'dart:io';
 
-import 'package:flutter_app/src/R.dart';
-import 'package:flutter_app/src/util/my_toast.dart';
+import 'package:flutter_app/src/connector/moodle_webapi_connector.dart';
 import 'package:flutter_app/src/util/remote_config_utils.dart';
+import 'package:flutter_app/ui/pages/announcement/announcement_center_page.dart';
 import 'package:flutter_app/ui/pages/announcement/announcement_page.dart';
 import 'package:flutter_app/src/model/course/course_class_json.dart';
+import 'package:flutter_app/src/model/course/course_main_extra_json.dart';
 import 'package:flutter_app/src/model/course_table/course_table_json.dart';
 import 'package:flutter_app/ui/pages/course_data/course_data_page.dart';
-import 'package:flutter_app/ui/pages/course_data/screen/sub_page/course_announcement_detail_page.dart';
 import 'package:flutter_app/ui/pages/course_data/screen/sub_page/course_folder_page.dart';
 import 'package:flutter_app/ui/pages/course_data/screen/sub_page/course_info_page.dart';
 import 'package:flutter_app/ui/pages/course_detail/course_detail_page.dart';
@@ -18,6 +18,7 @@ import 'package:flutter_app/ui/pages/other/page/contributors_page.dart';
 import 'package:flutter_app/ui/pages/other/page/dev_page.dart';
 import 'package:flutter_app/ui/pages/other/page/setting/setting_page.dart';
 import 'package:flutter_app/ui/pages/other/page/store_edit_page.dart';
+import 'package:flutter_app/ui/pages/score/moodle_course_grades_page.dart';
 import 'package:flutter_app/ui/pages/web_view/inapp_web_view_page.dart';
 import 'package:flutter_app/ui/screen/privacy_policy/privacy_policy_screen.dart';
 import 'package:flutter_app/ui/screen/login/login_screen.dart';
@@ -26,21 +27,26 @@ import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:get/get.dart';
 
 class RouteUtils {
-  /// 取得並顯示公告。沒有公告時，只有使用者主動查看（allTime）才提示。
-  static Future<void> showAnnouncement(
-      {bool test = false, bool allTime = false}) async {
-    final request = await RemoteConfigUtils.resolveAnnouncement(
-        test: test, allTime: allTime);
-    if (request == null) {
-      if (allTime) MyToast.show(R.current.noAnnouncement);
-      return;
-    }
+  /// 啟動時的公告彈窗。沒有要顯示的公告就什麼都不做——使用者主動查看的入口
+  /// 已經是 [toAnnouncementCenter]，那一頁有自己的空狀態。
+  static Future<void> showAnnouncement({bool test = false}) async {
+    final request = await RemoteConfigUtils.resolveAnnouncement(test: test);
+    if (request == null) return;
     await Get.to(
       () => AnnouncementPage(
         info: request.info,
         countDown: request.countDown,
       ),
       transition: Transition.downToUp,
+    );
+  }
+
+  /// 「公告與通知」頁。啟動彈窗（[showAnnouncement]）完全不受影響，這一頁只是
+  /// 給同一批 Remote Config 公告一個常駐的家，外加 Moodle 站內通知。
+  static Future<void> toAnnouncementCenter() async {
+    await Get.to(
+      () => const AnnouncementCenterPage(openWebView: toWebViewPage),
+      transition: transition,
     );
   }
 
@@ -53,9 +59,30 @@ class RouteUtils {
     );
   }
 
-  static Future toCourseDataPage(CourseInfoJson courseInfo) async {
+  static Future toCourseDataPage(CourseInfoJson courseInfo,
+      {int initialTab = 0}) async {
     return await Get.to(
-      () => CourseDataPage(courseInfo),
+      () => CourseDataPage(courseInfo, initialTab: initialTab),
+      transition: transition,
+    );
+  }
+
+  /// 「Moodle 目前成績」。點一列開那門課的 Moodle 成績分頁——那一段導頁在這裡
+  /// 注入，頁面本身不 import 這個檔案（見 docs/ARCHITECTURE.md「UI 慣例」）。
+  /// 課程頁只讀 `main.course` 的 id 與 name，所以現組一個最小的 CourseInfoJson
+  /// 就夠；內部 id 由 MoodleRepository 用課號查回來（多半是快取命中）。
+  static Future<void> toMoodleCourseGrades() async {
+    await Get.to(
+      () => MoodleCourseGradesPage(
+        onOpenCourse: (course) => toCourseDataPage(
+          CourseInfoJson(
+            main: CourseMainInfoJson(
+              course: CourseMainJson(id: course.courseId, name: course.name),
+            ),
+          ),
+          initialTab: CourseDataPage.scoreTab,
+        ),
+      ),
       transition: transition,
     );
   }
@@ -72,14 +99,6 @@ class RouteUtils {
       CourseInfoJson courseInfo, dynamic value) async {
     return await Get.to(
       () => CourseInfoPage(courseInfo, value),
-      transition: transition,
-    );
-  }
-
-  static Future toAnnouncementDetailPage(
-      CourseInfoJson courseInfo, dynamic value) async {
-    return await Get.to(
-      () => CourseAnnouncementDetailPage(courseInfo, value),
       transition: transition,
     );
   }
@@ -125,10 +144,14 @@ class RouteUtils {
       Function(Uri)? onWebViewDownload,
       Function(InAppWebViewController)? loadDone}) async {
     loadDone ??= (controller) {};
+    // Moodle 的頁面先換成 autologin 網址，WebView 才不會停在登入頁；換不到
+    // 就原樣回來。有換到時把原網址一起帶著，鑰匙被拒時 WebView 才有地方退。
+    final target = await MoodleWebApiConnector.autologinUrl(url);
     return await Get.to(
       () => InAppWebViewPage(
         title: title,
-        url: WebUri(url),
+        url: WebUri(target),
+        fallbackUrl: target == url ? null : WebUri(url),
         openWithExternalWebView: openWithExternalWebView,
         onWebViewDownload: onWebViewDownload,
         loadDone: loadDone!,

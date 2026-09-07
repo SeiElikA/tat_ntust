@@ -1,13 +1,12 @@
 import 'dart:convert';
 
 import 'package:back_button_interceptor/back_button_interceptor.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_app/ui/other/svg_tint.dart';
 import 'package:flutter_app/debug/log/log.dart';
 import 'package:flutter_app/src/R.dart';
 import 'package:flutter_app/src/service/ssoam2_login.dart';
 import 'package:flutter_app/src/connector/core/dio_connector.dart';
+import 'package:flutter_app/src/connector/moodle_webapi_connector.dart';
 import 'package:flutter_app/ui/service/file_download.dart';
 import 'package:flutter_app/src/store/model.dart';
 import 'package:flutter_app/src/util/open_utils.dart';
@@ -15,11 +14,15 @@ import 'package:flutter_app/ui/components/custom_appbar.dart';
 import 'package:flutter_app/ui/components/page/loading_page.dart';
 import 'package:flutter_app/src/util/my_toast.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get/get.dart';
+import 'package:flutter_app/ui/other/lucide_icons.dart';
 
 class InAppWebViewPage extends StatefulWidget {
   final WebUri url;
+
+  /// [url] 是 autologin 包裝網址時原本要開的那個。鑰匙被拒（過期、IP 不符、
+  /// 已用過）時 autologin.php 顯示錯誤頁而不轉址，這時退回去開它。
+  final WebUri? fallbackUrl;
   final String title;
   final bool openWithExternalWebView;
   final Function(Uri)? onWebViewDownload;
@@ -28,6 +31,7 @@ class InAppWebViewPage extends StatefulWidget {
   const InAppWebViewPage({
     required this.title,
     required this.url,
+    this.fallbackUrl,
     this.openWithExternalWebView = false,
     this.onWebViewDownload,
     required this.loadDone,
@@ -71,13 +75,19 @@ class _InAppWebViewPageState extends State<InAppWebViewPage> {
 
   bool firstLoad = true;
 
+  /// 只退回一次：之後使用者按上一頁回到那個錯誤頁是他自己要去的。
+  bool fellBack = false;
+
   Future<bool> setCookies() async {
     if (!firstLoad) return true;
     firstLoad = false;
     final cookies = await cookieJar.loadForRequest(widget.url);
-    await cookieManager.deleteAllCookies();
-    // 上一行剛清空所有 cookie，getCookies 必然回空；這裡只剩「同一批 Dio
-    // cookie 內部同名去重」的作用，所以直接從空集合開始。
+    // Moodle 的頁面不清平台 cookie store：autologin.php 建立的 MoodleSession
+    // 只存在那裡，而伺服器 6 分鐘內只發一把鑰匙，清掉第二頁就停在登入頁。
+    if (!MoodleWebApiConnector.isOwnHost(widget.url)) {
+      await cookieManager.deleteAllCookies();
+    }
+    // 只剩「同一批 Dio cookie 內部同名去重」的作用，所以從空集合開始。
     final cookiesName = <String>{};
     for (var cookie in cookies) {
       if (!cookiesName.contains(cookie.name)) {
@@ -131,6 +141,14 @@ class _InAppWebViewPageState extends State<InAppWebViewPage> {
                     },
                     onLoadStop:
                         (InAppWebViewController controller, Uri? url) async {
+                      if (shouldFallBackFrom(url)) {
+                        // 成功時會 303 轉走，停在它身上就是鑰匙被拒。
+                        fellBack = true;
+                        Log.e("[autologin] autologin.php 沒有轉址，改開原網址：$url");
+                        await controller.loadUrl(
+                            urlRequest: URLRequest(url: widget.fallbackUrl));
+                        return;
+                      }
                       if (url.toString().startsWith(ntustLoginUri)) {
                         await controller.evaluateJavascript(
                             source:
@@ -192,10 +210,15 @@ class _InAppWebViewPageState extends State<InAppWebViewPage> {
     );
   }
 
+  /// 這一次 onLoadStop 停在 autologin.php 本身，而且還沒退過。
+  bool shouldFallBackFrom(Uri? url) =>
+      widget.fallbackUrl != null &&
+      !fellBack &&
+      MoodleWebApiConnector.isAutologinScript(url);
+
   List<Widget> get actionList {
-    // 這排全是純圖示按鈕，沒有 tooltip 時螢幕閱讀器一律只唸「按鈕」。
-    // 上一頁／下一頁借用 GlobalMaterialLocalizations 既有的
-    // previousPageTooltip / nextPageTooltip，不必新增 l10n key。
+    // 純圖示按鈕沒有 tooltip 時螢幕閱讀器一律只唸「按鈕」；上一頁／下一頁
+    // 借用 GlobalMaterialLocalizations 既有的字串，不必新增 l10n key。
     final materialL10n = MaterialLocalizations.of(context);
     return [
       IconButton(
@@ -207,7 +230,7 @@ class _InAppWebViewPageState extends State<InAppWebViewPage> {
             }
           },
           icon: const Icon(
-            CupertinoIcons.left_chevron,
+            LucideIcons.chevronLeft,
             size: 18,
           )),
       IconButton(
@@ -219,7 +242,7 @@ class _InAppWebViewPageState extends State<InAppWebViewPage> {
             }
           },
           icon: const Icon(
-            CupertinoIcons.right_chevron,
+            LucideIcons.chevronRight,
             size: 18,
           )),
       IconButton(
@@ -230,21 +253,20 @@ class _InAppWebViewPageState extends State<InAppWebViewPage> {
               await webView?.reload();
             }
           },
-          icon: const Icon(CupertinoIcons.refresh, size: 18)),
+          icon: const Icon(LucideIcons.refreshCw, size: 18)),
       Visibility(
           visible: widget.openWithExternalWebView,
           child: IconButton(
-            // 這顆是 SvgPicture，連 Icon 的 semanticsLabel 都沒有，
-            // 沒 tooltip 時螢幕閱讀器完全唸不出它要做什麼。
+            // 純圖示按鈕沒 tooltip 就唸不出來。
             tooltip: R.current.openInBrowser,
             splashRadius: 16,
             onPressed: () async {
               await OpenUtils.launchURL(url.toString());
             },
-            icon: SvgPicture.asset(
-              "assets/image/img_external_link.svg",
-              colorFilter: svgTint(Get.iconColor),
-              height: 20,
+            icon: Icon(
+              LucideIcons.externalLink,
+              size: 20,
+              color: Get.iconColor,
             ),
           ))
     ];

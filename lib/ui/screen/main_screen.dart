@@ -1,15 +1,17 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
-import 'package:flutter_app/ui/other/svg_tint.dart';
 import 'package:flutter_app/src/R.dart';
 import 'package:flutter_app/ui/pages/subsystem/sub_system_page.dart';
 import 'package:flutter_app/ui/pages/score/score_page.dart';
 import 'package:flutter_app/ui/pages/other/other_page.dart';
 import 'package:flutter_app/ui/pages/course_table/course_table_page.dart';
 import 'package:flutter_app/ui/pages/calendar/calendar_page.dart';
+import 'package:flutter_app/src/controller/announcement/notification_badge_controller.dart';
 import 'package:flutter_app/src/controller/main_page/main_controller.dart';
 import 'package:flutter_app/src/util/analytics_utils.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get/get.dart';
+import 'package:flutter_app/ui/other/lucide_icons.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -18,18 +20,25 @@ class MainScreen extends StatefulWidget {
   State<StatefulWidget> createState() => _MainScreenState();
 }
 
-class _MainScreenState extends State<MainScreen> with RouteAware {
+class _MainScreenState extends State<MainScreen>
+    with RouteAware, WidgetsBindingObserver {
   // 註冊在 AppBindings（lazyPut + fenix），這裡只取用。
   final controller = Get.find<MainController>();
   /// 一定要是 getter：欄位只在 State 建立時初始化，而 forceAppUpdate 只重跑
   /// build()、不重建 State，導覽列標籤會永遠停在啟動時的語言。
-  List<Map<String, String>> get items => [
-        {"icon": "img_clock.svg", "name": R.current.titleCourse},
-        {"icon": "img_info.svg", "name": R.current.informationSystem},
-        {"icon": "img_calendar.svg", "name": R.current.calendar},
-        {"icon": "img_book.svg", "name": R.current.titleScore},
-        {"icon": "img_menu.svg", "name": R.current.titleOther}
+  List<Map<String, dynamic>> get items => [
+        {"icon": LucideIcons.clock, "name": R.current.titleCourse},
+        {"icon": LucideIcons.info, "name": R.current.informationSystem},
+        {"icon": LucideIcons.calendar, "name": R.current.calendar},
+        {"icon": LucideIcons.bookOpen, "name": R.current.titleScore},
+        {"icon": LucideIcons.menu, "name": R.current.titleOther}
       ];
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
 
   @override
   void didChangeDependencies() {
@@ -38,8 +47,18 @@ class _MainScreenState extends State<MainScreen> with RouteAware {
         .subscribe(this, ModalRoute.of(context) as PageRoute);
   }
 
+  /// 課表是預設分頁，停在它把 App 丟到背景再回來不會觸發 `onPageChanged`，
+  /// 沒有這一段紅點就會一直停在進 App 那一刻的數字——那正是輪詢要解決的情境。
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      unawaited(NotificationBadgeController.instance.refresh());
+    }
+  }
+
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     AnalyticsUtils.observer.unsubscribe(this);
     super.dispose();
   }
@@ -83,13 +102,14 @@ class _MainScreenState extends State<MainScreen> with RouteAware {
         destinations: [
           for (final (index, item) in items.indexed)
             NavigationDestination(
-              icon: SvgPicture.asset(
-                "assets/image/${item["icon"]}",
-                colorFilter: svgTint(currentIndex == index
+              icon: Icon(
+                item["icon"] as IconData,
+                size: 24,
+                color: currentIndex == index
                     ? Get.theme.colorScheme.onSecondaryContainer
-                    : Get.theme.colorScheme.onSurfaceVariant),
+                    : Get.theme.colorScheme.onSurfaceVariant,
               ),
-              label: item["name"]!,
+              label: item["name"] as String,
             ),
         ],
       );

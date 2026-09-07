@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
+import 'package:flutter_app/ui/other/lucide_icons.dart';
 
 AppBar mainAppbar(
     {String title = "",
@@ -34,7 +35,8 @@ AppBar baseAppbar(
     List<Widget>? action,
     BuildContext? context,
     PreferredSizeWidget? bottom,
-    Color? backgroundColor}) {
+    Color? backgroundColor,
+    VoidCallback? onBack}) {
   return AppBar(
     systemOverlayStyle: SystemUiOverlayStyle(
       statusBarIconBrightness: Get.theme.brightness == Brightness.light
@@ -51,13 +53,13 @@ AppBar baseAppbar(
         splashColor: Colors.transparent,
         splashRadius: 18,
         icon: Icon(
-          Icons.arrow_back_ios_new,
+          LucideIcons.chevronLeft,
           size: 18,
           color: Get.theme.colorScheme.onSurface,
         ),
-        onPressed: () {
-          Get.back();
-        },
+        // 有未送出內容或寫入正在跑的頁面會傳 onBack，把這顆鈕接到
+        // `Navigator.maybePop`；`Get.back()` 是直接 pop，會跳過 PopScope。
+        onPressed: onBack ?? Get.back,
       ),
     ),
     actions: action,

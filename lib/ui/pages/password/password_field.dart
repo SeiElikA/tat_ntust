@@ -1,6 +1,6 @@
-import 'package:eva_icons_flutter/eva_icons_flutter.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_app/src/R.dart';
+import 'package:flutter_app/ui/other/lucide_icons.dart';
 
 /// 密碼輸入欄位，附眼睛切換與底下的錯誤訊息列。
 /// `CheckPasswordDialog` 與 `WebMailPasswordDialog` 共用這一份。
@@ -65,8 +65,7 @@ class PasswordField extends StatelessWidget {
                 // 要跟著狀態走：現在藏著就唸「顯示密碼」（按下去會發生的事）。
                 tooltip:
                     obscured ? R.current.showPassword : R.current.hidePassword,
-                icon: Icon(
-                    obscured ? EvaIcons.eyeOffOutline : EvaIcons.eyeOutline),
+                icon: Icon(obscured ? LucideIcons.eyeOff : LucideIcons.eye),
                 onPressed: onToggleObscured,
               ),
             ],

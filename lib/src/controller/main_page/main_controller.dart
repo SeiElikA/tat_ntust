@@ -1,4 +1,7 @@
 import 'dart:async';
+import 'dart:io';
+
+import 'package:dio/dio.dart' show CancelToken;
 import 'package:awesome_dialog/awesome_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -6,10 +9,14 @@ import 'package:flutter_app/src/auth/auth_session.dart';
 import 'package:flutter_app/debug/log/log.dart';
 import 'package:flutter_app/src/R.dart';
 import 'package:flutter_app/src/connector/moodle_webapi_connector.dart';
+import 'package:flutter_app/src/controller/announcement/notification_badge_controller.dart';
 import 'package:flutter_app/src/model/moodle_webapi/moodle_profile_entity.dart';
+import 'package:flutter_app/src/repository/moodle_repository.dart';
+import 'package:flutter_app/src/repository/result.dart';
 import 'package:flutter_app/src/service/error_dialog_parameter.dart';
 import 'package:flutter_app/src/service/task_ui_delegate.dart';
 import 'package:flutter_app/src/util/analytics_utils.dart';
+import 'package:flutter_app/src/util/moodle_avatar_utils.dart';
 import 'package:get/get.dart';
 
 /// 五個分頁的身分。
@@ -51,6 +58,9 @@ class MainController extends GetxController {
       await AuthSession.instance.ensure({SystemId.ntustSso});
       if (await _checkMoodle()) {
         await _getMoodleProfile();
+        // 大聲公上的未讀數。放在這裡是因為 Moodle 的登入到這一步才確定過，
+        // 不會為了一顆紅點把登入頁蓋在課表上。
+        unawaited(NotificationBadgeController.instance.refresh());
       }
     } catch (e, stack) {
       Log.eWithStack(e.toString(), stack);
@@ -68,6 +78,11 @@ class MainController extends GetxController {
 
     final screenName = MainTab.values[index].name;
     AnalyticsUtils.setScreenName(screenName);
+
+    // 回到課表分頁時順手更新紅點；節流在 NotificationBadgeController 裡。
+    if (MainTab.values[index] == MainTab.courseTable) {
+      unawaited(NotificationBadgeController.instance.refresh());
+    }
   }
 
   /// Private Method
@@ -109,11 +124,98 @@ class MainController extends GetxController {
   Future<void> _getMoodleProfile() async {
     try {
       isProfileLoading.value = true;
-      profile.value = await MoodleWebApiConnector.getProfile();
+      // 抓不到就留著上一份（connector 的 siteInfo 也是這樣）：換完頭貼之後
+      // site_info 偶發失敗會把整列換成「發生錯誤」，而使用者剛剛才被告知
+      // 「頭貼已更新」。第一次就失敗時 profile 本來就是 null，照樣畫重試列。
+      final fetched = await MoodleWebApiConnector.getProfile();
+      if (fetched != null || profile.value == null) profile.value = fetched;
     } catch (e) {
       Log.e(e);
     } finally {
       isProfileLoading.value = false;
+    }
+  }
+
+  /// 換頭貼進行中的送出進度。0..1，null 代表沒有在跑。
+  final Rxn<double> avatarProgress = Rxn();
+
+  CancelToken? _avatarCancel;
+
+  bool get isChangingAvatar => avatarProgress.value != null;
+
+  /// 目前是不是有自訂頭貼（決定要不要顯示「移除」）。對著主題預設圖按移除，
+  /// 伺服器會因為 picture 沒有變而回 success:false，看起來像失敗。
+  bool get hasCustomAvatar =>
+      MoodleAvatarUtils.hasCustomPicture(profile.value?.userpictureurl ?? '');
+
+  /// 換或移除頭貼（[file] 為 null 就是移除）。回 null 代表成功，否則是要
+  /// toast 的訊息。不在這裡開對話框、不 toast：controller -> ui 是上行邊，
+  /// 確認框與提示由 `OtherPage` 負責。
+  Future<String?> changeAvatar({File? file}) async {
+    if (isChangingAvatar) return null;
+    avatarProgress.value = 0;
+    final cancel = _avatarCancel = CancelToken();
+    try {
+      final result = await MoodleRepository.instance.changeProfilePicture(
+        file: file,
+        cancelToken: cancel,
+        onProgress: (sent, total) {
+          if (total > 0) avatarProgress.value = sent / total;
+        },
+      );
+      switch (result) {
+        case Ok(:final data):
+          await _applyAvatar(data);
+          return null;
+        // 這條路沒有快取，Stale 不可能發生；真的發生了也照樣算成功。
+        case Stale(:final data):
+          await _applyAvatar(data);
+          return null;
+        case Failed(:final reason):
+          return reason.message;
+      }
+    } finally {
+      avatarProgress.value = null;
+      _avatarCancel = null;
+    }
+  }
+
+  /// 登出時取消進行中的上傳。
+  void cancelAvatarChange() {
+    _avatarCancel?.cancel();
+    _avatarCancel = null;
+    avatarProgress.value = null;
+  }
+
+  /// 頭貼換掉之後讓畫面真的更新。
+  ///
+  /// 畫面用的是 `CircleAvatar(backgroundImage: NetworkImage(url))`，快取鍵是
+  /// (url, scale)。伺服器端 user_picture::get_url 會在網址後面掛
+  /// `?rev=<user.picture>`，而 user.picture 是 process_new_icon 回的新
+  /// files.id，每換一次都不一樣；移除時網址則整個換成主題預設圖。所以正常
+  /// 情況下網址一定變，NetworkImage 自然重抓。
+  ///
+  /// 仍然要 evict 舊網址：伺服器端萬一沒改（例如刪掉一張本來就不存在的頭貼），
+  /// 舊那筆會一直留在 ImageCache 裡，畫面就永遠停在舊圖而且沒有任何錯誤。
+  /// 這是**不改用 CachedNetworkImage** 的理由：那一套多一層
+  /// flutter_cache_manager 的磁碟快取，鍵一樣是網址，跨重啟存活而且沒有
+  /// 對外的 evict 入口，出問題時比現在更難救。
+  Future<void> _applyAvatar(MoodleAvatarChange change) async {
+    final oldUrl = profile.value?.userpictureurl;
+    if (oldUrl != null && oldUrl.isNotEmpty) {
+      await NetworkImage(oldUrl).evict();
+    }
+    await reloadProfile();
+    // site_info 還回著舊網址時（伺服器端快取），退回用 update_picture 自己
+    // 算出來的那一個。直接改欄位不會觸發 Obx（Rxn 只在 `.value =` 時通知），
+    // 所以一定要換一個新的實例。
+    final current = profile.value;
+    if (current != null &&
+        current.userpictureurl == oldUrl &&
+        change.url.isNotEmpty) {
+      final patched = Map<String, dynamic>.from(current.toJson())
+        ..['userpictureurl'] = change.url;
+      profile.value = MoodleProfileEntity.fromJson(patched);
     }
   }
 }

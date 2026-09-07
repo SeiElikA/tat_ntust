@@ -29,9 +29,38 @@ void main() {
   String normalize(String path) => path.replaceAll(r'\', '/');
 
   test('HtmlUtils.clean 的呼叫端清單沒有變動', () {
-    // 盤點結果：只有這一個呼叫端，它把 Moodle 課程模組名（Modules.name）
-    // 的 HTML 實體還原成純文字。
-    const expected = {'lib/src/connector/moodle_webapi_connector.dart'};
+    // 盤點結果：只有這一個檔案在呼叫，十八處——
+    // - 課程模組名（Modules.name，getCourseDirectory）
+    // - 行事曆待辦的事件名與課名（MoodleActionEvent.name / activityname、
+    //   MoodleActionEventCourse.fullname / shortname，actionEventsPageOf）
+    // - 作業名（MoodleAssignment.name，assignmentsOf）
+    // - 測驗名（MoodleQuiz.name，quizzesOf）
+    // - 作業成績的顯示字串（MoodleAssignFeedback.gradefordisplay 與
+    //   previousattempts[].grade.gradefordisplay，submissionStatusOf）
+    // - 公告標題（Discussions.name，announcementsOf）
+    // - 公告的第一篇貼文標題（Discussions.subject，announcementsOf；抓不到
+    //   回覆時 rootPostOf 會把它當成貼文標題畫出來）
+    // - 貼文標題（MoodleForumPost.subject，_normalizePost）
+    // - 回覆用的標題（MoodleForumPost.replysubject，_normalizePost；它會被
+    //   當成 subject 送回伺服器，純文字）
+    // - 編輯頁要填的標題（postForEditOf 的 post.subject；下游是撰寫頁的
+    //   TextField，純文字 sink）
+    // - 站內通知的標題與來源名（MoodleNotification.subject /
+    //   contexturlname，notificationsOf）
+    // - 課程總分清單的課名與分數（fullname / shortname 與 grades[].grade，
+    //   joinCourseGrades）
+    // 另一個檔案是 moodle_notification_utils：通知摘要（smallmessage /
+    // fullmessage / text）先剝標籤再 clean，輸出只進 tile 的 Text。
+    // 下游全是 Text 與 AppBar / WebView 標題（upcoming_events_section 的
+    // tile、course_assignment_page 的列、course_assignment_detail_page 的
+    // AppBar、成績列與「先前的繳交」那幾列、course_announcement_page 的清單卡片與
+    // 討論串頁的 AppBar、forum_post_block 的卡片子標題與撰寫頁標題欄的 TextField、
+    // moodle_course_grades_page 的課名與分數、course_quiz_detail_page 的
+    // AppBar、InAppWebViewPage 的 title）。
+    const expected = {
+      'lib/src/connector/moodle_webapi_connector.dart',
+      'lib/src/util/moodle_notification_utils.dart',
+    };
 
     final actual = <String>{
       for (final file in libDartFiles())
@@ -55,14 +84,16 @@ clean() 是 escape 的反向操作：它會把 `&lt;script&gt;` 還原成 `<scri
 
   test('HtmlWidget（HTML sink）出現的檔案清單沒有變動', () {
     // 盤點結果，這四個檔案吃的分別是：
+    // - moodle_html_view：共用的 Moodle 原文 HTML 算繪元件，被作業詳情頁的
+    //   說明 intro / 線上文字 onlinetext / 老師回饋 comments、測驗詳情頁的
+    //   測驗說明 intro 與公告討論串頁的貼文 message 餵，全是未經 clean 的原文
     // - course_info_page：ap.description（未經 clean 的 Moodle 原文）
     // - course_html_page：遠端 HTML 教材原文
     // - course_score_page：成績項目的老師回饋（gradeitems[].feedback，帶 <img>）
-    // - course_announcement_detail_page：論壇貼文 HTML
     // 沒有任何一個吃 clean() 的輸出。
     const expected = {
+      'lib/ui/components/html/moodle_html_view.dart',
       'lib/ui/pages/course_data/screen/course_score_page.dart',
-      'lib/ui/pages/course_data/screen/sub_page/course_announcement_detail_page.dart',
       'lib/ui/pages/course_data/screen/sub_page/course_html_page.dart',
       'lib/ui/pages/course_data/screen/sub_page/course_info_page.dart',
     };

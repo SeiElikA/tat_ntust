@@ -111,8 +111,7 @@ void main() {
     NtustRepository.instance = ntustRepo;
     dataController = CourseDataController('AT1001');
     detailController = CourseDetailController(
-        courseId: 'AT1001',
-        semester: SemesterJson(year: '113', semester: '1'));
+        courseId: 'AT1001', semester: SemesterJson(year: '113', semester: '1'));
     AuthSession.instance = AppAuthSession();
     // 離線失敗會畫 ErrorPage，而 ErrorPage.loginBtn 在未登入時會取
     // Get.context!.width——沒有 GetMaterialApp 就是 null 直接爆。
@@ -151,7 +150,6 @@ void main() {
     return () => rebuildParent(() {});
   }
 
-
   /// 課程分頁那三頁只用到 `courseInfo.main.course.id`，其餘欄位走預設值即可。
   CourseInfoJson courseInfoOf(String id) => CourseInfoJson(
         main: CourseMainInfoJson(course: CourseMainJson(id: id)),
@@ -169,8 +167,7 @@ void main() {
     rebuild();
     await tester.pumpAndSettle();
 
-    expect(ntustRepo.calls, 1,
-        reason: 'rebuild 之後又打了一次 API，代表請求跑回 build() 裡了');
+    expect(ntustRepo.calls, 1, reason: 'rebuild 之後又打了一次 API，代表請求跑回 build() 裡了');
   });
 
   testWidgets('CourseInfoPage 在上層 setState 之後不會重打一次 API', (tester) async {
@@ -186,8 +183,7 @@ void main() {
     rebuild();
     await tester.pumpAndSettle();
 
-    expect(ntustRepo.calls, 1,
-        reason: 'rebuild 之後又打了一次 API，代表請求跑回 build() 裡了');
+    expect(ntustRepo.calls, 1, reason: 'rebuild 之後又打了一次 API，代表請求跑回 build() 裡了');
   });
 
   testWidgets('CourseDirectoryPage 在上層 setState 之後不會重打一次 API', (tester) async {
@@ -203,16 +199,20 @@ void main() {
     rebuild();
     await tester.pumpAndSettle();
 
-    expect(repo.calls, 1,
-        reason: 'rebuild 之後又打了一次 API，代表請求跑回 build() 裡了');
+    expect(repo.calls, 1, reason: 'rebuild 之後又打了一次 API，代表請求跑回 build() 裡了');
   });
 
-  testWidgets('CourseAnnouncementPage 在上層 setState 之後不會重打一次 API', (tester) async {
+  testWidgets('CourseAnnouncementPage 在上層 setState 之後不會重打一次 API',
+      (tester) async {
     await dataController.loadAnnouncements();
     final rebuild = await pumpUnderRebuildableParent(
       tester,
-      () => CourseAnnouncementPage(courseInfoOf('AT1001'),
-          controller: dataController),
+      () => CourseAnnouncementPage(
+        courseInfoOf('AT1001'),
+        controller: dataController,
+        errorBuilder: (m) => Text(m),
+        openWebView: (t, u) async {},
+      ),
     );
     await tester.pumpAndSettle();
     expect(repo.calls, 1);
@@ -220,16 +220,14 @@ void main() {
     rebuild();
     await tester.pumpAndSettle();
 
-    expect(repo.calls, 1,
-        reason: 'rebuild 之後又打了一次 API，代表請求跑回 build() 裡了');
+    expect(repo.calls, 1, reason: 'rebuild 之後又打了一次 API，代表請求跑回 build() 裡了');
   });
 
   testWidgets('CourseScorePage 在上層 setState 之後不會重打一次 API', (tester) async {
     await dataController.loadScore();
     final rebuild = await pumpUnderRebuildableParent(
       tester,
-      () => CourseScorePage(courseInfoOf('AT1001'),
-          controller: dataController),
+      () => CourseScorePage(courseInfoOf('AT1001'), controller: dataController),
     );
     await tester.pumpAndSettle();
     expect(repo.calls, 1);
@@ -237,8 +235,7 @@ void main() {
     rebuild();
     await tester.pumpAndSettle();
 
-    expect(repo.calls, 1,
-        reason: 'rebuild 之後又打了一次 API，代表請求跑回 build() 裡了');
+    expect(repo.calls, 1, reason: 'rebuild 之後又打了一次 API，代表請求跑回 build() 裡了');
   });
 
   testWidgets('CourseMemberPage 在上層 setState 之後不會重打一次 API', (tester) async {
@@ -256,8 +253,7 @@ void main() {
     rebuild();
     await tester.pumpAndSettle();
 
-    expect(repo.calls, 1,
-        reason: 'rebuild 之後又打了一次 API，代表請求跑回 build() 裡了');
+    expect(repo.calls, 1, reason: 'rebuild 之後又打了一次 API，代表請求跑回 build() 裡了');
   });
 
   /// 清單必須每次 build 現算，不可以當成請求的 side effect 存進 State 欄位：

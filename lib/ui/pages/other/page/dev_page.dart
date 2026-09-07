@@ -9,6 +9,7 @@ import 'package:flutter_app/src/util/remote_config_utils.dart';
 import 'package:flutter_app/ui/routes/route_utils.dart';
 import 'package:flutter_app/ui/other/listview_animator.dart';
 import 'package:flutter_app/src/util/my_toast.dart';
+import 'package:flutter_app/ui/other/lucide_icons.dart';
 
 enum DevMenuAction {
   cloudMessageToken,
@@ -28,31 +29,31 @@ class DevPage extends StatefulWidget {
 class _DevPageState extends State<DevPage> {
   List<Map> listViewData = [
     {
-      "icon": Icons.vpn_key_outlined,
+      "icon": LucideIcons.keyRound,
       "title": "Cloud Messaging Token",
       "color": Colors.green,
       "onPress": DevMenuAction.cloudMessageToken
     },
     {
-      "icon": Icons.info_outline,
+      "icon": LucideIcons.info,
       "title": "Dio Log",
       "color": Colors.blue,
       "onPress": DevMenuAction.dioLog
     },
     {
-      "icon": Icons.info_outline,
+      "icon": LucideIcons.info,
       "title": "App Log",
       "color": Colors.yellow,
       "onPress": DevMenuAction.appLog
     },
     {
-      "icon": Icons.edit_outlined,
+      "icon": LucideIcons.pencil,
       "title": "Store Edit",
       "color": Colors.green,
       "onPress": DevMenuAction.storeEdit
     },
     {
-      "icon": Icons.announcement,
+      "icon": LucideIcons.megaphone,
       "title": "Announcement",
       "color": Colors.deepPurple,
       "onPress": DevMenuAction.announcement

@@ -7,6 +7,7 @@ import 'package:flutter_app/ui/components/custom_appbar.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:get/get.dart';
+import 'package:flutter_app/ui/other/lucide_icons.dart';
 
 class PrivacyPolicyPage extends StatelessWidget {
   const PrivacyPolicyPage({super.key});
@@ -16,7 +17,8 @@ class PrivacyPolicyPage extends StatelessWidget {
     return Scaffold(
       appBar: baseAppbar(title: R.current.PrivacyPolicy),
       body: FutureBuilder<String>(
-        future: Connector.getDataByGet(ConnectorParameter(AppLink.privacyPolicyUrl)),
+        future: Connector.getDataByGet(
+            ConnectorParameter(AppLink.privacyPolicyUrl)),
         builder: (BuildContext context, AsyncSnapshot<String> snapshot) {
           if (snapshot.hasData) {
             return Markdown(
@@ -25,7 +27,7 @@ class PrivacyPolicyPage extends StatelessWidget {
             );
           } else if (snapshot.hasError) {
             return const Center(
-              child: Icon(Icons.error),
+              child: Icon(LucideIcons.circleAlert),
             );
           }
           return Center(

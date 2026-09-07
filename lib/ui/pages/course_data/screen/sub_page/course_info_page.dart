@@ -2,24 +2,25 @@ import 'dart:async';
 
 import 'package:expansion_tile_card/expansion_tile_card.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_app/ui/other/svg_tint.dart';
 import 'package:flutter_app/src/R.dart';
-import 'package:flutter_app/src/connector/core/connector.dart';
 import 'package:flutter_app/src/connector/moodle_webapi_connector.dart';
 import 'package:flutter_app/ui/service/file_download.dart';
 import 'package:flutter_app/src/model/course_table/course_table_json.dart';
 import 'package:flutter_app/src/model/moodle_webapi/moodle_core_course_get_contents.dart';
-import 'package:flutter_app/src/util/language_utils.dart';
 import 'package:flutter_app/src/util/open_utils.dart';
 import 'package:flutter_app/ui/routes/route_utils.dart';
 import 'package:flutter_app/src/util/ui_utils.dart';
 import 'package:flutter_app/ui/components/custom_appbar.dart';
 import 'package:flutter_app/ui/components/file_type_icon.dart';
+import 'package:flutter_app/ui/components/page/error_page.dart';
 import 'package:flutter_app/src/util/my_toast.dart';
+import 'package:flutter_app/ui/pages/course_data/screen/sub_page/course_assignment_detail_page.dart';
+import 'package:flutter_app/ui/pages/course_data/screen/sub_page/course_forum_page.dart';
 import 'package:flutter_app/ui/pages/course_data/screen/sub_page/course_html_page.dart';
-import 'package:flutter_svg/flutter_svg.dart';
+import 'package:flutter_app/ui/pages/course_data/screen/sub_page/course_quiz_detail_page.dart';
 import 'package:flutter_widget_from_html/flutter_widget_from_html.dart';
 import 'package:get/get.dart';
+import 'package:flutter_app/ui/other/lucide_icons.dart';
 
 class CourseInfoPage extends StatefulWidget {
   final CourseInfoJson courseInfo;
@@ -55,76 +56,89 @@ class _CourseInfoPageState extends State<CourseInfoPage> {
         modicon: ap.modicon,
       );
     }
-    return SvgPicture.asset(
-      "assets/image/${getIcon(ap.modname)}.svg",
-      colorFilter: svgTint(Get.iconColor),
-    );
+    return Icon(getIcon(ap.modname), size: 24, color: Get.iconColor);
   }
 
-  String getIcon(String type) {
+  IconData getIcon(String type) {
     switch (type) {
       case "forum":
-        return "img_message";
+        return LucideIcons.messageSquare;
       case "assign":
-        return "img_clipboard";
+        return LucideIcons.clipboardList;
       case "folder":
-        return "img_folder";
+        return LucideIcons.folder;
+      case "quiz":
+        return LucideIcons.fileQuestion;
       case "label":
-        return "img_tag";
+        return LucideIcons.tag;
       case "url":
-        return "img_link";
+        return LucideIcons.link;
       default:
-        return "img_copy";
+        return LucideIcons.copy;
     }
-  }
-
-  void openWebView(Modules ap, {openWithExternalWebView = false}) async {
-    unawaited(RouteUtils.toWebViewPage(
-        ap.name,
-        Connector.uriAddQuery(
-          ap.url,
-          (LanguageUtils.getLangIndex() == LangEnum.zh)
-              ? {"lang": "zh_tw"}
-              : {"lang": "en"},
-        ),
-        openWithExternalWebView: openWithExternalWebView));
   }
 
   void handleTap(Modules ap) async {
     switch (ap.modname) {
       case "forum":
-        openWebView(ap);
+        // Modules.instance 就是 forum id；ErrorPage 與 RouteUtils 由這裡注入。
+        unawaited(Get.to(() => CourseForumPage(
+              widget.courseInfo,
+              forumId: ap.instance,
+              forumName: ap.name,
+              forumUrl: ap.url,
+              errorBuilder: (message) => ErrorPage(errorMsg: message),
+              openWebView: RouteUtils.toWebViewPage,
+            )));
         break;
       case "assign":
-        openWebView(ap);
+        // Modules.instance 就是 assign id；ErrorPage 與 RouteUtils 由這裡注入。
+        unawaited(Get.to(() => CourseAssignmentDetailPage(
+              widget.courseInfo,
+              assignId: ap.instance,
+              errorBuilder: (message) => ErrorPage(errorMsg: message),
+              openWebView: RouteUtils.toWebViewPage,
+            )));
+        break;
+      case "quiz":
+        // Modules.instance 就是 quiz id；ErrorPage 與 RouteUtils 由這裡注入。
+        unawaited(Get.to(() => CourseQuizDetailPage(
+              widget.courseInfo,
+              quizId: ap.instance,
+              errorBuilder: (message) => ErrorPage(errorMsg: message),
+              openWebView: RouteUtils.toWebViewPage,
+            )));
         break;
       case "folder":
-        if (ap.contents.isNotEmpty || ap.folderIsNone) {
-          unawaited(RouteUtils.toCourseFolderPage(widget.courseInfo, ap));
-        } else {
-          MyToast.show(R.current.nothingHere);
-        }
+        // 空資料夾也進得去：資料夾頁自己畫空狀態，比一句 toast 清楚。
+        unawaited(RouteUtils.toCourseFolderPage(widget.courseInfo, ap));
         break;
       case "label":
         break;
       case "url":
-        if (ap.contents.isNotEmpty) {
-          unawaited(OpenUtils.launchURL(ap.contents.first.fileurl));
+        if (ap.contents.isEmpty) {
+          MyToast.show(R.current.nothingHere);
+          return;
         }
+        unawaited(OpenUtils.launchURL(ap.contents.first.fileurl));
         break;
       case "page":
         unawaited(Get.to(() => CourseHtmlPage(ap: ap)));
         break;
       case "resource":
       default:
+        // contents 可能是空的（模組沒有檔案或看不到），先前這裡直接取 first，
+        // 例外被 fire-and-forget 吃掉，使用者只看到點了沒反應。
+        final file = ap.contents.isEmpty ? null : ap.contents.first;
+        if (file == null) {
+          MyToast.show(R.current.nothingHere);
+          return;
+        }
         String dirName = widget.courseInfo.main.course.name;
-        // 下載自己有通知列進度與完成提示，這裡不等它結束——不然點一次檔案
-        // 就會卡住這個 handler 直到整份檔案下載完。
-        unawaited(FileDownload.download(
-            context,
-            MoodleWebApiConnector.fileUrlWithToken(ap.contents.first.fileurl),
-            dirName,
-            name: ap.contents.first.filename));
+        // 下載自己有通知列進度，這裡不等它結束才不會卡住 handler。
+        unawaited(FileDownload.download(context,
+            MoodleWebApiConnector.fileUrlWithToken(file.fileurl), dirName,
+            name: file.filename));
     }
   }
 
@@ -162,8 +176,8 @@ class _CourseInfoPageState extends State<CourseInfoPage> {
                   children: [
                     Expanded(
                       child: InkWell(
-                        child: SvgPicture.asset("assets/image/img_download.svg",
-                            colorFilter: svgTint(Get.iconColor)),
+                        child: Icon(LucideIcons.download,
+                            size: 24, color: Get.iconColor),
                         onTap: () {
                           handleTap(ap);
                         },

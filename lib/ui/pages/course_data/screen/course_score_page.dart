@@ -2,7 +2,6 @@ import 'package:flutter_app/src/controller/course_data/course_data_controller.da
 import 'dart:async';
 import 'dart:typed_data';
 
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_app/src/connector/core/connector_parameter.dart';
 import 'package:flutter_app/src/connector/core/dio_connector.dart';
@@ -15,6 +14,7 @@ import 'package:flutter_app/ui/components/page/loading_page.dart';
 import 'package:flutter_app/ui/pages/photo_view.dart';
 import 'package:flutter_widget_from_html/flutter_widget_from_html.dart';
 import 'package:get/get.dart';
+import 'package:flutter_app/ui/other/lucide_icons.dart';
 
 import '../../../../src/R.dart';
 
@@ -107,7 +107,7 @@ class _CourseScorePageState extends State<CourseScorePage>
       dense: true,
       clipBehavior: Clip.antiAlias,
       trailing: const Icon(
-        CupertinoIcons.chevron_down,
+        LucideIcons.chevronDown,
         size: 12,
       ),
       expandedAlignment: Alignment.centerLeft,
@@ -175,7 +175,7 @@ class _CourseScorePageState extends State<CourseScorePage>
                       snapshot.connectionState == ConnectionState.done) {
                     return const Padding(
                       padding: EdgeInsets.all(8.0),
-                      child: Icon(Icons.broken_image_outlined),
+                      child: Icon(LucideIcons.imageOff),
                     );
                   }
                   return const Padding(

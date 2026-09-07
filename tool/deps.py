@@ -27,7 +27,7 @@ PKG = "flutter_app"
 IMPORT_RE = re.compile(r"""^\s*(?:import|export|part)\s+['"]([^'"]+)['"]""", re.M)
 
 # 棘輪門檻：最大 SCC 允許的檔案數。只能往下調。
-MAX_SCC = 28
+MAX_SCC = 25
 
 # 棘輪門檻：允許卡在跨層環裡的非 UI 檔案數。只能往下調。
 # lib/ui 內部的環是固有的（route_utils 與各頁面互相 import），不計入。

@@ -1,30 +1,34 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:awesome_dialog/awesome_dialog.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_app/src/auth/auth_session.dart';
-import 'package:flutter_app/ui/other/svg_tint.dart';
 import 'package:flutter_app/debug/log/log.dart';
 import 'package:flutter_app/src/R.dart';
 import 'package:flutter_app/src/config/app_link.dart';
+import 'package:flutter_app/src/controller/announcement/notification_badge_controller.dart';
 import 'package:flutter_app/src/controller/course_table/course_controller.dart';
 import 'package:flutter_app/src/controller/score_page/score_page_controller.dart';
 import 'package:flutter_app/src/auth/session_cleaner.dart';
 import 'package:flutter_app/src/controller/main_page/main_controller.dart';
 import 'package:flutter_app/debug/log/console_output.dart';
+import 'package:flutter_app/src/service/image_pick_service.dart';
+import 'package:flutter_app/src/service/task_ui_delegate.dart';
 import 'package:flutter_app/src/store/model.dart';
 import 'package:flutter_app/ui/routes/route_utils.dart';
 import 'package:flutter_app/src/version/app_version.dart';
 import 'package:flutter_app/ui/components/custom_appbar.dart';
 import 'package:flutter_app/ui/components/shimmer/profile_loading.dart';
 import 'package:flutter_app/ui/other/error_dialog.dart';
+import 'package:flutter_app/ui/pages/other/components/avatar_action_sheet.dart';
 import 'package:flutter_app/ui/pages/other/components/user_profile.dart';
 import 'package:flutter_app/ui/pages/password/check_password_dialog.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get/get.dart';
+import 'package:flutter_app/ui/other/lucide_icons.dart';
 
 enum OtherMenuAction { setting, logout, report, about, login, changePassword }
 
@@ -42,35 +46,35 @@ class _OtherPageState extends State<OtherPage> {
   /// 語言與那幾個依 `getPassword()` 決定出現與否的項目。
   List<Map> get optionList => [
     {
-      "icon": "img_setting.svg",
+      "icon": LucideIcons.settings,
       "title": R.current.setting,
       "onPress": OtherMenuAction.setting
     },
     if (Model.instance.getPassword().isNotEmpty)
       {
-        "icon": "img_refresh.svg",
+        "icon": LucideIcons.refreshCw,
         "title": R.current.changePassword,
         "onPress": OtherMenuAction.changePassword
       },
     if (Model.instance.getPassword().isNotEmpty)
       {
-        "icon": "img_logout.svg",
+        "icon": LucideIcons.logOut,
         "title": R.current.logout,
         "onPress": OtherMenuAction.logout
       },
     if (Model.instance.getPassword().isEmpty)
       {
-        "icon": "img_login.svg",
+        "icon": LucideIcons.logIn,
         "title": R.current.login,
         "onPress": OtherMenuAction.login
       },
     {
-      "icon": "img_message.svg",
+      "icon": LucideIcons.messageSquare,
       "title": R.current.feedback,
       "onPress": OtherMenuAction.report
     },
     {
-      "icon": "img_info.svg",
+      "icon": LucideIcons.info,
       "title": R.current.about,
       "onPress": OtherMenuAction.about
     }
@@ -91,6 +95,7 @@ class _OtherPageState extends State<OtherPage> {
               // MainScreen 以 State 欄位持有它，這一頁與設定頁登出後仍會
               // Get.find 它。
               final mainController = Get.find<MainController>();
+              mainController.cancelAvatarChange();
               mainController.profile.value = null;
               if (Get.isRegistered<CourseController>()) {
                 Get.find<CourseController>().reset();
@@ -98,6 +103,9 @@ class _OtherPageState extends State<OtherPage> {
               if (Get.isRegistered<ScorePageController>()) {
                 Get.find<ScorePageController>().reset();
               }
+              // 紅點是 process 級狀態，重設由 SessionCleaner 的呼叫端觸發
+              // （auth → controller 是 tool/deps.py 擋死的上行邊）。
+              NotificationBadgeController.instance.reset();
               mainController.pageController.jumpToPage(0);
               setState(() {});
             });
@@ -206,8 +214,8 @@ class _OtherPageState extends State<OtherPage> {
                   borderRadius: BorderRadius.circular(999),
                   color: Get.theme.colorScheme.surface),
               padding: const EdgeInsets.all(8),
-              child: SvgPicture.asset("assets/image/${data['icon']}",
-                  colorFilter: svgTint(Get.theme.colorScheme.onSurface)),
+              child: Icon(data['icon'] as IconData,
+                  size: 24, color: Get.theme.colorScheme.onSurface),
             ),
             const SizedBox(width: 12),
             Text(
@@ -252,7 +260,7 @@ class _OtherPageState extends State<OtherPage> {
                         color: Get.theme.colorScheme.onSurfaceVariant),
                   ),
                 ),
-                Icon(Icons.refresh,
+                Icon(LucideIcons.refreshCw,
                     size: 20, color: Get.theme.colorScheme.onSurfaceVariant),
               ],
             ),
@@ -260,7 +268,68 @@ class _OtherPageState extends State<OtherPage> {
         );
       }
 
-      return UserProfile(data: profile);
+      return UserProfile(
+        data: profile,
+        progress: controller.avatarProgress.value,
+        onAvatarTap: () => unawaited(_onAvatarTap(controller)),
+      );
     });
   }
+
+  Future<void> _onAvatarTap(MainController controller) async {
+    final action = await showAvatarActionSheet(context,
+        canRemove: controller.hasCustomAvatar);
+    if (action == null) return;
+
+    if (action == AvatarAction.remove) {
+      // 換一張不必確認：使用者已經連按三下（頭貼 → 來源 → 選圖），而且結果
+      // 可逆（再換一張或移除）。移除要確認：它是唯一破壞性的分支，伺服器端
+      // delete_area_files 直接把舊圖刪掉、沒有復原，而且這一列就貼在兩個
+      // 「選擇」旁邊，很容易誤按。
+      final confirmed = await Get.dialog<bool>(AlertDialog.adaptive(
+        title: Text(R.current.avatarRemove),
+        content: Text(R.current.avatarRemoveConfirm),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back(result: false),
+            child: Text(R.current.cancel),
+          ),
+          TextButton(
+            onPressed: () => Get.back(result: true),
+            child: Text(R.current.sure),
+          ),
+        ],
+      ));
+      if (confirmed != true) return;
+      final error = await controller.changeAvatar();
+      TaskUiDelegate.instance.toast(error ?? R.current.avatarRemoved);
+      return;
+    }
+
+    File? file;
+    try {
+      file = await ImagePickService.instance.pick(
+        action == AvatarAction.camera
+            ? ImagePickSource.camera
+            : ImagePickSource.gallery,
+        // 頭貼要縮圖與重新編碼，理由見 image_pick_service.dart 的常數註解。
+        maxEdge: kAvatarImageMaxEdge,
+        quality: kAvatarImageQuality,
+      );
+    } on ImagePickFailure catch (e) {
+      TaskUiDelegate.instance.toast(_pickFailureMessage(e.reason));
+      return;
+    }
+    // 使用者按取消不是錯誤，什麼都不做也不提示。
+    if (file == null) return;
+
+    final error = await controller.changeAvatar(file: file);
+    TaskUiDelegate.instance.toast(error ?? R.current.avatarUpdated);
+  }
+
+  String _pickFailureMessage(ImagePickFailureReason reason) => switch (reason) {
+        ImagePickFailureReason.cameraDenied => R.current.avatarCameraDenied,
+        ImagePickFailureReason.galleryDenied => R.current.avatarGalleryDenied,
+        ImagePickFailureReason.unavailable => R.current.avatarPickerUnavailable,
+      };
 }

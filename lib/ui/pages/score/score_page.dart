@@ -1,4 +1,3 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_app/src/R.dart';
 import 'package:flutter_app/ui/components/page/loading_page.dart';
@@ -9,14 +8,15 @@ import 'package:flutter_app/src/model/score/score_json.dart';
 import 'package:flutter_app/src/controller/score_page/score_page_controller.dart';
 import 'package:flutter_app/ui/components/custom_appbar.dart';
 import 'package:flutter_app/ui/components/page/error_page.dart';
+import 'package:flutter_app/ui/routes/route_utils.dart';
 import 'package:get/get.dart';
+import 'package:flutter_app/ui/other/lucide_icons.dart';
 
 class ScoreViewerPage extends GetView<ScorePageController> {
   const ScoreViewerPage({super.key});
 
   @override
   Widget build(BuildContext context) {
-
     return Obx(
       () {
         switch (controller.state.value) {
@@ -33,6 +33,28 @@ class ScoreViewerPage extends GetView<ScorePageController> {
     );
   }
 
+  /// 「Moodle 目前成績」在四個狀態下都要在：它與學校成績是兩套資料，
+  /// 學校那邊失敗或還沒登入時照樣進得去。
+  List<Widget> _appbarActions({bool refresh = false}) => [
+        IconButton(
+          icon: const Icon(LucideIcons.chartColumn),
+          splashRadius: 18,
+          iconSize: 24,
+          tooltip: R.current.moodleCourseGrades,
+          onPressed: RouteUtils.toMoodleCourseGrades,
+        ),
+        if (refresh)
+          IconButton(
+            icon: const Icon(LucideIcons.refreshCw),
+            splashRadius: 18,
+            iconSize: 24,
+            onPressed: () async {
+              await controller.initTask(refresh: true);
+            },
+            tooltip: R.current.update,
+          ),
+      ];
+
   Widget _buildContentPage() {
     return Obx(() {
       return DefaultTabController(
@@ -40,17 +62,7 @@ class ScoreViewerPage extends GetView<ScorePageController> {
         child: Scaffold(
           appBar: mainAppbar(
               title: R.current.searchScore,
-              action: [
-                IconButton(
-                  icon: const Icon(CupertinoIcons.refresh),
-                  splashRadius: 18,
-                  iconSize: 24,
-                  onPressed: () async {
-                    await controller.initTask(refresh: true);
-                  },
-                  tooltip: R.current.update,
-                ),
-              ],
+              action: _appbarActions(refresh: true),
               bottom: TabBar(
                 controller: controller.tabController,
                 // controller 為 null 時 TabBar 會回退到 DefaultTabController，
@@ -79,24 +91,16 @@ class ScoreViewerPage extends GetView<ScorePageController> {
 
   Widget _buildErrorPage() {
     return Scaffold(
-      appBar: mainAppbar(title: R.current.searchScore, action: [
-        IconButton(
-          icon: const Icon(CupertinoIcons.refresh),
-          splashRadius: 18,
-          iconSize: 24,
-          onPressed: () async {
-            await controller.initTask(refresh: true);
-          },
-          tooltip: R.current.update,
-        ),
-      ]),
+      appBar: mainAppbar(
+          title: R.current.searchScore, action: _appbarActions(refresh: true)),
       body: const ErrorPage(),
     );
   }
 
   Widget _buildLoadingPage() {
     return Scaffold(
-      appBar: mainAppbar(title: R.current.searchScore),
+      appBar:
+          mainAppbar(title: R.current.searchScore, action: _appbarActions()),
       // 這裡要真的畫出載入畫面：沒有任何全螢幕進度框會蓋在上面，空白就是
       // 使用者看到的全部。
       body: const LoadingPage(isLoading: true, isShowBackground: false),
@@ -105,7 +109,8 @@ class ScoreViewerPage extends GetView<ScorePageController> {
 
   Widget _buildNotLoginPage() {
     return Scaffold(
-      appBar: mainAppbar(title: R.current.searchScore),
+      appBar:
+          mainAppbar(title: R.current.searchScore, action: _appbarActions()),
       body: const ErrorPage(),
     );
   }

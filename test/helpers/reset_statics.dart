@@ -2,6 +2,8 @@ import 'package:flutter_app/src/auth/auth_session.dart';
 import 'package:flutter_app/src/auth/app_auth_session.dart';
 import 'package:flutter_app/src/repository/moodle_repository.dart';
 import 'package:flutter_app/src/connector/moodle_webapi_connector.dart';
+import 'package:flutter_app/src/service/file_pick_service.dart';
+import 'package:flutter_app/src/service/image_pick_service.dart';
 import 'package:flutter_app/src/service/interactive_login_gateway.dart';
 import 'package:flutter_app/src/store/cache_store.dart';
 import 'package:flutter_app/src/store/course_table_store.dart';
@@ -32,6 +34,12 @@ TestStores resetAppStatics() {
   MoodleWebApiConnector.siteInfo = null;
   MoodleWebApiConnector.clearCoursesCache();
   MoodleWebApiConnector.onApiError = null;
+  // autologin 的節流旗標、假時鐘與 wsPost / uploadPost 注入點也都是 process 級的。
+  MoodleWebApiConnector.resetAutologinState();
+  // 挑圖服務同理：預設換成什麼都不做的實作，測試不會碰到平台通道。
+  ImagePickService.instance = const NoopImagePickService();
+  // 挑檔案服務同理：沒有這一行，某個測試裝的 fake 會漏到別的測試。
+  FilePickService.instance = const NoopFilePickService();
   // 課號 → Moodle 內部 id 的併發去重表也是 process 級的，會跨測試外洩。
   MoodleRepository.findIdInFlight.clear();
   // AuthSession.instance 也是可變的 public static，會跨測試外洩。

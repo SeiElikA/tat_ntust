@@ -1,22 +1,20 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_app/ui/other/svg_tint.dart';
 import 'package:flutter_app/src/util/ui_utils.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get/get.dart';
+import 'package:flutter_app/ui/other/lucide_icons.dart';
 
 class CourseInfoTile extends StatelessWidget {
   const CourseInfoTile(
       {super.key,
       required this.index,
       required this.title,
-      required this.img,
+      required this.icon,
       this.isShowArrow = false,
       required this.onTap});
 
   final int index;
   final String title;
-  final String img;
+  final IconData icon;
   final bool isShowArrow;
   final Function() onTap;
 
@@ -31,9 +29,10 @@ class CourseInfoTile extends StatelessWidget {
             children: [
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 12.0),
-                child: SvgPicture.asset(
-                  "assets/image/$img.svg",
-                  colorFilter: svgTint(Get.theme.colorScheme.onSurface),
+                child: Icon(
+                  icon,
+                  size: 24,
+                  color: Get.theme.colorScheme.onSurface,
                 ),
               ),
               Expanded(
@@ -46,7 +45,7 @@ class CourseInfoTile extends StatelessWidget {
               ),
               Visibility(
                   visible: isShowArrow,
-                  child: const Icon(CupertinoIcons.right_chevron, size: 14)),
+                  child: const Icon(LucideIcons.chevronRight, size: 14)),
               const SizedBox(width: 8)
             ],
           ),

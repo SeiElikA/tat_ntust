@@ -103,18 +103,19 @@ class RemoteConfigUtils {
   static Future<void> setAnnouncementRead() =>
       SettingsStore.instance.markAnnouncementRead();
 
-  /// 解析出該顯示的公告；沒有要顯示時回 null。
+  /// 解析出啟動彈窗該顯示的公告；沒有要顯示時回 null。看過的也要列出來時
+  /// 直接呼叫 [getAnnouncement]（`allTime: true`，見 AppNoticeRepository）。
   ///
-  /// 導航與「目前沒有公告」的提示都交給呼叫端（見 RouteUtils.showAnnouncement），
-  /// 這一層才不需要 import lib/ui。
+  /// 導航交給呼叫端（見 RouteUtils.showAnnouncement），這一層才不需要
+  /// import lib/ui。
   static Future<AnnouncementRequest?> resolveAnnouncement(
-      {bool test = false, bool allTime = false}) async {
-    final info = await getAnnouncement(test, allTime);
+      {bool test = false}) async {
+    final info = await getAnnouncement(test, false);
     if (info.isEmpty) return null;
     // 不走 AuthSession.instance.isSignedIn（判準完全相同，isSignedIn 就是
     // 轉呼這一行）：util 在 tool/deps.py 裡排在 auth 下面，util -> auth 是
     // 上行邊，util -> store 才是下行的。
-    if (!CredentialsStore.instance.hasCredentials && !allTime && !test) {
+    if (!CredentialsStore.instance.hasCredentials && !test) {
       Log.d("show announcement close dialog close by no login");
       return null;
     }

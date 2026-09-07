@@ -195,6 +195,28 @@ class DioConnector {
     }
   }
 
+  /// multipart POST。既有路徑走 [getDataByPostResponse]，那條路的逾時是
+  /// BaseOptions 的 5 秒 sendTimeout；上傳一張照片撐不過去，而 sendTimeout 在
+  /// IOHttpClientAdapter 是「送完整個 body 的總時間」，不是 chunk 間隔。
+  /// Content-Type 與 Content-Length 由 Dio 依 FormData 覆寫，不必也不可以自己設。
+  Future<Response> postMultipart(
+    ConnectorParameter parameter, {
+    required FormData formData,
+    Duration? sendTimeout,
+    ProgressCallback? onSendProgress,
+    CancelToken? cancelToken,
+  }) async {
+    _handleCharsetName(parameter.charsetName);
+    _handleHeaders(parameter);
+    return dio.post(
+      parameter.url,
+      data: formData,
+      cancelToken: cancelToken,
+      onSendProgress: onSendProgress,
+      options: Options(sendTimeout: sendTimeout),
+    );
+  }
+
   void _handleHeaders(ConnectorParameter parameter) {
     dio.options.headers[HttpHeaders.userAgentHeader] = parameter.userAgent;
     if (parameter.referer != null) {
@@ -223,8 +245,14 @@ class DioConnector {
         .downloadUri(Uri.parse(url), savePath,
             onReceiveProgress: progressCallback,
             cancelToken: cancelToken,
-            options:
-                Options(receiveTimeout: Duration.zero, headers: header)) //設置不超時
+            options: Options(
+              receiveTimeout: Duration.zero, //設置不超時
+              headers: header,
+              // 共用的 validateStatus 放行到 500，下載時那等於把 404 的錯誤頁、
+              // 維護頁與 PHP fatal 的 HTML 原封不動寫成檔案。非 2xx 一律當失敗。
+              validateStatus: (status) =>
+                  status != null && status >= 200 && status < 300,
+            ))
         .catchError((onError, stack) {
       Log.eWithStack(onError.toString(), stack);
       throw onError;

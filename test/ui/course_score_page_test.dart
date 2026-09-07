@@ -64,8 +64,8 @@ void main() {
     // ExpansionTile 內部的 ListTile 需要 Material 祖先。
     await tester.pumpWidget(GetMaterialApp(
       home: Scaffold(
-          body: CourseScorePage(courseInfoOf(courseId),
-              controller: controller)),
+          body:
+              CourseScorePage(courseInfoOf(courseId), controller: controller)),
     ));
     await tester.pumpAndSettle();
   }

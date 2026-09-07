@@ -3,14 +3,13 @@ import 'dart:async';
 import 'package:flutter_app/src/controller/course_detail/course_detail_controller.dart';
 import 'package:auto_size_text/auto_size_text.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_app/ui/other/svg_tint.dart';
 import 'package:flutter_app/src/R.dart';
 import 'package:flutter_app/src/model/course/course_class_json.dart';
 import 'package:flutter_app/src/model/course_table/course_table_json.dart';
 import 'package:flutter_app/ui/components/custom_appbar.dart';
 import 'package:flutter_app/ui/pages/course_detail/screen/course_info_page.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get/get.dart';
+import 'package:flutter_app/ui/other/lucide_icons.dart';
 
 import 'screen/course_member_page.dart';
 
@@ -37,8 +36,8 @@ class _CourseDetailPageState extends State<CourseDetailPage>
   /// getter 而不是 initState 裡指派的欄位，理由同 CourseDataPage：
   /// initState 只跑一次，分頁標籤會停在 State 建立時的語言。
   List<Map<String, dynamic>> get _tabItems => [
-        {"name": R.current.course, "icon": "img_info.svg"},
-        {"name": R.current.member, "icon": "img_group.svg"}
+        {"name": R.current.course, "icon": LucideIcons.info},
+        {"name": R.current.member, "icon": LucideIcons.users}
       ];
 
   late final CourseDetailController _controller;
@@ -103,11 +102,11 @@ class _CourseDetailPageState extends State<CourseDetailPage>
       tabs: items.map((item) {
         final index = items.indexOf(item);
         return Tab(
-          icon: SvgPicture.asset("assets/image/${item["icon"]}",
-              colorFilter: svgTint(_currentIndex == index
+          icon: Icon(item["icon"] as IconData,
+              size: 24,
+              color: _currentIndex == index
                   ? Get.theme.colorScheme.primary
                   : Get.theme.colorScheme.onSurface),
-              height: 24),
           iconMargin: const EdgeInsets.only(bottom: 6),
           child: AutoSizeText(
             item["name"] as String,

@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_app/ui/components/page/result_view.dart';
 import 'package:flutter_app/src/repository/result.dart';
 import 'package:flutter_app/src/repository/ntust_repository.dart';
-import 'package:flutter_app/ui/other/svg_tint.dart';
 import 'package:flutter_app/src/R.dart';
 import 'package:flutter_app/src/model/ntust/ap_tree_json.dart';
 import 'package:flutter_app/src/store/model.dart';
@@ -14,8 +13,8 @@ import 'package:flutter_app/ui/components/custom_appbar.dart';
 import 'package:flutter_app/ui/components/page/error_page.dart';
 import 'package:flutter_app/ui/pages/password/webmail_password_dialog.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get/get.dart';
+import 'package:flutter_app/ui/other/lucide_icons.dart';
 
 class SubSystemPage extends StatefulWidget {
   const SubSystemPage({
@@ -189,17 +188,15 @@ class _SubSystemPageState extends State<SubSystemPage> {
               Text(ap.name),
               if (ap.type == "webMail_link")
                 IconButton(
-                    // 這顆按鈕是重新輸入 WebMail 密碼，但圖示是 img_refresh，
+                    // 這顆按鈕是重新輸入 WebMail 密碼，但圖示是重新整理，
                     // 沒有 tooltip 的話看圖示與螢幕閱讀器都猜不到用途。
                     tooltip: R.current.changePassword,
                     onPressed: () {
                       Get.dialog(const WebMailPasswordDialog(),
                           barrierDismissible: false);
                     },
-                    icon: SvgPicture.asset(
-                      "assets/image/img_refresh.svg",
-                      colorFilter: svgTint(Get.theme.colorScheme.onSurface),
-                    ))
+                    icon: Icon(LucideIcons.refreshCw,
+                        size: 24, color: Get.theme.colorScheme.onSurface))
             ],
           ),
         ),

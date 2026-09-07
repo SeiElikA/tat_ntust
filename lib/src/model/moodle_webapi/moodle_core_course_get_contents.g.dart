@@ -41,7 +41,6 @@ Modules _$ModulesFromJson(Map<String, dynamic> json) => Modules(
       modname: json['modname'] as String? ?? "",
       modplural: json['modplural'] as String? ?? "",
       indent: (json['indent'] as num?)?.toInt() ?? 0,
-      folderIsNone: json['folderIsNone'] as bool? ?? false,
       contents: (json['contents'] as List<dynamic>?)
           ?.map((e) => Contents.fromJson(e as Map<String, dynamic>))
           .toList(),
@@ -59,7 +58,6 @@ Map<String, dynamic> _$ModulesToJson(Modules instance) => <String, dynamic>{
       'modplural': instance.modplural,
       'indent': instance.indent,
       'contents': instance.contents,
-      'folderIsNone': instance.folderIsNone,
     };
 
 Contents _$ContentsFromJson(Map<String, dynamic> json) => Contents(
