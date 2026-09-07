@@ -2866,8 +2866,7 @@ class MoodleWebApiConnector {
   ///
   /// `draftitemid` 沒有 VALUE_DEFAULT，移除時也要送，送 0。
   /// `userid` 不送：這一支真的把 0 當成自己（`empty($params['userid']) or
-  /// $params['userid'] == $USER->id`），與 docs/MOODLE_REFERENCE.md 裡那三支
-  /// 通知 function 不同。
+  /// $params['userid'] == $USER->id`），與那三支通知 function 不同。
   /// `treatWarningsAsError` 對它無效：伺服器端 warnings 寫死是空陣列，
   /// 唯一的訊號是 success；照樣傳是為了跟另一條寫入路徑（toggleSetting）一致。
   static Future<MoodleUpdatePictureResult?> updateProfilePicture({

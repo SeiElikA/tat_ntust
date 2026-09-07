@@ -30,7 +30,7 @@ class MoodleForum {
 
   /// VALUE_OPTIONAL：伺服器算的是 `forum_user_can_post_discussion`，
   /// 但**不含發文節流**，所以 true 之後仍可能收到 forumblockingtoomanyposts。
-  /// null 代表站台沒回報，一律當成不能發（見 docs/MOODLE_REFERENCE.md）。
+  /// null 代表站台沒回報，一律當成不能發。
   @JsonKey(name: 'cancreatediscussions')
   bool? cancreatediscussions;
 

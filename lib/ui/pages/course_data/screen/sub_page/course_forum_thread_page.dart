@@ -52,8 +52,7 @@ class CourseForumThreadPage extends StatefulWidget {
 
   final CourseInfoJson courseInfo;
 
-  /// `Discussions.discussion`，不是 `Discussions.id`——後者是第一篇貼文的 id
-  /// （見 docs/MOODLE_REFERENCE.md）。
+  /// `Discussions.discussion`，不是 `Discussions.id`——後者是第一篇貼文的 id。
   final int discussionId;
 
   /// AppBar 標題。HTML 實體已由 connector 還原。

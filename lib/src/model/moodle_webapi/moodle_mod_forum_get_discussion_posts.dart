@@ -6,8 +6,7 @@ part 'moodle_mod_forum_get_discussion_posts.g.dart';
 
 /// `mod_forum_get_discussion_posts` 的回應。只宣告有人讀的欄位——宣告出來的
 /// 都會進 `cache_moodle_forum_posts` 那包 blob。附件與內嵌檔案走
-/// `stored_file_exporter`，網址欄位叫 `url` 不是 `fileurl`，而且沒有 mimetype
-/// （見 docs/MOODLE_REFERENCE.md）。
+/// `stored_file_exporter`，網址欄位叫 `url` 不是 `fileurl`，而且沒有 mimetype。
 @JsonSerializable(explicitToJson: true)
 class MoodleModForumGetDiscussionPosts {
   @JsonKey(name: 'posts', defaultValue: [])
@@ -131,7 +130,7 @@ class MoodleForumPost {
 /// 「不畫」。
 ///
 /// **不要改看 `urls.reply` / `urls.edit` / `urls.delete`**：`selfenrol` 為真時
-/// 那些網址在不能動的時候也非 null（見 docs/MOODLE_REFERENCE.md）。
+/// 那些網址在不能動的時候也非 null。
 @JsonSerializable()
 class MoodleForumPostCapabilities {
   @JsonKey(name: 'reply', defaultValue: false)
