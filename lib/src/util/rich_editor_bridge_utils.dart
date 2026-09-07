@@ -44,6 +44,13 @@ class RichEditorBridgeUtils {
   static String buildCommandCall(EditorCommand command) =>
       'window.__tatEditor.exec("${tokenOf(command)}");';
 
+  /// 深淺色只有宿主知道：頁面的底色是 Flutter 畫在透明 WebView 後面的，會跟著
+  /// 主題重畫，字色卻寫在頁面的 CSS 裡。只推一次的話，系統中途換深色就會變成
+  /// 同色不可讀，所以這一句要能重推。
+  static String buildThemeCall({required bool dark}) =>
+      'document.documentElement.setAttribute('
+      '"data-theme", "${dark ? 'dark' : 'light'}");';
+
   /// 指令與橋接兩端共用的字面值。頁面那一端在 assets/editor/editor.js。
   static String tokenOf(EditorCommand command) => switch (command) {
         EditorCommand.bold => 'bold',

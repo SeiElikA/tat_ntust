@@ -103,4 +103,21 @@ void main() {
       );
     });
   });
+
+  group('buildThemeCall', () {
+    test('深淺各對到一個 data-theme', () {
+      expect(RichEditorBridgeUtils.buildThemeCall(dark: true),
+          contains('"data-theme", "dark"'));
+      expect(RichEditorBridgeUtils.buildThemeCall(dark: false),
+          contains('"data-theme", "light"'));
+    });
+
+    // 底色由 Flutter 畫在透明的 WebView 後面，會跟著系統換深色立刻重畫；
+    // 字色在頁面裡，所以這一句一定要能重推，不是握手時推一次就算了。
+    test('是一句可以重複執行的 setAttribute', () {
+      expect(RichEditorBridgeUtils.buildThemeCall(dark: true),
+          startsWith('document.documentElement.setAttribute('));
+      expect(RichEditorBridgeUtils.buildThemeCall(dark: true), endsWith(');'));
+    });
+  });
 }

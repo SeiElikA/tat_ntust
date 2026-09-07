@@ -20,7 +20,9 @@ html, body {
   margin: 0;
   padding: 0;
   /* 底色由 Flutter 的卡片畫在後面（transparentBackground 已經開著）。
-     這裡自己畫一層的話，動態取色與深色永遠會差一階。 */
+     這裡自己畫一層的話，動態取色與深色永遠會差一階。
+     代價是底色會跟著系統換深色即時重畫，所以 --fg 也一定要跟著重推——見
+     moodle_rich_editor.dart 的 didChangeDependencies，只推一次就會同色。 */
   background: transparent;
   color: var(--fg);
 }

@@ -70,6 +70,10 @@ class _MoodleRichEditorState extends State<MoodleRichEditor> {
   bool _ready = false;
   bool _failed = false;
 
+  /// 已經推給頁面的深淺。底色由 Flutter 畫在後面（`transparentBackground`），
+  /// 換主題時它會立刻重畫；字色留在頁面裡，不跟著重推就會變成同色的一片。
+  Brightness? _pushed;
+
   /// 平台實作沒註冊時（`flutter test`、或還沒支援的平台）不畫 WebView：
   /// 那不是「空的編輯器」，是載不起來，走同一條失敗路徑講同一句話。
   bool get _platformAvailable => InAppWebViewPlatform.instance != null;
@@ -88,6 +92,15 @@ class _MoodleRichEditorState extends State<MoodleRichEditor> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final brightness = Theme.of(context).brightness;
+    if (brightness == _pushed) return;
+    _pushed = brightness;
+    unawaited(_pushTheme(brightness));
+  }
+
+  @override
   void dispose() {
     _readyTimer?.cancel();
     if (widget.controller._state == this) widget.controller._state = null;
@@ -99,6 +112,15 @@ class _MoodleRichEditorState extends State<MoodleRichEditor> {
     _failed = true;
     Log.e('rich editor failed to load: $why');
     widget.onLoadFailed();
+  }
+
+  /// 握手之前推不進去（頁面還沒有 `documentElement` 可以設），所以握手完成時
+  /// 要補推一次現在的深淺，不是握手當下才第一次決定。
+  Future<void> _pushTheme(Brightness brightness) async {
+    if (!_ready) return;
+    await _webView?.evaluateJavascript(
+        source: RichEditorBridgeUtils.buildThemeCall(
+            dark: brightness == Brightness.dark));
   }
 
   Future<void> _exec(EditorCommand command) async {
@@ -125,10 +147,7 @@ class _MoodleRichEditorState extends State<MoodleRichEditor> {
     if (_failed || _ready || !mounted) return;
     _readyTimer?.cancel();
     _ready = true;
-    final dark = Theme.of(context).brightness == Brightness.dark;
-    await _webView?.evaluateJavascript(
-        source: 'document.documentElement.setAttribute('
-            '"data-theme", "${dark ? 'dark' : 'light'}");');
+    await _pushTheme(_pushed ?? Theme.of(context).brightness);
     // 貼文 HTML 進到頁面的唯一途徑：包成 JS 字串常值，絕不字串相接。
     await _webView?.evaluateJavascript(
         source: RichEditorBridgeUtils.buildSetContentCall(widget.initialHtml));
