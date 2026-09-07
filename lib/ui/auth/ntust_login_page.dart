@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_app/src/R.dart';
 import 'package:flutter_app/src/service/cookie_bridge.dart';
+import 'package:flutter_app/src/service/ssoam2_login.dart';
 import 'package:flutter_app/src/enum/ntust_login_status.dart';
 import 'package:flutter_app/src/connector/core/dio_connector.dart';
 import 'package:flutter_app/src/connector/ntust_connector.dart';
@@ -11,7 +12,6 @@ import 'package:flutter_app/ui/other/my_progress_dialog.dart';
 import 'package:flutter_app/src/util/my_toast.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:get/get.dart';
-import 'package:html/parser.dart';
 
 class LoginNTUSTPage extends StatefulWidget {
   final String username;
@@ -33,7 +33,8 @@ class _LoginNTUSTPageState extends State<LoginNTUSTPage> {
   final WebUri ntustLoginUri = WebUri(NTUSTConnector.ntustLoginUrl);
   late InAppWebViewController webView;
   bool showDialog = true;
-  Widget dialog = MyProgressDialog.dialog(R.current.loginNTUST);
+  // getter：欄位初始化式只跑一次，會把進度框的文字凍在 State 建立時的語言。
+  Widget get dialog => MyProgressDialog.dialog(R.current.loginNTUST);
 
   /// 這個頁面只能結束一次。
   ///
@@ -41,6 +42,10 @@ class _LoginNTUSTPageState extends State<LoginNTUSTPage> {
   /// 同一次登入裡再觸發一遍；不擋住的話第二個 Get.back 會把這頁**底下那一頁**
   /// 也 pop 掉。
   bool _finished = false;
+
+  /// 送出次數上限，見 onLoadStop。
+  int _submits = 0;
+  static const int _maxSubmits = 2;
 
   void _finish(Map<String, dynamic> result) {
     if (_finished) return;
@@ -63,7 +68,29 @@ class _LoginNTUSTPageState extends State<LoginNTUSTPage> {
                 webView = controller;
               },
               onLoadStop: (InAppWebViewController controller, Uri? url) async {
+                if (_finished) return;
+                // 錯誤檢查在最前面，而且不分網址：登入失敗後站台是把登入頁
+                // 連同錯誤訊息重新吐回來，網址仍是登入頁，放在 else 分支裡
+                // 就永遠讀不到，而且會拿同一組錯帳密一直重送。
+                final error = await Ssoam2Login.credentialError(webView);
+                if (error != null) {
+                  _finish({
+                    "status": NTUSTLoginStatus.fail,
+                    "message": error.replaceAll("\n", ""),
+                  });
+                  return;
+                }
+
                 if (url == ntustLoginUri) {
+                  // 認不出錯誤時的第二道保險，理由同 LoginMoodlePage。
+                  if (_submits >= _maxSubmits) {
+                    if (mounted) {
+                      setState(() => showDialog = false);
+                      MyToast.show(R.current.needValidateCaptcha);
+                    }
+                    return;
+                  }
+                  _submits++;
                   await webView.evaluateJavascript(
                       source:
                           'document.getElementsByName("UserName")[0].value = ${jsonEncode(widget.username)};');
@@ -86,33 +113,25 @@ class _LoginNTUSTPageState extends State<LoginNTUSTPage> {
                     MyToast.show(R.current.needValidateCaptcha);
                   }
                 } else {
-                  if (_finished) return;
                   // 這裡不可以先清 Dio jar：清空由 CookieBridge 在寫入前做，
                   // 且只有真的拿到 cookie 才清，否則登入失敗會把還能用的舊
                   // session 一起清掉，變成完全登出。
-                  String? result = await webView.getHtml();
-                  var tagNode = parse(result);
-                  var nodes = tagNode
-                      .getElementsByClassName("validation-summary-errors");
-                  if (nodes.length == 1) {
-                    _finish({
-                      "status": NTUSTLoginStatus.fail,
-                      "message": nodes[0].text.replaceAll("\n", "")
-                    });
-                  } else {
-                    // 鏡射邏輯（網域改寫、secure 旗標保留、先清空再寫入）只有
-                    // CookieBridge 一份，headless 路徑共用同一份。
-                    final moved = await CookieBridge.mirrorToDio(
-                      url: ntustLoginUri,
-                      jar: cookieJar,
-                      manager: cookieManager,
-                    );
-                    _finish({
-                      "status": moved > 0
-                          ? NTUSTLoginStatus.success
-                          : NTUSTLoginStatus.fail
-                    });
-                  }
+                  //
+                  // 錯誤判斷已在最上面做完，這裡只剩「離開登入頁＝成功」。
+                  // 不要在這裡自己再 parse 一次判準：比對不到就會掉進鏡射
+                  // 分支，而 cookie 一定搬得到幾顆，變成密碼錯卻回報成功。
+                  //
+                  // 鏡射邏輯只有 CookieBridge 一份，headless 路徑共用。
+                  final moved = await CookieBridge.mirrorToDio(
+                    url: ntustLoginUri,
+                    jar: cookieJar,
+                    manager: cookieManager,
+                  );
+                  _finish({
+                    "status": moved > 0
+                        ? NTUSTLoginStatus.success
+                        : NTUSTLoginStatus.fail
+                  });
                 }
               },
             ),

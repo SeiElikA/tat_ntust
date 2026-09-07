@@ -82,7 +82,8 @@ Future<Result<T>> run<T>({
       continue;
     }
     for (final id in optional) {
-      await auth.tryEnsure(id);
+      // 背景取資料同樣不准彈登入頁。
+      await auth.tryEnsure(id, interactive: !background);
     }
 
     T? value;

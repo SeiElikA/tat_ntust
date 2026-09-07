@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_app/src/R.dart';
 import 'package:flutter_app/src/repository/retry.dart';
 import 'package:flutter_app/debug/log/log.dart';
@@ -15,6 +16,7 @@ import 'package:flutter_app/src/model/ntust/ap_tree_json.dart';
 import 'package:flutter_app/src/model/score/score_json.dart';
 import 'package:flutter_app/src/repository/result.dart';
 import 'package:flutter_app/src/repository/run.dart';
+import 'package:flutter_app/src/util/language_utils.dart';
 
 /// NTUST 那一側的資料來源。
 ///
@@ -70,6 +72,20 @@ class NtustRepository {
         debugLabel: 'searchCourse',
       );
 
+  /// 課程詳細資訊的快取位址。
+  ///
+  /// **語言是 key 的一部分**：那支 API 依語系回不同字串，語言不進 key 的話，
+  /// 切換語言後這一頁會一直讀到舊語系的快取而且不會過期。
+  @visibleForTesting
+  static CacheKey<CourseExtraInfoJson> courseExtraCacheKey(
+          String courseId, SemesterJson semester) =>
+      CacheKey<CourseExtraInfoJson>(
+        "cache_course_extra",
+        "$courseId-${semester.year}${semester.semester}"
+            "-${LanguageUtils.getLangIndex().name}",
+        decode: (json) => CourseExtraInfoJson.fromJson(json),
+      );
+
   /// 單一課程的詳細資訊。
   ///
   /// `requires` 同樣是空的——`querycourse/api/coursedetials` 也是公開 API。
@@ -77,11 +93,7 @@ class NtustRepository {
           String courseId, SemesterJson semester) =>
       run<CourseExtraInfoJson>(
         requires: const {},
-        cache: CacheKey<CourseExtraInfoJson>(
-          "cache_course_extra",
-          "$courseId-${semester.year}${semester.semester}",
-          decode: (json) => CourseExtraInfoJson.fromJson(json),
-        ),
+        cache: courseExtraCacheKey(courseId, semester),
         fetch: () => CourseConnector.getCourseExtraInfo(courseId, semester),
         // 沒有 progressMessage：course_info_page 用 ResultView，它自己會畫。
         errorMessage: R.current.getCourseDetailError,
@@ -193,7 +205,9 @@ class NtustRepository {
       requires: const {SystemId.ntustSso},
       retry: RetryPolicy.none,
       background: background,
-      fetch: _fetchSemesterList,
+      // background 要傳進去：run() 只把它套在自己那一次 ensure 上，而
+      // _fetchSemesterList 裡面還有一次 Moodle 的 tryEnsure。
+      fetch: () => _fetchSemesterList(background: background),
       progressMessage: R.current.getCourseSemester,
       errorMessage: R.current.getCourseError,
       debugLabel: 'semesterList',
@@ -212,7 +226,8 @@ class NtustRepository {
     };
   }
 
-  Future<SemesterListFetch?> _fetchSemesterList() async {
+  Future<SemesterListFetch?> _fetchSemesterList(
+      {bool background = false}) async {
     // null 代表「一個來源都沒給出學期」，呼叫端才會走到手動選學期的對話框。
     // 所以這裡不要先寫成 `[]`——空清單與「完全沒有答案」在上層是兩件事。
     List<SemesterJson>? value;
@@ -259,7 +274,8 @@ class NtustRepository {
 
     // 從 moodle 補當前學期。best-effort：這一段失敗不影響上面的結果。
     try {
-      await AuthSession.instance.tryEnsure(SystemId.moodleWebApi);
+      await AuthSession.instance
+          .tryEnsure(SystemId.moodleWebApi, interactive: !background);
       final currentSemester = await MoodleWebApiConnector.getCurrentSemester();
       if (currentSemester != null) {
         // value 只在「所有來源都沒有資料」時才會維持 null，呼叫端才會走到

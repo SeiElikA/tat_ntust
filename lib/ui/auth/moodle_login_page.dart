@@ -30,7 +30,22 @@ class _LoginMoodlePageState extends State<LoginMoodlePage> {
   final _launch = MoodleWebApiConnector.buildLoginLaunch();
   late final WebUri moodleLoginUri = WebUri(_launch.url);
   bool showDialog = true;
-  Widget dialog = MyProgressDialog.dialog(R.current.loginMoodle);
+  // getter：欄位初始化式只跑一次，會把進度框的文字凍在 State 建立時的語言。
+  Widget get dialog => MyProgressDialog.dialog(R.current.loginMoodle);
+
+  /// 這個頁面只能結束一次：同一次登入可能觸發兩次回呼，第二個 `Get.back`
+  /// pop 掉的會是這一頁底下那一頁。
+  bool _finished = false;
+
+  /// 送出次數上限，見 onLoadStop。
+  int _submits = 0;
+  static const int _maxSubmits = 2;
+
+  void _finish(MoodleTokenEntity? result) {
+    if (_finished) return;
+    _finished = true;
+    Get.back(result: result);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -48,9 +63,8 @@ class _LoginMoodlePageState extends State<LoginMoodlePage> {
                 if (uri != null && uri.scheme == "moodlemobile") {
                   // parseMoodleToken 不能拋例外：從 shouldOverrideUrlLoading
                   // 逸出的例外沒有人接住，頁面與進度框會永遠卡在畫面上。
-                  Get.back(
-                      result: parseMoodleToken(uri.rawValue,
-                          passport: _launch.passport));
+                  _finish(parseMoodleToken(uri.rawValue,
+                      passport: _launch.passport));
                   return NavigationActionPolicy.CANCEL;
                 }
 
@@ -58,7 +72,25 @@ class _LoginMoodlePageState extends State<LoginMoodlePage> {
               },
               onLoadStop:
                   (InAppWebViewController controller, WebUri? url) async {
+                if (_finished) return;
                 if (Ssoam2Login.isLoginPage(url)) {
+                  // 先問有沒有錯誤再決定要不要送出：密碼錯時站台是把登入頁
+                  // 連同錯誤訊息重新吐回來，網址仍是登入頁，先送出就會變成
+                  // 拿同一組錯帳密無限重送。
+                  final error = await Ssoam2Login.credentialError(controller);
+                  if (error != null) {
+                    MyToast.show(error, toastLength: Toast.LENGTH_LONG);
+                    _finish(null);
+                    return;
+                  }
+                  // 認不出錯誤時的第二道保險：最多送出兩次。
+                  if (_submits >= _maxSubmits) {
+                    if (mounted) setState(() => showDialog = false);
+                    MyToast.show(R.current.needValidateCaptcha,
+                        toastLength: Toast.LENGTH_LONG);
+                    return;
+                  }
+                  _submits++;
                   final outcome = await Ssoam2Login.submit(
                     controller,
                     account: widget.username,

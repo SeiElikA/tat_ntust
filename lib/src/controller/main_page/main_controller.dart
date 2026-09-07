@@ -15,7 +15,6 @@ import 'package:flutter_app/src/repository/moodle_repository.dart';
 import 'package:flutter_app/src/repository/result.dart';
 import 'package:flutter_app/src/service/error_dialog_parameter.dart';
 import 'package:flutter_app/src/service/task_ui_delegate.dart';
-import 'package:flutter_app/src/store/model.dart';
 import 'package:flutter_app/src/util/analytics_utils.dart';
 import 'package:flutter_app/src/util/moodle_avatar_utils.dart';
 import 'package:get/get.dart';
@@ -87,6 +86,10 @@ class MainController extends GetxController {
   }
 
   /// Private Method
+  ///
+  /// **登入一定要走 [AuthSession.ensure]。** 繞過去就繞過 `inFlight`，首次
+  /// 登入時會與課表頁的 `preloadSemesterList` 各開一個 LoginMoodlePage，
+  /// 先回來的那個 `Get.back` pop 掉另一頁，另一邊收到 null 就跳錯誤框。
   Future<bool> _checkMoodle() async {
     if (!AuthSession.instance.isSignedIn) return false;
 
@@ -96,9 +99,8 @@ class MainController extends GetxController {
       return true;
     }
 
-    final status = await MoodleWebApiConnector.login(
-        Model.instance.getAccount(), Model.instance.getPassword());
-    if (status == MoodleWebApiConnectorStatus.loginFail) {
+    final error = await AuthSession.instance.ensure({SystemId.moodleWebApi});
+    if (error != null) {
       // 走 TaskUiDelegate 而不是直接 new 一個 ErrorDialog：那個 widget 在
       // lib/ui，controller 讀它是 controller -> ui 的上行邊。
       // offCancelBtn 讓它只有一顆「確定」，回傳值沒有意義。

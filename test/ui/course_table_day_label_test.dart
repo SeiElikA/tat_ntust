@@ -2,6 +2,8 @@ import 'package:flutter_app/src/model/course/course_class_json.dart';
 import 'package:flutter_app/src/model/course/course_main_extra_json.dart';
 import 'package:flutter_app/src/model/course_table/course_time.dart';
 import 'package:flutter_app/src/util/course_table_control.dart';
+import 'package:flutter/widgets.dart';
+import 'package:flutter_app/generated/l10n.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../helpers/test_l10n.dart';
@@ -28,6 +30,20 @@ void main() {
           reason: '第 $i 欄（${Day.values[i]}）沒有標題',
         );
       }
+    });
+
+    test('切換語言之後標籤跟著換——不可以凍在建立時的語言', () async {
+      // dayStringList 存成欄位的話，整張課表換了語言，只有這排星期不會換。
+      final control = CourseTableControl();
+      await S.load(const Locale('zh', 'TW'));
+      final zh = control.getDayString(0);
+
+      await S.load(const Locale('en'));
+      final en = control.getDayString(0);
+
+      await S.load(const Locale('zh', 'TW'));
+      expect(en, isNot(zh), reason: '同一個 control 實例的標籤沒有跟著語言換');
+      expect(control.getDayString(0), zh, reason: '換回去也要跟著換回去');
     });
 
     test('第八欄對應 Day.unKnown，索引與 Day 列舉一致', () {

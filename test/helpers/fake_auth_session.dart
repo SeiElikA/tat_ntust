@@ -15,6 +15,9 @@ class FakeAuthSession implements AuthSession {
   final List<Set<SystemId>> invalidateCalls = [];
   final List<SystemId> tryEnsureCalls = [];
 
+  /// 每一次 [tryEnsure] 的 interactive 旗標，順序與 [tryEnsureCalls] 對齊。
+  final List<bool> tryEnsureInteractive = [];
+
   /// 指定一個完整的 [AuthError]（含 message）。null 時由 [ensureResults]
   /// 組一個沒有訊息的。
   AuthError? ensureError;
@@ -41,7 +44,10 @@ class FakeAuthSession implements AuthSession {
   }
 
   @override
-  Future<void> tryEnsure(SystemId id) async => tryEnsureCalls.add(id);
+  Future<void> tryEnsure(SystemId id, {bool interactive = true}) async {
+    tryEnsureCalls.add(id);
+    tryEnsureInteractive.add(interactive);
+  }
 
   @override
   Future<void> invalidate(Set<SystemId> requires) async =>

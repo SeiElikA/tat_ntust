@@ -42,7 +42,14 @@ class _CourseDataPageState extends State<CourseDataPage>
   late final PageController _pageController;
   late int _currentIndex;
   List<Widget> _pages = [];
-  List<Map<String, dynamic>> _tabItems = [];
+  /// getter 而不是 initState 裡指派的欄位：initState 只跑一次，切換語言後
+  /// 分頁標籤會停在舊語言。長度固定，TabController 照樣讀得到。
+  List<Map<String, dynamic>> get _tabItems => [
+        {"name": R.current.file, "icon": LucideIcons.fileText},
+        {"name": R.current.announcement, "icon": LucideIcons.messageSquare},
+        {"name": R.current.score, "icon": LucideIcons.graduationCap},
+        {"name": R.current.assignment, "icon": LucideIcons.clipboardList},
+      ];
 
   late final CourseDataController _controller;
 
@@ -71,12 +78,6 @@ class _CourseDataPageState extends State<CourseDataPage>
         errorBuilder: (message) => ErrorPage(errorMsg: message),
         openWebView: RouteUtils.toWebViewPage,
       ),
-    ];
-    _tabItems = [
-      {"name": R.current.file, "icon": LucideIcons.fileText},
-      {"name": R.current.announcement, "icon": LucideIcons.messageSquare},
-      {"name": R.current.score, "icon": LucideIcons.graduationCap},
-      {"name": R.current.assignment, "icon": LucideIcons.clipboardList},
     ];
     _tabController = TabController(
       vsync: this,

@@ -180,6 +180,9 @@ flutter:
     - assets/editor/
     - assets/image/files/
     - assets/launcher/
+    # 隱私政策的離線備援。宣告 repo 根目錄那一份而不是複本：GitHub raw 服務
+    # 的就是同一個檔案。見 PrivacyPolicyController.load。
+    - privacy-policy.md
 
   # 只有 Lucide 一組圖示字體。
   #
@@ -209,6 +212,18 @@ flutter_icons:
   adaptive_icon_background: "assets/launcher/background.png"
   adaptive_icon_foreground: "assets/launcher/foreground.png"
 
+# 兩個平台共用同一組資產：中央是和 launcher icon 同款的黑色圓形徽章（128dp），
+# 亮暗只差背景色（取自 ColorScheme.surface）。圓底畫在圖裡而不是交給 Android 12 的
+# icon_background_color，因為那個圓固定 240dp、縮不了，三邊就湊不到同一個大小。
+# 改這裡之後要重跑 `dart run flutter_native_splash:create`，並把 values*/styles.xml
+# 的 LaunchTheme parent 改回 Theme.AppCompat.NoActionBar（local_auth 需要）。
 flutter_native_splash:
-  color: "#ffffff"
-  image: assets/splash/splash.png
+  color: "#f8f9ff"
+  color_dark: "#111418"
+  # 徽章亮暗共用，image_dark 指向同一張才會連 drawable-night 也一起產生。
+  image: assets/splash/splash_badge.png
+  image_dark: assets/splash/splash_badge.png
+  android_12:
+    # Android 12 起啟動圖由系統畫，圖必須是 1152x1152、內容落在內圈 768 圓內。
+    image: assets/splash/splash_badge_android12.png
+    image_dark: assets/splash/splash_badge_android12.png

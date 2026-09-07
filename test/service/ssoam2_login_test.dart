@@ -48,6 +48,29 @@ void main() {
     ], reason: '登入頁網址散落多處的話，學校換網址時會漏改');
   });
 
+  test('validation-summary-errors 只能出現在共用腳本裡', () {
+    // 這份判準被複製過，而複製品比對不到時會掉進成功分支——密碼錯卻回報成功。
+    final hits = libDartFiles()
+        .where((f) => codeOf(f).contains('validation-summary-errors'))
+        .map((f) => f.path)
+        .toList()
+      ..sort();
+
+    expect(hits, ['lib/src/service/ssoam2_login.dart'],
+        reason: '登入錯誤的判準只該有一份');
+  });
+
+  test('登入錯誤判準有兩層：class 與已知句子', () {
+    // 第二層是安全網：class 靜靜失效等於無限重送同一組錯密碼。
+    final script = File('lib/src/service/ssoam2_login.dart').readAsStringSync();
+
+    expect(script, contains('validation-summary-errors'));
+    expect(script, contains('帳號或密碼輸入錯誤'));
+    expect(script, contains('username or password is incorrect'));
+    expect(script, contains('textContent'),
+        reason: 'headless WebView 的 innerText 可能是空的，要留 textContent 後路');
+  });
+
   group('isLoginPage', () {
     test('認得登入頁與它的查詢字串', () {
       expect(Ssoam2Login.isLoginPage('https://ssoam2.ntust.edu.tw/account/login'),

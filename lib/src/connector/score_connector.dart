@@ -1,7 +1,9 @@
 import 'dart:async';
+import 'dart:ui';
 import 'package:flutter_app/debug/log/log.dart';
 import 'package:flutter_app/src/model/course/course_class_json.dart';
 import 'package:flutter_app/src/model/score/score_json.dart';
+import 'package:flutter_app/src/service/ssoam2_login.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:html/dom.dart';
 import 'package:html/parser.dart';
@@ -14,8 +16,23 @@ class ScoreConnector {
     return v.replaceAll("\n", "").trim();
   }
 
-  /// 轉址鏈的終點特徵。onLoadStop 每一站都會觸發，只有這一站是成績頁。
+  /// 成績頁的路徑特徵。**只拿來記 log**：OIDC 交握中途那一站的查詢字串裡
+  /// 也有 `client_id=StuScoreQueryServ`，拿它當判準必定誤中。見 [isScorePage]。
   static const String _scorePathMarker = "StuScoreQuery";
+
+  /// 這份 HTML 是不是**真的**成績頁。
+  ///
+  /// **只看網址不夠。** 未登入時的轉址鏈是 stuinfosys → stuinfosys/Home/Login
+  /// → `ssoam2/connect/authorize?client_id=StuScoreQueryServ&response_mode=form_post`，
+  /// 最後那一站回的是一頁自動送出的表單，而它的網址同樣含 "StuScoreQuery"。
+  /// 改看頁面內容之後，中途站一律不收網，讓交握跑完再回來。
+  ///
+  /// 兩個條件與 [parseScoreRank] 的守衛一致：`box-content alerts` 是排版容器，
+  /// `<tbody>` 把它跟同樣用這個 class 的轉址頁／錯誤頁分開。
+  static bool isScorePage(String html) {
+    if (!html.contains("box-content alerts")) return false;
+    return html.contains("<tbody") || html.contains("<TBODY");
+  }
 
   /// 以 HeadlessInAppWebView 取得成績頁 HTML。逾時或載入失敗回 null。
   ///
@@ -30,6 +47,9 @@ class ScoreConnector {
     try {
       webView = HeadlessInAppWebView(
         initialUrlRequest: URLRequest(url: WebUri(_scoreUrl)),
+        // 給它真實尺寸（理由同 Ssoam2HeadlessLogin）：預設近乎零的 viewport
+        // 會讓推進轉址鏈的 document.form.submit() 延後執行。
+        initialSize: const Size(412, 892),
         onLoadStop: (controller, url) async {
           if (completer.isCompleted) return;
           // **只在真的走到成績頁時才收網。**
@@ -40,13 +60,22 @@ class ScoreConnector {
           // 會解析出一份非 null 的空 ScoreRankJson，呼叫端當成功寫回硬碟，
           // 成績頁就被清空且沒有任何錯誤訊息。
           //
-          // 不符就直接 return，讓轉址鏈繼續跑；真的到不了就由外層的 20 秒
-          // timeout 收成 null，走既有的失敗流程。
-          if (url == null || !url.toString().contains(_scorePathMarker)) {
-            Log.d("score page: 略過中途頁 ${url?.host}${url?.path}");
+          // 判準是頁面內容不是網址（見 [isScorePage]）。不符就直接 return，
+          // 讓轉址鏈繼續跑。
+          final html = await controller.getHtml() ?? "";
+          if (isScorePage(html)) {
+            completer.complete(html);
             return;
           }
-          completer.complete(await controller.getHtml());
+          // 被踢回 SSO 的登入表單＝沒有有效 session，等下去不會變好，
+          // 直接失敗，不要讓使用者盯著遮罩等滿 20 秒。
+          if (Ssoam2Login.isLoginPage(url)) {
+            Log.e("score page: 被導到 ssoam2 登入頁，平台 WebView 沒有有效 session");
+            completer.complete(null);
+            return;
+          }
+          Log.d("score page: 略過中途頁 ${url?.host}${url?.path}"
+              " (marker=${url?.toString().contains(_scorePathMarker)})");
         },
         onReceivedError: (controller, request, error) {
           if (completer.isCompleted) return;

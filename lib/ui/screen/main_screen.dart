@@ -24,13 +24,15 @@ class _MainScreenState extends State<MainScreen>
     with RouteAware, WidgetsBindingObserver {
   // 註冊在 AppBindings（lazyPut + fenix），這裡只取用。
   final controller = Get.find<MainController>();
-  final items = [
-    {"icon": LucideIcons.clock, "name": R.current.titleCourse},
-    {"icon": LucideIcons.info, "name": R.current.informationSystem},
-    {"icon": LucideIcons.calendar, "name": R.current.calendar},
-    {"icon": LucideIcons.bookOpen, "name": R.current.titleScore},
-    {"icon": LucideIcons.menu, "name": R.current.titleOther}
-  ];
+  /// 一定要是 getter：欄位只在 State 建立時初始化，而 forceAppUpdate 只重跑
+  /// build()、不重建 State，導覽列標籤會永遠停在啟動時的語言。
+  List<Map<String, dynamic>> get items => [
+        {"icon": LucideIcons.clock, "name": R.current.titleCourse},
+        {"icon": LucideIcons.info, "name": R.current.informationSystem},
+        {"icon": LucideIcons.calendar, "name": R.current.calendar},
+        {"icon": LucideIcons.bookOpen, "name": R.current.titleScore},
+        {"icon": LucideIcons.menu, "name": R.current.titleOther}
+      ];
 
   @override
   void initState() {
@@ -95,19 +97,21 @@ class _MainScreenState extends State<MainScreen>
       return NavigationBar(
         selectedIndex: currentIndex,
         onDestinationSelected: controller.onBottomNavigationTap,
-        destinations: items.map((item) {
-          final index = items.indexOf(item);
-          return NavigationDestination(
-            icon: Icon(
-              item["icon"] as IconData,
-              size: 24,
-              color: currentIndex == index
-                  ? Get.theme.colorScheme.onSecondaryContainer
-                  : Get.theme.colorScheme.onSurfaceVariant,
+        // 索引用 indexed：items 是 getter，每次讀都是新的 Map，而 Map 沒有
+        // 覆寫 ==，跨兩次讀取的 indexOf 一律回 -1。
+        destinations: [
+          for (final (index, item) in items.indexed)
+            NavigationDestination(
+              icon: Icon(
+                item["icon"] as IconData,
+                size: 24,
+                color: currentIndex == index
+                    ? Get.theme.colorScheme.onSecondaryContainer
+                    : Get.theme.colorScheme.onSurfaceVariant,
+              ),
+              label: item["name"] as String,
             ),
-            label: item["name"] as String,
-          );
-        }).toList(),
+        ],
       );
     });
   }
