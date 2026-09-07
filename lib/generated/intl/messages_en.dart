@@ -137,6 +137,9 @@ class MessageLookup extends MessageLookupByLibrary {
       "Due in %s hour(s)",
     ),
     "assignDueSoon": MessageLookupByLibrary.simpleMessage("Due within an hour"),
+    "assignEditOnlineTextInWeb": MessageLookupByLibrary.simpleMessage(
+      "Edit text on the web",
+    ),
     "assignEditSubmission": MessageLookupByLibrary.simpleMessage(
       "Edit submission",
     ),
@@ -212,8 +215,17 @@ class MessageLookup extends MessageLookupByLibrary {
     "assignOnlineTextHint": MessageLookupByLibrary.simpleMessage(
       "What you type here is submitted as plain text",
     ),
-    "assignOnlineTextNotEditable": MessageLookupByLibrary.simpleMessage(
-      "The current online text contains images or formatting that in-app editing would destroy. Edit it on the web.",
+    "assignOnlineTextKeepAsIs": MessageLookupByLibrary.simpleMessage(
+      "Kept as-is",
+    ),
+    "assignOnlineTextPreserved": MessageLookupByLibrary.simpleMessage(
+      "This text contains images or formatting, so the app leaves it alone — it is sent back unchanged when you save, so the images and formatting survive. To change the text itself, edit it on the web. You can still add or remove files above.",
+    ),
+    "assignOnlineTextRawFailed": MessageLookupByLibrary.simpleMessage(
+      "Could not read what Moodle actually stores for this online text, so nothing was submitted. Try again in a moment.",
+    ),
+    "assignOnlineTextReadOnly": MessageLookupByLibrary.simpleMessage(
+      "This text contains images or formatting that the app\'s plain-text box cannot edit. To change the text itself, edit it on the web.",
     ),
     "assignOpenInWeb": MessageLookupByLibrary.simpleMessage("Open in web"),
     "assignOverdueDays": MessageLookupByLibrary.simpleMessage(
@@ -229,7 +241,6 @@ class MessageLookup extends MessageLookupByLibrary {
     "assignPreviousAttempts": MessageLookupByLibrary.simpleMessage(
       "Previous attempts",
     ),
-    "assignReadOnly": MessageLookupByLibrary.simpleMessage("Read-only"),
     "assignRemoveConfirm": MessageLookupByLibrary.simpleMessage(
       "This deletes every file and all the text in this submission, and cannot be undone",
     ),
@@ -304,9 +315,6 @@ class MessageLookup extends MessageLookupByLibrary {
     "assignSubmit": MessageLookupByLibrary.simpleMessage("Submit"),
     "assignSubmitAgainWarning": MessageLookupByLibrary.simpleMessage(
       "Re-submitting replaces the files you have already submitted with this list",
-    ),
-    "assignSubmitBlockedByOnlineText": MessageLookupByLibrary.simpleMessage(
-      "The existing online text cannot be safely overwritten in the app; submit this assignment on the web",
     ),
     "assignSubmitCancelled": MessageLookupByLibrary.simpleMessage(
       "Upload cancelled",
@@ -393,6 +401,9 @@ class MessageLookup extends MessageLookupByLibrary {
     "assignWordCount": MessageLookupByLibrary.simpleMessage("Words: %s of %s"),
     "assignWordCountExceeded": MessageLookupByLibrary.simpleMessage(
       "Over the word limit; shorten your text before submitting",
+    ),
+    "assignWordCountExceededReadOnly": MessageLookupByLibrary.simpleMessage(
+      "The existing online text is over the word limit, so Moodle will reject the whole save. Trim it on the web.",
     ),
     "assignment": MessageLookupByLibrary.simpleMessage("Assignments"),
     "assignmentDetail": MessageLookupByLibrary.simpleMessage("Assignment"),

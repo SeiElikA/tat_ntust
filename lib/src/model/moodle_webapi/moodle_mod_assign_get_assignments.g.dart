@@ -115,6 +115,7 @@ MoodleAssignFile _$MoodleAssignFileFromJson(Map<String, dynamic> json) =>
     MoodleAssignFile(
       filename: json['filename'] as String? ?? '',
       fileurl: json['fileurl'] as String? ?? '',
+      filepath: json['filepath'] as String? ?? '/',
       mimetype: json['mimetype'] as String? ?? '',
       filesize: (json['filesize'] as num?)?.toInt() ?? 0,
     );
@@ -123,6 +124,7 @@ Map<String, dynamic> _$MoodleAssignFileToJson(MoodleAssignFile instance) =>
     <String, dynamic>{
       'filename': instance.filename,
       'fileurl': instance.fileurl,
+      'filepath': instance.filepath,
       'mimetype': instance.mimetype,
       'filesize': instance.filesize,
     };

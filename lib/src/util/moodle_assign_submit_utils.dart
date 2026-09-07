@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter_app/src/model/moodle_webapi/moodle_mod_assign_get_assignments.dart';
 import 'package:flutter_app/src/model/moodle_webapi/moodle_mod_assign_get_submission_status.dart';
 import 'package:flutter_app/src/util/moodle_assign_attempt_utils.dart';
+import 'package:flutter_app/src/util/moodle_pluginfile_utils.dart';
 
 /// 為什麼不能在 App 內交這份作業。null 代表可以交。
 enum AssignSubmitBlock {
@@ -34,8 +35,11 @@ enum AssignSubmitBlock {
 /// （`save_submission` / `submissions_open` 從頭到尾沒有檢查 timelimit，
 /// 網頁的 timer.js 歸零時也只是換一行字）。本地擋下來就是把學生已經寫好的
 /// 東西鎖死在畫面上，那是這條路上唯一會弄丟作業的失敗模式。
+///
+/// **「資料庫原文還沒到手」也不在這裡**：那是一趟幾百毫秒、而且重試就好的
+/// 網路往返，做成 disabled 只會讓鈕閃一下又不給重試；改由
+/// `CourseAssignSubmitController.save` 送出前自己再問一次。
 enum AssignSaveBlock {
-  richOnlineText,
   filesEmptied,
   overWordLimit,
   statementNotAccepted,
@@ -75,6 +79,17 @@ class AssignTransferProgress {
   /// 整體的 0..1；[total] 為 0 時是 null（沒有東西可以量）。
   double? get overall => total <= 0 ? null : (done + ratio) / total;
 }
+
+/// 未經算繪的線上文字，由 `MoodleWebApiConnector.getOnlineTextForEdit` 回傳。
+///
+/// **刻意不是 `MoodleAssignSubmissionStatus`**：[rawText] 是資料庫原文
+/// （含 `@@PLUGINFILE@@`），包成狀態物件就會有人拿去畫面上畫、或寫進
+/// `cache_moodle_assign_status`——那一頁會把佔位字串當成圖片網址畫出破圖，
+/// 而且是從快取來的，下次進來還是破的。用不同的型別讓它不可能發生。
+typedef AssignOnlineTextEdit = ({
+  String rawText,
+  List<MoodleAssignFile> inlineFiles,
+});
 
 /// 編輯頁上的一份草稿；repository 與 UI 共用的值型別。
 class AssignSubmissionDraft {
@@ -216,13 +231,11 @@ class MoodleAssignSubmitUtils {
   /// 只回第一個理由——列出全部會把動作列撐成四行，而常見的單一理由看起來
   /// 反而像出了大事。
   static AssignSaveBlock? saveBlockOf({
-    required bool onlineTextIsRich,
     required bool filesEmptied,
     required bool overWordLimit,
     required bool statementOk,
     required bool dirty,
   }) {
-    if (onlineTextIsRich) return AssignSaveBlock.richOnlineText;
     if (filesEmptied) return AssignSaveBlock.filesEmptied;
     if (overWordLimit) return AssignSaveBlock.overWordLimit;
     if (!statementOk) return AssignSaveBlock.statementNotAccepted;
@@ -408,6 +421,30 @@ class MoodleAssignSubmitUtils {
     return [
       for (final p in paragraphs) '<p>${p.replaceAll('\n', '<br>')}</p>',
     ].join();
+  }
+
+  /// `file_rewrite_pluginfile_urls` 的客戶端反向操作：把絕對網址換回
+  /// `@@PLUGINFILE@@`，也就是資料庫裡原本的那個字串。
+  ///
+  /// 只跑在 `getOnlineTextForEdit` 拿回來的原文上，而且**每一次都要跑**：
+  /// 送出的字串會被逐字寫進 `assignsubmission_onlinetext.onlinetext`
+  /// （`empty($editor['itemid'])` 分支），一次把絕對網址存回去就再也救不
+  /// 回來——之後不論用什麼設定重抓，拿到的都是那個網址，而
+  /// `webservice/pluginfile.php` 要憑證，連瀏覽器看那份繳交都會壞掉。
+  ///
+  /// 對已經是 `@@PLUGINFILE@@` 的原文（raw 那一趟拿到的）是 identity：
+  /// 前綴根本不在裡面。前綴含 `/{contextid}/assignsubmission_onlinetext/
+  /// submissions_onlinetext/{submissionid}/`，所以指向別的地方的
+  /// pluginfile 網址動都不會動。
+  static String restorePluginfileUrls(
+      String html, List<MoodleAssignFile> inlineFiles) {
+    if (html.isEmpty || inlineFiles.isEmpty) return html;
+    final base = MoodlePluginFileUtils.baseOf([
+      for (final f in inlineFiles)
+        (filepath: f.filepath, filename: f.filename, url: f.fileurl),
+    ]);
+    if (base == null || base.isEmpty) return html;
+    return html.replaceAll(base, MoodlePluginFileUtils.token);
   }
 
   /// 反向，只給編輯框當初值用。

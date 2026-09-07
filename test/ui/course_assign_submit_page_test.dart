@@ -70,7 +70,7 @@ void main() {
     AuthSession.instance = FakeAuthSession();
     TaskUiDelegate.instance = ui;
     ConnectivityProbe.instance = FakeConnectivityProbe(online: false);
-    MoodleRepository.instance = MoodleRepository();
+    MoodleRepository.instance = _NoNetworkRepo();
     tempDir = Directory.systemTemp.createTempSync('assign_submit_page_test');
   });
 
@@ -135,20 +135,35 @@ void main() {
   bool pickerEnabled(WidgetTester tester) =>
       tester.widget<ListTile>(addFilesButton()).onTap != null;
 
-  /// 現有線上文字含內嵌圖片：不能編也不能原封送回去（`moodlewssettingfileurl`
-  /// 已經把 @@PLUGINFILE@@ 換成絕對網址）。
-  MoodleAssignSubmissionStatus statusWithEmbeddedImage() {
-    final json = loadMoodleAssignFixture('status_draft');
+  /// 內嵌圖片那一份的變體。
+  MoodleAssignSubmissionStatus inlineStatus({
+    bool dropInlineFiles = false,
+    String? text,
+  }) {
+    final json = loadMoodleAssignFixture('status_onlinetext_inline');
     final plugins = (json['lastattempt'] as Map<String, dynamic>)['submission']
         ['plugins'] as List<dynamic>;
     for (final p in plugins) {
-      if ((p as Map<String, dynamic>)['type'] == 'onlinetext') {
-        (p['editorfields'] as List<dynamic>).first['text'] =
-            '<p>看圖 <img src="@@PLUGINFILE@@/a.png"></p>';
+      if ((p as Map<String, dynamic>)['type'] != 'onlinetext') continue;
+      if (dropInlineFiles) {
+        (p['fileareas'] as List<dynamic>).first['files'] = <dynamic>[];
+      }
+      if (text != null) {
+        (p['editorfields'] as List<dynamic>).first['text'] = text;
       }
     }
     return MoodleAssignSubmissionStatus.fromJson(json);
   }
+
+  /// 現有線上文字含內嵌圖片。`moodlewssettingfileurl` 為真時伺服器送的是
+  /// 絕對網址（`format_text` 在回傳前就把 `@@PLUGINFILE@@` 換掉了），
+  /// 同一包裡還有那個檔案的 `fileurl`——還原前綴就是從它推出來的。
+  MoodleAssignSubmissionStatus statusWithEmbeddedImage() =>
+      fixtureStatus('status_onlinetext_inline');
+
+  /// 同上，但 fileareas 是空的：推不出前綴，這一份就真的存不回去。
+  MoodleAssignSubmissionStatus statusWithUnresolvableImage() =>
+      inlineStatus(dropInlineFiles: true);
 
   group('區塊可見性', () {
     testWidgets('檔案外掛沒開就整個檔案區塊不畫', (tester) async {
@@ -320,17 +335,36 @@ void main() {
   });
 
   group('線上文字', () {
-    testWidgets('現有內容含內嵌圖片時不給編輯，改成說明加一顆導網頁的鈕', (tester) async {
+    testWidgets('現有內容含內嵌圖片時不開輸入框，但說的是「會原樣保留」而不是「唯讀」', (tester) async {
       final opened = <(String, String)>[];
       await pump(tester, submittable(), statusWithEmbeddedImage(),
           opened: opened);
 
+      // 純文字框改不動這一段，但它會被原樣送回去——檔案照樣可以增減。
       expect(find.byType(TextField), findsNothing);
-      expect(find.text(R.current.assignOnlineTextNotEditable), findsOneWidget);
+      expect(find.text(R.current.assignOnlineTextKeepAsIs), findsOneWidget);
+      expect(find.text(R.current.assignOnlineTextPreserved), findsOneWidget);
 
-      await tester.tap(find.text(R.current.assignOpenInWeb));
+      await tester.tap(find.text(R.current.assignEditOnlineTextInWeb));
       await tester.pumpAndSettle();
       expect(opened.single.$2, contains('/mod/assign/view.php?id=93201'));
+    });
+
+    testWidgets('只開線上文字的作業也畫得出那張卡', (tester) async {
+      // 這一組的判斷全是短路運算：沒有檔案外掛、沒有字數上限時一個
+      // observable 都讀不到，包錯一層 Obx 就會 improper-use 當場炸掉。
+      final a = submittable()
+        ..configs = [
+          MoodleAssignConfig(
+              plugin: 'onlinetext',
+              subtype: 'assignsubmission',
+              name: 'enabled',
+              value: '1'),
+        ];
+      await pump(tester, a, statusWithEmbeddedImage());
+
+      expect(find.text(R.current.assignOnlineTextPreserved), findsOneWidget);
+      expect(find.text(R.current.assignOnlineTextKeepAsIs), findsOneWidget);
     });
 
     testWidgets('有字數上限時提示裡帶著上限', (tester) async {
@@ -435,8 +469,13 @@ void main() {
   group('線上文字外掛開著就一定要送', () {
     testWidgets('只動檔案時照樣帶著伺服器原本那份文字，不是 null', (tester) async {
       // 伺服器端 assign_submission_onlinetext::save() 沒有 isset 把關：不送
-      // 這個鍵不是「保留」，是被空值覆蓋。
-      final repo = _PendingRepo();
+      // 這個鍵不是「保留」，是被空值覆蓋。送回去的那一份要來自原文那一趟，
+      // 不是狀態物件裡那份算繪過的。
+      final repo = _PendingRepo()
+        ..editText = (
+          rawText: '<p>已附上報告</p>',
+          inlineFiles: const <MoodleAssignFile>[],
+        );
       MoodleRepository.instance = repo;
       FilePickService.instance = _FakePickService([makeFile('extra.pdf')]);
       await pump(tester, submittable(), fixtureStatus('status_draft'));
@@ -449,18 +488,112 @@ void main() {
       expect(repo.draft!.onlineText, '<p>已附上報告</p>');
     });
 
-    testWidgets('現有內容是富文字：整頁都不能存，不是只有文字框不給編', (tester) async {
+    testWidgets('文字裡有圖也存得下去：送回去的是還原成 @@PLUGINFILE@@ 的原文', (tester) async {
+      final repo = _PendingRepo()
+        ..editText = (
+          rawText: '<p>看圖 <img src="@@PLUGINFILE@@/Lecture%20%281%29.png"></p>',
+          inlineFiles: const <MoodleAssignFile>[],
+        );
+      MoodleRepository.instance = repo;
+      FilePickService.instance = _FakePickService([makeFile('new.pdf')]);
       await pump(tester, submittable(), statusWithEmbeddedImage());
 
-      await tester.tap(find.byTooltip(R.current.assignRemoveFile));
-      await tester.pumpAndSettle();
-      FilePickService.instance = _FakePickService([makeFile('new.pdf')]);
       await tapAndFlush(tester, addFilesButton());
-
       expect(find.text('new.pdf'), findsOneWidget);
-      expect(enabled(tester, saveButton(R.current.assignSaveDraft)), isFalse);
+      // 這一顆按不下去，就等於「文字裡有一張圖」＝這份作業在 App 內交不了。
+      expect(enabled(tester, saveButton(R.current.assignSaveDraft)), isTrue);
+
+      await tester.tap(saveButton(R.current.assignSaveDraft));
+      await tester.pump();
+
+      // 送絕對網址回去會被逐字寫進資料庫，那些圖從此要憑證才打得開。
+      expect(repo.draft!.onlineText, contains('@@PLUGINFILE@@'));
+      expect(repo.draft!.onlineText, isNot(contains('pluginfile.php')));
+    });
+
+    testWidgets('文字框打不開時，超過字數上限那一句要叫人去網頁刪，不是「請刪減」', (tester) async {
+      final a = submittable()
+        ..configs = [
+          MoodleAssignConfig(
+              plugin: 'onlinetext',
+              subtype: 'assignsubmission',
+              name: 'enabled',
+              value: '1'),
+          MoodleAssignConfig(
+              plugin: 'onlinetext',
+              subtype: 'assignsubmission',
+              name: 'wordlimitenabled',
+              value: '1'),
+          MoodleAssignConfig(
+              plugin: 'onlinetext',
+              subtype: 'assignsubmission',
+              name: 'wordlimit',
+              value: '1'),
+        ];
+      // 圖片還在（所以文字框開不了），而字數超過老師新設的上限。
+      await pump(tester, a,
+          inlineStatus(text: '<p>one two three <img src="/x.png"></p>'));
+
+      // 「請刪減後再繳交」是對著一個不存在的輸入框說的。
       expect(
-          find.text(R.current.assignSubmitBlockedByOnlineText), findsOneWidget);
+          find.text(R.current.assignWordCountExceededReadOnly), findsOneWidget);
+      expect(find.text(R.current.assignWordCountExceeded), findsNothing);
+    });
+
+    testWidgets('原文那一趟拿不到時：不寫回算繪過的那一份，而且說得出原因', (tester) async {
+      // 送回去的必須是資料庫原文。拿不到就整趟不送——狀態物件裡那一份是
+      // filter 與 Purifier 跑過的算繪結果，寫回去是永久的。
+      final repo = _RecordingSaveRepo();
+      MoodleRepository.instance = repo;
+      FilePickService.instance = _FakePickService([makeFile('new.pdf')]);
+      await pump(tester, submittable(), statusWithUnresolvableImage());
+
+      await tapAndFlush(tester, addFilesButton());
+      // 擋的不是按鈕：那一趟重試就好，鈕停用了就沒有第二次機會。
+      expect(enabled(tester, saveButton(R.current.assignSaveDraft)), isTrue);
+
+      await tester.tap(saveButton(R.current.assignSaveDraft));
+      await tester.pumpAndSettle();
+
+      expect(repo.saved, isNull);
+      expect(ui.toasts, contains(R.current.assignOnlineTextRawFailed));
+    });
+
+    testWidgets('儲存被硬擋下來時就不准再說「原樣送回、檔案照樣可以增減」', (tester) async {
+      // 動作列說 Moodle 會擋下整次儲存，卡片同時說檔案照樣可以增減——
+      // 兩句話不可能同時是真的。
+      final a = submittable()
+        ..configs = [
+          MoodleAssignConfig(
+              plugin: 'file',
+              subtype: 'assignsubmission',
+              name: 'enabled',
+              value: '1'),
+          MoodleAssignConfig(
+              plugin: 'onlinetext',
+              subtype: 'assignsubmission',
+              name: 'enabled',
+              value: '1'),
+          MoodleAssignConfig(
+              plugin: 'onlinetext',
+              subtype: 'assignsubmission',
+              name: 'wordlimitenabled',
+              value: '1'),
+          MoodleAssignConfig(
+              plugin: 'onlinetext',
+              subtype: 'assignsubmission',
+              name: 'wordlimit',
+              value: '1'),
+        ];
+      await pump(tester, a,
+          inlineStatus(text: '<p>one two three <img src="/x.png"></p>'));
+
+      expect(
+          find.text(R.current.assignWordCountExceededReadOnly), findsOneWidget);
+      expect(find.text(R.current.assignOnlineTextPreserved), findsNothing);
+      expect(find.text(R.current.assignOnlineTextKeepAsIs), findsNothing);
+      // 純文字框改不動這一段還是事實，只是不再附贈那句承諾。
+      expect(find.text(R.current.assignOnlineTextReadOnly), findsOneWidget);
     });
   });
 
@@ -849,7 +982,36 @@ void main() {
 }
 
 /// 「開始作答」永遠回同一個結果，不碰網路。
-class _StubStartRepository extends MoodleRepository {
+/// 這一頁 initState 就會去問一次線上文字的原文。測試裡一律接住那一趟，
+/// 否則它會真的打網路；預設回 null＝那一趟失敗，走「還原絕對網址」的退路。
+class _NoNetworkRepo extends MoodleRepository {
+  AssignOnlineTextEdit? editText;
+
+  @override
+  Future<AssignOnlineTextEdit?> fetchOnlineTextForEdit({
+    required MoodleAssignment assignment,
+  }) async =>
+      editText;
+}
+
+/// 記下 `save_submission` 到底有沒有被送出去。
+class _RecordingSaveRepo extends _NoNetworkRepo {
+  AssignSubmissionDraft? saved;
+
+  @override
+  Future<Result<MoodleAssignSubmitResult>> saveAssignSubmission({
+    required MoodleAssignment assignment,
+    required MoodleAssignSubmissionStatus status,
+    required AssignSubmissionDraft draft,
+    void Function(AssignTransferProgress progress)? onProgress,
+    CancelToken? cancelToken,
+  }) async {
+    saved = draft;
+    return Ok(MoodleAssignSubmitResult(status: status, submitted: false));
+  }
+}
+
+class _StubStartRepository extends _NoNetworkRepo {
   _StubStartRepository(this.attempt);
 
   final MoodleAssignStartAttempt attempt;
@@ -875,7 +1037,7 @@ class _ThrowingPickService implements FilePickService {
 }
 
 /// 一直不完成的寫入：測進行中的畫面。
-class _PendingRepo extends MoodleRepository {
+class _PendingRepo extends _NoNetworkRepo {
   final completer = Completer<Result<MoodleAssignSubmitResult>>();
   void Function(AssignTransferProgress progress)? onProgress;
   CancelToken? cancelToken;

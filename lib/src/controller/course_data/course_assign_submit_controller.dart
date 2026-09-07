@@ -44,6 +44,10 @@ class CourseAssignSubmitController {
   MoodleAssignSubmissionStatus get currentStatus => refreshed.value ?? status;
 
   late final List<MoodleAssignFile> _serverFiles;
+
+  /// **算繪過的**那一份線上文字：[status] 是 `moodlewssettingfilter=true`
+  /// 抓回來的。只拿來當輸入框的初值與 [textChanged] 的基準，
+  /// **永遠不可以送回伺服器**，見 [onlineTextNeedsRaw]。
   late final String _serverOnlineText;
   late final List<OnlineDraftFile> _serverDrafts;
 
@@ -122,19 +126,76 @@ class CourseAssignSubmitController {
   bool get onlineTextEnabled => MoodleAssignSubmitUtils.pluginEnabled(
       assignment, MoodleAssignSubmitUtils.pluginOnlineText);
 
-  /// 現有的線上文字含有圖片或排版時不給在 App 內編輯，覆蓋會弄壞內嵌檔案。
-  bool get onlineTextEditable => onlineTextEnabled && !onlineTextIsRich;
-
-  /// 這份作業開了線上文字，而現有內容不是純文字。
-  ///
-  /// 這時候**整頁都不能存**，不是只有文字框不給編：`assign_submission_onlinetext`
-  /// 的 `save()` 沒有 isset 把關，只送 `files_filemanager` 不會保留現有文字，
-  /// 反而會被空值覆蓋；而現有內容含內嵌檔案時也不能原封送回去
-  /// （`getSubmissionStatus` 帶了 `moodlewssettingfileurl`，`@@PLUGINFILE@@`
-  /// 已經被換成絕對網址）。所以只剩導網頁一條路。
-  bool get onlineTextIsRich =>
+  /// 現有的線上文字適不適合用純文字框編輯。**這只決定開不開輸入框**，
+  /// 跟能不能儲存無關：含圖片的文字照樣存得回去，見 [outgoingOnlineText]。
+  /// 也跟要不要去問原文無關，見 [onlineTextNeedsRaw]。
+  bool get onlineTextEditable =>
       onlineTextEnabled &&
-      !MoodleAssignSubmitUtils.onlineTextIsPlain(_serverOnlineText);
+      MoodleAssignSubmitUtils.onlineTextIsPlain(_serverOnlineText);
+
+  /// raw 那一趟拿回來的原文；還沒回來或拿不到是 null。
+  /// **只給 [outgoingOnlineText] 讀**，不可以拿去重 seed 輸入框。
+  final Rxn<AssignOnlineTextEdit> editText = Rxn<AssignOnlineTextEdit>();
+
+  /// 這一次要送進 `plugindata[onlinetext_editor][text]` 的字串。
+  ///
+  /// 沒開 onlinetext 外掛時是 null，那時候整個鍵都不送。**外掛開著卻回 null
+  /// 代表這一次不可以送**：資料庫原文還沒到手，見 [onlineTextRawMissing]。
+  /// 伺服器的 `save()` 沒有 isset 把關，缺這個鍵等於用空值覆蓋掉學生的文字，
+  /// 所以 [save] 會整趟擋下來，而不是讓 null 流下去。
+  ///
+  /// 還原 `@@PLUGINFILE@@` 對原文通常是 identity（原文本來就帶佔位字串），
+  /// 留著是為了站台無視 `moodlewssettingfileurl=false` 的那一種。
+  String? get outgoingOnlineText {
+    if (!onlineTextEnabled) return null;
+    if (textChanged) {
+      return MoodleAssignSubmitUtils.plainToHtml(onlineText.value);
+    }
+    final fresh = _freshEditText;
+    if (fresh == null) return _serverOnlineText.isEmpty ? '' : null;
+    return MoodleAssignSubmitUtils.restorePluginfileUrls(
+      fresh.rawText,
+      fresh.inlineFiles,
+    );
+  }
+
+  /// 沒動過的文字要原樣送回去時，送出去的必須是**資料庫原文**，也就是
+  /// [loadEditableText] 那一趟拿回來的那一份。
+  ///
+  /// [_serverOnlineText] 不行：`core\formatting::format_text` 已經對它跑完
+  /// 每一個啟用中的 filter（MathJax 會把整段包進
+  /// `<span class="filter_mathjaxloader_equation">`、活動名稱會被塞進
+  /// `<a class="autolink">`）再過一次 HTML Purifier（不合規的標籤直接消失）。
+  /// 而 `file_postupdate_standard_editor` 的 `empty($editor['itemid'])` 分支是
+  /// `$data->onlinetext = $editor['text']`——送什麼位元組就永久存什麼，於是
+  /// 算繪的痕跡被存成學生的原文，每存一次再包一層，Purifier 丟掉的救不回來。
+  bool get onlineTextNeedsRaw =>
+      onlineTextEnabled && !textChanged && _serverOnlineText.isNotEmpty;
+
+  /// 原文還沒到手（那一趟還在路上，或失敗了）。[save] 會自己再問一次。
+  bool get onlineTextRawMissing => onlineTextNeedsRaw && _freshEditText == null;
+
+  /// 原文那一趟的成果，拿不到就是 null。
+  ///
+  /// 原文是空字串時也當成沒拿到：文字真的是空的時候根本不會走到這裡
+  /// （[onlineTextNeedsRaw] 已經是 false），所以空字串只可能是回應不對，
+  /// 照收就是把學生的文字清掉。
+  AssignOnlineTextEdit? get _freshEditText {
+    final edit = editText.value;
+    return (edit != null && edit.rawText.isNotEmpty) ? edit : null;
+  }
+
+  /// 去問一次資料庫原文。**不可以動 [onlineText] 與 [_serverOnlineText]**：
+  /// 那兩個是輸入框的初值與 [textChanged] 的基準。
+  ///
+  /// 文字框開得起來的那一份也要問：只改檔案、文字一個字都沒動時，送回去的
+  /// 一樣是那份算繪過的，見 [onlineTextNeedsRaw]。失敗就留著 null，[save]
+  /// 會再試一次。
+  Future<void> loadEditableText() async {
+    if (!onlineTextNeedsRaw) return;
+    editText.value = await MoodleRepository.instance
+        .fetchOnlineTextForEdit(assignment: assignment);
+  }
 
   bool get filesChanged =>
       fileSubmissionEnabled &&
@@ -156,9 +217,16 @@ class CourseAssignSubmitController {
   int get wordCount => MoodleAssignSubmitUtils.countWords(onlineText.value);
 
   /// 伺服器的 `check_word_count` 失敗只回一句 `couldnotsavesubmission`，連
-  /// 「是字數超過」都說不出來，而那時候檔案那半可能已經寫進去了。
+  /// 「是字數超過」都說不出來，而那時候檔案那半可能已經寫進去了：
+  /// `save_submission` 是一個迴圈跑完所有外掛的 `save()`，onlinetext 回 false
+  /// 之前，file 外掛那一個可能已經同步過 filemanager 了。
+  ///
+  /// **沒動過的文字也要算**：老師事後調低 `wordlimit` 時，原樣送回去一樣會
+  /// 被擋。[wordCount] 算的是 `htmlToPlain` 的產物，會比伺服器少算
+  /// （不補區塊標籤的空白、只還原六個實體），所以它可能漏擋，但不會擋掉
+  /// 一個本來交得出去的。
   bool get overWordLimit =>
-      onlineTextEditable && wordLimit > 0 && wordCount > wordLimit;
+      onlineTextEnabled && wordLimit > 0 && wordCount > wordLimit;
 
   /// 沒開草稿又要求同意聲明時，伺服器不會擋，只能由 App 自己要求勾選。
   bool get statementRequired =>
@@ -171,7 +239,6 @@ class CourseAssignSubmitController {
   /// 儲存鈕為什麼不能按；null = 可以存。**作答時限到期不在裡面**：伺服器
   /// 照收只標記遲交，本地擋下來就是把寫好的東西鎖死在畫面上。
   AssignSaveBlock? get saveBlock => MoodleAssignSubmitUtils.saveBlockOf(
-        onlineTextIsRich: onlineTextIsRich,
         filesEmptied: filesEmptied,
         overWordLimit: overWordLimit,
         statementOk: _statementOk,
@@ -225,18 +292,21 @@ class CourseAssignSubmitController {
     busy.value = true;
     progress.value = null;
     try {
+      // 原文那一趟是進頁時發的，使用者一秒多之後就按得到儲存，所以它可能還在
+      // 路上；失敗過的那一次也留著 null。這裡再問一次，問不到就整趟都不送。
+      if (onlineTextRawMissing) await loadEditableText();
+      final outgoing = outgoingOnlineText;
+      // 拿不到原文寧可什麼都不做：算繪過的那一份寫回去是永久的，而少存這一次
+      // 只是要使用者再按一次。
+      if (onlineTextEnabled && outgoing == null) {
+        return AssignSaveOutcome(
+            acted: true, error: R.current.assignOnlineTextRawFailed);
+      }
       final result = await MoodleRepository.instance.saveAssignSubmission(
         assignment: assignment,
         status: currentStatus,
         draft: AssignSubmissionDraft(
-          // 線上文字外掛只要開著就一定要送：伺服器端的 save() 沒有 isset
-          // 把關，不送等於用空值覆蓋掉學生現有的文字。沒動過就把伺服器自己
-          // 那一份原樣送回去——重組會弄丟粗體之類的標記。
-          onlineText: onlineTextEnabled
-              ? (textChanged
-                  ? MoodleAssignSubmitUtils.plainToHtml(onlineText.value)
-                  : _serverOnlineText)
-              : null,
+          onlineText: outgoing,
           files: filesChanged ? List<AssignDraftFile>.of(files) : null,
           submitForGrading: submitForGrading,
           acceptStatement: accepted.value,
@@ -280,6 +350,7 @@ class CourseAssignSubmitController {
     cancel();
     files.close();
     onlineText.close();
+    editText.close();
     transferFile.close();
     transferPhase.close();
     accepted.close();

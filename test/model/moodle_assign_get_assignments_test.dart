@@ -177,10 +177,12 @@ void main() {
       expect(keys, isNot(contains('grade')));
     });
 
-    test('附件只留 filename / fileurl / mimetype / filesize', () {
-      // filesize 有落地是因為重傳舊繳交檔案時要拿它驗下載回來的那一份。
+    test('附件只留 filename / fileurl / filepath / mimetype / filesize', () {
+      // filesize 有落地是因為重傳舊繳交檔案時要拿它驗下載回來的那一份；
+      // filepath 是因為它與 fileurl 合起來才推得出 @@PLUGINFILE@@ 的前綴。
       final f = parsed.courses.single.assignments[0].introattachments.single;
-      expect(f.toJson().keys, {'filename', 'fileurl', 'mimetype', 'filesize'});
+      expect(f.toJson().keys,
+          {'filename', 'fileurl', 'filepath', 'mimetype', 'filesize'});
     });
 
     test('toJson → jsonEncode → jsonDecode → fromJson 保留畫面要用的欄位', () {

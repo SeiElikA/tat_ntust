@@ -39,6 +39,7 @@ import 'package:flutter_app/src/model/moodle_webapi/moodle_user_picture.dart';
 import 'package:flutter_app/src/store/model.dart';
 import 'package:flutter_app/src/util/html_utils.dart';
 import 'package:flutter_app/src/util/moodle_course_name_utils.dart';
+import 'package:flutter_app/src/util/moodle_assign_submit_utils.dart';
 import 'package:flutter_app/src/util/moodle_forum_edit_utils.dart';
 import 'package:flutter_app/src/util/moodle_forum_utils.dart';
 
@@ -2096,6 +2097,53 @@ class MoodleWebApiConnector {
       _reportFailure(submissionStatusFunction, e, stack);
       return null;
     }
+  }
+
+  /// 要把現有線上文字原樣送回去之前打的那一趟：拿**資料庫原文**與內嵌檔案。
+  ///
+  /// **這一份回應不可以包成 [MoodleAssignSubmissionStatus]、也不可以進快取。**
+  /// 三個設定缺一不可，而且 `fileurl` 要單獨看：`core_external\util::format_text`
+  /// 先做 `file_rewrite_pluginfile_urls` 才檢查 `raw`，只送 raw 的話
+  /// `@@PLUGINFILE@@` 照樣會被換成絕對網址。
+  static Future<AssignOnlineTextEdit?> getOnlineTextForEdit(
+    int assignId, {
+    required bool teamSubmission,
+  }) async {
+    try {
+      final uid = await _ensureUserId();
+      if (uid == null) return null;
+
+      final result = await _callWs(submissionStatusFunction, {
+        "moodlewssettingraw": "true",
+        "moodlewssettingfilter": "false",
+        "moodlewssettingfileurl": "false",
+        "assignid": assignId.toString(),
+        "userid": uid,
+      });
+      return onlineTextForEditOf(result, teamSubmission: teamSubmission);
+    } catch (e, stack) {
+      _reportFailure(submissionStatusFunction, e, stack);
+      return null;
+    }
+  }
+
+  /// 形狀不對、或這份作業還沒有繳交紀錄時回 null。[teamSubmission] 決定要讀
+  /// `teamsubmission` 還是 `submission`——順序不能用 null 合併，見
+  /// `MoodleAssignSubmissionStatus.submissionFor`。
+  @visibleForTesting
+  static AssignOnlineTextEdit? onlineTextForEditOf(
+    dynamic result, {
+    required bool teamSubmission,
+  }) {
+    if (result is! Map) return null;
+    final status = MoodleAssignSubmissionStatus.fromJson(
+        Map<String, dynamic>.from(result));
+    final last = status.lastattempt;
+    final sub = teamSubmission
+        ? (last?.teamsubmission ?? last?.submission)
+        : last?.submission;
+    if (sub == null) return null;
+    return (rawText: sub.onlineText, inlineFiles: sub.onlineTextFiles);
   }
 
   /// 形狀不對回 null。`gradefordisplay` 是 HTML 片段（如 `85.00&nbsp;/&nbsp;100.00`），

@@ -31,7 +31,7 @@ TAT 把學校的單一登入、課程查詢、成績系統與 Moodle 包成一�
 | 2.5 | repository | `lib/src/repository/` | 7 | 取資料的唯一入口，對外只回 `Result<T>` |
 | 3.5 | auth | `lib/src/auth/` | 3 | 登入狀態的唯一所有者 |
 | 4 | connector | `lib/src/connector/` | 10 | 唯一的 HTTP 出口：單一 Dio 加持久化 cookie jar。唯一不是 form-urlencoded 的出口是 `DioConnector.postMultipart`（換頭貼的上傳） |
-| 5 | util | `lib/src/util/`、`service/`、`file/`、`version/` | 43 | 靜態工具、GetxService、平台服務、下載、版本遷移與商店更新 |
+| 5 | util | `lib/src/util/`、`service/`、`file/`、`version/` | 44 | 靜態工具、GetxService、平台服務、下載、版本遷移與商店更新 |
 | 6 | store | `lib/src/store/` | 9 | 本機持久化，不碰網路 |
 | 7 | config | `lib/src/config/`、`R.dart`、`firebase_options.dart` | 9 | 純常數與多語系門面 |
 | 8 | model | `lib/src/model/`、`lib/src/enum/` | 65 | json_serializable 模型 |

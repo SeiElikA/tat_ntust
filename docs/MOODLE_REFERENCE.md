@@ -36,6 +36,7 @@
 | `core_calendar_get_action_events_by_timesort` | 行事曆頁的待辦：所有課程的截止事項（只回 action event；`timesortfrom` 往前 14 天，`limitnum` 上限 50，不送 `timesortto`；回滿一頁就帶 `aftereventid`＝上一頁的 `lastid` 翻頁，最多 4 頁，與官方 App 同一套判斷；`name` / `activityname` / `course.fullname` / `course.shortname` 都是 format_string 過的，App 還原實體） | `getActionEvents` |
 | `mod_assign_get_assignments` | 課程頁「作業」分頁的作業清單（只送 `courseids[0]`；duedate 等已含使用者與群組的 override；`name` 是 format_string 過的——`&` 會是 `&amp;`——App 在 `assignmentsOf` 還原；模型只宣告畫面在讀的欄位，`gradingduedate`、`introfiles` 等不落地；`submissiondrafts`、`requiresubmissionstatement`、`submissionstatement`、`timelimit`、`blindmarking` 與 `configs` 是繳交入口的判準所以有落地——`configs[]` **只收錄 enabled 且 visible 的外掛**，「有沒有 `subtype == assignsubmission` 且 `plugin == file` 的任何一列」就是「檔案繳交有沒有開」；`submissionstatement` 只有 `requiresubmissionstatement` 為真時才在，而且是**站台層級**的 admin 設定，可能是空字串） | `getAssignments` |
 | `mod_assign_get_submission_status` | 單一作業對自己的繳交狀態、成績與回饋（帶 `userid`；`lastattempt.submission` 缺席 = 還沒繳交；團隊作業**兩筆都回**，學生頁看的是 `teamsubmission`，非團隊作業才看 `submission`，見 `submissionFor`；`feedback` 缺席 = 學生看不到任何成績或回饋；`feedback.gradefordisplay` 是 PARAM_RAW 的 HTML 片段，數值成績在預設 Real 顯示型態下是 `85.00&nbsp;/&nbsp;100.00`，App 在 `submissionStatusOf` 還原；`feedback.grade` 在只有評語時也在，分數是 `-1.00000`；外掛以 `type` 分辨，不看本地化的 `name`；`lastattempt.canedit` / `cansubmit` 是「能不能交」的唯一依據——`submissions_open()` 已經把 cutoffdate、allowsubmissionsfromdate、延長期限、鎖定與是否選課全部算完，App 不可以自己再用日期推一次，而且 `cansubmit` 在沒開草稿的作業上**永遠是 false**） | `getSubmissionStatus` |
+| `mod_assign_get_submission_status`（第二種叫法） | 要把現有線上文字原樣送回去之前的那一趟：`moodlewssettingraw=true` + `moodlewssettingfilter=false` + `moodlewssettingfileurl=false`，拿的是**資料庫原文**（含 `@@PLUGINFILE@@`）。**不可以包成狀態物件、不可以進快取**，理由同 `mod_forum_get_discussion_post` | `getOnlineTextForEdit` |
 | `mod_assign_save_submission` | 存一次繳交（type=write；`plugindata` 是扁平鍵 `plugindata[onlinetext_editor][text]` / `[format]` / `[itemid]` 與 `plugindata[files_filemanager]`，同 `toggleSetting` 的 `preferences[0][type]`；**回的是裸的 warnings 陣列不是物件**，見下方〈交作業那條路〉；`submissiondrafts == 0` 時這一支就是繳交，沒有第二步） | `saveSubmission` |
 | `mod_assign_submit_for_grading` | 把已存好的草稿送出評分（type=write；`acceptsubmissionstatement` 只在使用者真的勾了才送 1——那會在伺服器留下 `statement_accepted` 稽核事件；回傳形狀同上，唯一的 warningcode 是 `couldnotsubmitforgrading`，**不會說原因**） | `submitForGrading` |
 | `mod_quiz_get_quizzes_by_courses` | 課程頁測驗詳情的測驗本體（只送 `courseids[0]`；`timeopen` / `timeclose` / `timelimit` / `attempts` 已含使用者與群組的 override（`quiz_update_effective_access`），App 不再算；**測驗是最上層的平坦陣列，沒有 `courses[]` 那一層**——所以「空清單」的判讀改看 warnings，見下方「會咬人的地方」；`name` 是 format_string 過的，App 在 `quizzesOf` 還原；模型只宣告畫面在讀的欄位） | `getQuizzes` |
@@ -280,6 +281,14 @@ POST 欄位。TAT 用 `parameter.data` 加 `getJsonByPost`，行為相同，
     檔案時，只送 `files_filemanager` 會把現有的線上文字寫成 null。**外掛開著就
     一定要送這個鍵**，沒動過也要把伺服器原本那一份原樣送回去（不能用
     `htmlToPlain` → `plainToHtml` 重組，那會弄丟粗體之類的標記）。
+  - **「原樣送回」送的必須是 `getOnlineTextForEdit` 拿回來的資料庫原文，不是
+    狀態那一包裡的線上文字。** 狀態是 `moodlewssettingfilter=true` 抓的，
+    `core\formatting::format_text` 已經對它跑完每一個 `TEXTFILTER_ON` 的 filter
+    再過一次 HTML Purifier：`filter_mathjaxloader` 會把整段包進
+    `<span class="filter_mathjaxloader_equation">`、`filter_activitynames` 會塞
+    進 `<a class="autolink">`、Purifier 會把它不認的東西直接刪掉。把那一串寫回
+    去（下一條：送什麼位元組就存什麼）就是拿算繪結果覆蓋掉學生的原文，而且每
+    存一次再包一層。所以原文那一趟拿不到時**寧可整趟不送**，讓使用者再按一次。
   - **`check_word_count` 是唯一會擋下整趟 `save_submission` 的內容限制，而它不
     說自己是誰。** `assign_submission_onlinetext::save()` 超過 `wordlimit` 就
     `return false`，externallib 把它變成同一句 `couldnotsavesubmission`——使用者
@@ -291,13 +300,37 @@ POST 欄位。TAT 用 `parameter.data` 加 `getJsonByPost`，行為相同，
     不能走 `Failed`（它帶不了資料），要回帶著 `error` 的 `Ok` 加上重抓回來的
     狀態；重抓不到就把 `cache_moodle_assign_status/<id>` **刪掉**，留著的是寫入
     前的快照，離線再開會理直氣壯地畫成「未繳交」。
-  - 附帶：`onlinetext_editor.itemid` 送 0 是安全的（`file_postupdate_standard_editor`
-    的 `empty($editor['itemid'])` 分支會整段跳過 draft 同步），代價是原本內文若有
-    內嵌圖片，用純文字覆蓋會留下孤兒檔案且圖片連結失效——所以現有的 onlinetext
-    一旦含 `<img>` / `@@PLUGINFILE@@`，**整份作業都不給在 App 內存**（不是只有
-    文字框不給編：只送檔案那半會踩到上面那一條），導網頁。而且
-    `getSubmissionStatus` 帶了 `moodlewssettingfileurl`，拿到的 HTML 裡
-    `@@PLUGINFILE@@` 已經被換成絕對網址，也不能原樣送回去。
+  - **`onlinetext_editor.itemid` 送 0 有兩個後果，第二個才是會咬人的那一個。**
+    `file_postupdate_standard_editor` 的判斷是
+    `if ($options['maxfiles'] == 0 or is_null($filearea) or is_null($itemid) or empty($editor['itemid']))`，
+    onlinetext 外掛的 `get_edit_options()` 給的是 `EDITOR_UNLIMITED_FILES` 加上
+    真的 filearea 與 itemid，所以**只有 `empty($editor['itemid'])` 會成立**。
+    走那一支的效果是：(1) `file_save_draft_area_files` 整段不跑，
+    `submissions_onlinetext` 這個 filearea 不會被同步，既有的內嵌圖片因此活著
+    ——真正會殺檔案的是送一個非 0、內容不完整的 draft itemid；(2) 它做的是
+    `$data->{$field} = $editor['text'];`，**送什麼位元組就永久存什麼**，沒有任何
+    正規化，也不會把絕對網址反解回 `@@PLUGINFILE@@`。所以現有文字要原樣送回去
+    之前，一定要自己先把網址還原成 `@@PLUGINFILE@@`
+    （`MoodleAssignSubmitUtils.restorePluginfileUrls`，對原文通常是 identity，
+    守的是站台無視 `moodlewssettingfileurl=false` 的那一種）——存錯一次就是永久的：
+    之後不論用什麼設定重抓，拿到的都是那個網址，而 `webservice/pluginfile.php`
+    要憑證，連瀏覽器看那份繳交都會壞掉。
+  - **`moodlewssettingraw=true` 單獨送沒有用，一定要配 `moodlewssettingfileurl=false`。**
+    `core_external\util::format_text` 的順序是
+    `if ($component && $filearea && $settings->get_fileurl()) { $text = file_rewrite_pluginfile_urls(...); }`
+    **在** `if (!$settings->get_raw()) { $text = format_text(...); }` **之前**，所以
+    `raw` 只擋得掉 filter 與 HTMLPurifier 那一段，擋不掉網址改寫。三個設定
+    （`raw=true`、`filter=false`、`fileurl=false`）要一起送，拿回來的才是資料庫
+    原文——這一趟是 `getOnlineTextForEdit`，**不可以進 `cache_moodle_assign_status`**，
+    否則詳情頁會把 `@@PLUGINFILE@@` 當網址畫成破圖，而且是從快取來的。
+  - 還原前綴的推法：`external_util::get_area_files` 的 `fileurl` 是
+    `moodle_url::make_webservice_pluginfile_url(...)`，而
+    `set_slashargument` 對路徑逐段做 PHP `rawurlencode`，所以
+    `fileurl == 前綴 + rawurlencode(filepath + filename)`；切掉那一截就是
+    `file_rewrite_pluginfile_urls` 用的 `$baseurl`。`rawurlencode` 比 Dart 的
+    `Uri.encodeComponent` 多轉 `!*'()`（見下方討論區那條的同一則），兩種寫法
+    都要試，否則 `Lecture (1).png` 對不上。兩邊的改寫都只是前綴的
+    `str_replace`，檔名那一截從頭到尾不變。
 - **通知相關的三支不能送 `useridto: 0`。**
   `message_popup_get_unread_popup_notification_count`、
   `core_message_get_unread_notification_count` 與

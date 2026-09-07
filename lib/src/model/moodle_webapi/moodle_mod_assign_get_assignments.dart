@@ -236,6 +236,11 @@ class MoodleAssignFile {
   @JsonKey(name: 'fileurl', defaultValue: "")
   String fileurl;
 
+  /// 檔案在 filearea 裡的資料夾，形如 `/` 或 `/sub/`。`external_files` 一定
+  /// 會送；缺席退回 `/` 才拼得出 `fileurl` 的結尾，見 `MoodlePluginFileUtils`。
+  @JsonKey(name: 'filepath', defaultValue: "/")
+  String filepath;
+
   @JsonKey(name: 'mimetype', defaultValue: "")
   String mimetype;
 
@@ -247,6 +252,7 @@ class MoodleAssignFile {
   MoodleAssignFile({
     this.filename = "",
     this.fileurl = "",
+    this.filepath = "/",
     this.mimetype = "",
     this.filesize = 0,
   });

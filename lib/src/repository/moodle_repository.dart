@@ -225,6 +225,20 @@ class MoodleRepository {
         decode: decodeCachedSubmissionStatus,
       );
 
+  /// 要把現有線上文字原樣送回去之前的那一趟：拿**資料庫原文**與內嵌檔案。
+  ///
+  /// 不走 `run()`：它不是要顯示的資料，而是儲存前的一份輸入，而且**不可以
+  /// 進快取**——[submissionStatusKey] 那包裡的線上文字是算繪過的 HTML，換成
+  /// 帶 `@@PLUGINFILE@@` 的原文，詳情頁每次進來都會畫出一堆破圖。
+  /// 失敗回 null，呼叫端退回「還原絕對網址」那條路，不是擋著不給存。
+  Future<AssignOnlineTextEdit?> fetchOnlineTextForEdit({
+    required MoodleAssignment assignment,
+  }) =>
+      MoodleWebApiConnector.getOnlineTextForEdit(
+        assignment.id,
+        teamSubmission: assignment.isTeamSubmission,
+      );
+
   /// 繳交狀態、成績與回饋。[assignId] 已是 Moodle 內部 id，不走 [_withCourse]。
   /// [background]：清單上 N 份並行抓時不彈框、不開登入頁；詳情頁傳 false。
   Future<Result<MoodleAssignSubmissionStatus>> getSubmissionStatus(
