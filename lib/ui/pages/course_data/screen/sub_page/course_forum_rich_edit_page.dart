@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_app/src/R.dart';
@@ -103,6 +104,9 @@ class _CourseForumRichEditPageState extends State<CourseForumRichEditPage> {
 
   static const int _subjectCounterFrom = 200;
 
+  /// 附件再多也不可以把編輯面壓到這個高度以下。
+  static const double _editorMinHeight = 220;
+
   bool get _busy => _sending || _uploading;
 
   bool get _showSubject => widget.isTopicPost;
@@ -139,6 +143,9 @@ class _CourseForumRichEditPageState extends State<CourseForumRichEditPage> {
 
   @override
   Widget build(BuildContext context) {
+    // 鍵盤高度只有 Scaffold 外面讀得到：`resizeToAvoidBottomInset` 為真時
+    // body 那一層的 viewInsets 已經被扣成 0 了。
+    final compact = MediaQuery.viewInsetsOf(context).bottom > 0;
     return PopScope(
       // 送出中一律擋住：那一則已經在路上了。
       canPop: !_hasDraft && !_busy,
@@ -159,7 +166,7 @@ class _CourseForumRichEditPageState extends State<CourseForumRichEditPage> {
           children: [
             _statusSlot(),
             Expanded(
-              child: AbsorbPointer(absorbing: _busy, child: _body()),
+              child: AbsorbPointer(absorbing: _busy, child: _body(compact)),
             ),
           ],
         ),
@@ -184,7 +191,7 @@ class _CourseForumRichEditPageState extends State<CourseForumRichEditPage> {
     );
   }
 
-  Widget _body() {
+  Widget _body(bool compact) {
     if (_failed) {
       return InlineErrorView(
         message: R.current.forumEditorLoadFailed,
@@ -196,41 +203,41 @@ class _CourseForumRichEditPageState extends State<CourseForumRichEditPage> {
       );
     }
     final text = Theme.of(context).textTheme;
-    final scheme = Theme.of(context).colorScheme;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              if (_showSubject) ...[
-                SectionCard([_subjectField(text)]),
-                const SizedBox(height: 8),
-              ],
-              MoodleRichEditorToolbar(
-                active: _active,
-                sourceMode: _sourceMode,
-                enabled: _ready && !_busy,
-                onCommand: _editor.exec,
-                onToggleSource: _toggleSource,
-              ),
-              const SizedBox(height: 6),
-              // 說一句實話，不要讓人去找一顆不存在的插入圖片鈕。
-              Text(R.current.forumEditorImagesKept,
-                  style:
-                      text.bodySmall?.copyWith(color: scheme.onSurfaceVariant)),
+    return Padding(
+      padding: const EdgeInsets.all(12),
+      child: LayoutBuilder(builder: (context, box) {
+        // 附件永遠不可以把編輯面擠成一條縫：先把 _editorMinHeight 留給編輯器，
+        // 剩下的才輪到附件。打字時（鍵盤升起）附件只留「附件 2/3」那一列。
+        final cap = compact
+            ? double.infinity
+            : math.max(
+                56.0,
+                math.min(
+                    box.maxHeight * 0.34, box.maxHeight - _editorMinHeight));
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (_showSubject) ...[
+              SectionCard([_subjectField(text, compact)]),
+              const SizedBox(height: 8),
             ],
-          ),
-        ),
-        Expanded(child: _editorSlot()),
-        if (_total > 0) _attachments(),
-      ],
+            MoodleRichEditorToolbar(
+              active: _active,
+              sourceMode: _sourceMode,
+              enabled: _ready && !_busy,
+              onCommand: _editor.exec,
+              onToggleSource: _toggleSource,
+            ),
+            const SizedBox(height: 8),
+            Expanded(child: _editorSlot()),
+            if (_total > 0) _attachments(compact, cap),
+          ],
+        );
+      }),
     );
   }
 
-  Widget _subjectField(TextTheme text) => TextField(
+  Widget _subjectField(TextTheme text, bool compact) => TextField(
         controller: _subjectController,
         enabled: !_busy,
         // 伺服器的 subject 是 varchar(255)，超過是 dmlwriteexception，
@@ -242,16 +249,29 @@ class _CourseForumRichEditPageState extends State<CourseForumRichEditPage> {
         decoration: InputDecoration(
           border: InputBorder.none,
           isDense: true,
-          labelText: R.current.forumSubject,
+          // 鍵盤升起＝正在寫內文，浮動標籤那一行的高度讓給編輯面；欄位是空的
+          // 時候 hintText 照樣說得清楚。
+          labelText: compact ? null : R.current.forumSubject,
           hintText: R.current.forumSubjectHint,
         ),
       );
 
-  Widget _editorSlot() => Stack(
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
-            child: MoodleRichEditor(
+  /// 編輯面就是第三張卡：同樣的圓角、同樣的底色，內容捲到頂端時被圓角切掉，
+  /// 而不是滑到工具列後面去。
+  Widget _editorSlot() {
+    final fill = SectionCard.fill(context);
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: fill,
+        borderRadius: BorderRadius.circular(SectionCard.radius),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(SectionCard.radius),
+        clipBehavior: Clip.antiAlias,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            MoodleRichEditor(
               key: ValueKey('rich-editor-${widget.postId}-$_editorGeneration'),
               controller: _editor,
               initialHtml: widget.initialHtml,
@@ -268,11 +288,9 @@ class _CourseForumRichEditPageState extends State<CourseForumRichEditPage> {
                 if (mounted) setState(() => _failed = true);
               },
             ),
-          ),
-          if (!_ready)
-            Positioned.fill(
-              child: ColoredBox(
-                color: Theme.of(context).colorScheme.surface,
+            if (!_ready)
+              ColoredBox(
+                color: fill,
                 child: Center(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
@@ -284,37 +302,57 @@ class _CourseForumRichEditPageState extends State<CourseForumRichEditPage> {
                   ),
                 ),
               ),
-            ),
-        ],
-      );
+          ],
+        ),
+      ),
+    );
+  }
 
-  Widget _attachments() => Padding(
-        padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
-        child: SectionCard([
-          SectionSubLabel('${R.current.forumAttachments} $_total/'
-              '${widget.attachPolicy.maxFiles}'),
-          for (final f in _kept)
-            MoodleFileTile(
-              filename: f.filename,
-              onTap: () => unawaited(widget.onOpenAttachment(f)),
-              trailing: IconButton(
-                icon: const Icon(LucideIcons.x, size: 18),
-                tooltip: R.current.forumRemoveAttachment,
-                onPressed: _busy ? null : () => setState(() => _kept.remove(f)),
+  /// 附件多的時候自己捲，不再把編輯面往上擠（九個附件在 402×874 上原本會
+  /// 直接讓外層的 Column overflow）。
+  Widget _attachments(bool compact, double cap) => Padding(
+        padding: const EdgeInsets.only(top: 8),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxHeight: cap),
+          child: SectionCard([
+            SectionSubLabel('${R.current.forumAttachments} $_total/'
+                '${widget.attachPolicy.maxFiles}'),
+            if (!compact)
+              Flexible(
+                child: ListView(
+                  shrinkWrap: true,
+                  primary: false,
+                  padding: EdgeInsets.zero,
+                  children: [
+                    for (final f in _kept)
+                      MoodleFileTile(
+                        filename: f.filename,
+                        onTap: () => unawaited(widget.onOpenAttachment(f)),
+                        trailing: IconButton(
+                          icon: const Icon(LucideIcons.x, size: 18),
+                          tooltip: R.current.forumRemoveAttachment,
+                          onPressed: _busy
+                              ? null
+                              : () => setState(() => _kept.remove(f)),
+                        ),
+                      ),
+                    for (final f in _files)
+                      MoodleFileTile(
+                        filename: MoodleForumEditUtils.basename(f.path),
+                        onTap: null,
+                        trailing: IconButton(
+                          icon: const Icon(LucideIcons.x, size: 18),
+                          tooltip: R.current.forumRemoveAttachment,
+                          onPressed: _busy
+                              ? null
+                              : () => setState(() => _files.remove(f)),
+                        ),
+                      ),
+                  ],
+                ),
               ),
-            ),
-          for (final f in _files)
-            MoodleFileTile(
-              filename: MoodleForumEditUtils.basename(f.path),
-              onTap: null,
-              trailing: IconButton(
-                icon: const Icon(LucideIcons.x, size: 18),
-                tooltip: R.current.forumRemoveAttachment,
-                onPressed:
-                    _busy ? null : () => setState(() => _files.remove(f)),
-              ),
-            ),
-        ]),
+          ]),
+        ),
       );
 
   /// 只有快撞到上限時才出現。

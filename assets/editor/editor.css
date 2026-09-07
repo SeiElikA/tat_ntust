@@ -1,25 +1,27 @@
 /* 沒有 @import、沒有指向遠端的 url()：font-src 是 'none'，載不到也不該載。
    深色由宿主用 evaluateJavascript 設 data-theme，跟著 Theme.brightness 走。 */
 :root {
-  --bg: #ffffff;
   --fg: #1b1b1f;
   --muted: #45464f;
   --rule: #c5c6d0;
-  --code-bg: #f1f1f6;
+  /* 底色現在是宿主的卡片色（動態取色下算出來的），寫死的灰在它上面會看不見，
+     所以程式碼區塊改用疊在底色上的透明黑／白。 */
+  --code-bg: rgba(0, 0, 0, 0.06);
 }
 
 :root[data-theme="dark"] {
-  --bg: #131316;
   --fg: #e4e2e6;
   --muted: #c6c6d0;
   --rule: #46464f;
-  --code-bg: #1f1f24;
+  --code-bg: rgba(255, 255, 255, 0.09);
 }
 
 html, body {
   margin: 0;
   padding: 0;
-  background: var(--bg);
+  /* 底色由 Flutter 的卡片畫在後面（transparentBackground 已經開著）。
+     這裡自己畫一層的話，動態取色與深色永遠會差一階。 */
+  background: transparent;
   color: var(--fg);
 }
 
@@ -34,7 +36,7 @@ body {
 #ed {
   box-sizing: border-box;
   min-height: 100vh;
-  padding: 14px 16px 96px;
+  padding: 12px 14px 96px;   /* 對齊 SectionCard 的 14/12；96 是游標避開鍵盤的餘裕 */
   outline: none;
   /* 長網址與程式碼不可以把整頁撐寬：橫向捲動會讓工具列對不到內容。 */
   overflow-wrap: anywhere;
@@ -89,15 +91,18 @@ body {
 
 #ed table {
   border-collapse: collapse;
-  /* 表格是「原樣保留」的主要目標之一，寧可讓它自己捲也不要壓扁欄位。 */
-  display: block;
-  overflow-x: auto;
-  max-width: 100%;
+  /* 表格是「原樣保留」的主要目標之一。原本的 display:block 讓它變成會縮的
+     區塊盒，欄位一路壓到一個字寬也永遠塞得進去，overflow-x 因此從來沒有作用；
+     改成 min-width 把欄寬釘回內容本來的寬度，撐出去的部分由頁面橫捲。
+     不能用 width：那會蓋掉貼文自己寫的 width="700"。 */
+  min-width: max-content;
 }
 
 #ed th, #ed td {
   border: 1px solid var(--rule);
   padding: 6px 8px;
+  /* 一格塞進一整段話時，max-content 會把表格撐到螢幕的三四倍寬。 */
+  max-width: 20em;
 }
 
 #ed hr {

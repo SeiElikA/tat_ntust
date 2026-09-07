@@ -4374,16 +4374,6 @@ class S {
     );
   }
 
-  /// `Images already in this post are kept as they are; the app cannot add new ones yet`
-  String get forumEditorImagesKept {
-    return Intl.message(
-      'Images already in this post are kept as they are; the app cannot add new ones yet',
-      name: 'forumEditorImagesKept',
-      desc: '',
-      args: [],
-    );
-  }
-
   /// `A safety check on the content failed, so the save was stopped to avoid damaging the post`
   String get forumEditorUnsafeContent {
     return Intl.message(

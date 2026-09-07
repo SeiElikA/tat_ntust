@@ -485,7 +485,6 @@
   "forumEditorSource": "HTML source",
   "forumEditorLoading": "Loading the editor…",
   "forumEditorLoadFailed": "The editor could not load, so this post cannot be edited right now",
-  "forumEditorImagesKept": "Images already in this post are kept as they are; the app cannot add new ones yet",
   "forumEditorUnsafeContent": "A safety check on the content failed, so the save was stopped to avoid damaging the post",
   "forumEditAttachmentsWebOnly": "This post has attachments and the school's Moodle does not let the app edit it without breaking the attachment marker. Edit it on the website.",
   "forumPostActions": "This post",

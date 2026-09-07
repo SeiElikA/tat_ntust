@@ -12,7 +12,11 @@ import 'package:sprintf/sprintf.dart';
 /// 刪除線 / 內文 / h3 / h4 / h5 / 項目符號 / 編號 / 清除格式，再加一顆原始碼
 /// 切換。**沒有插入圖片**——官方 App 也沒有，`mod_forum` 那條路只能保留貼文
 /// 原有的圖片，加不了新的。
-class MoodleRichEditorToolbar extends StatelessWidget {
+///
+/// 原始碼那一顆釘在右牆邊不跟著捲：它是模式切換不是第十二個格式鈕，而在
+/// 402pt 的手機上它正好是會被捲出畫面的那一顆。兩側的漸層加箭頭則是唯一
+/// 的線索——沒有它，第一次用的人不會知道後面還有東西。
+class MoodleRichEditorToolbar extends StatefulWidget {
   const MoodleRichEditorToolbar({
     super.key,
     required this.active,
@@ -63,37 +67,132 @@ class MoodleRichEditorToolbar extends StatelessWidget {
       };
 
   @override
+  State<MoodleRichEditorToolbar> createState() =>
+      _MoodleRichEditorToolbarState();
+}
+
+class _MoodleRichEditorToolbarState extends State<MoodleRichEditorToolbar> {
+  final _scroll = ScrollController();
+  bool _atStart = true;
+  bool _atEnd = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // ScrollMetricsNotification 在某些情況下不會為第一次 layout 送出來，
+    // 補一發才不會在寬螢幕上留著一個永遠不會消失的箭頭。
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && _scroll.hasClients) _sync(_scroll.position);
+    });
+  }
+
+  @override
+  void dispose() {
+    _scroll.dispose();
+    super.dispose();
+  }
+
+  bool _sync(ScrollMetrics m) {
+    final start = m.extentBefore <= 0.5;
+    final end = m.extentAfter <= 0.5;
+    if (start != _atStart || end != _atEnd) {
+      setState(() {
+        _atStart = start;
+        _atEnd = end;
+      });
+    }
+    return false;
+  }
+
+  @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return SectionCard([
       SizedBox(
         height: 40,
-        child: ListView(
-          scrollDirection: Axis.horizontal,
+        child: Row(
           children: [
-            for (final command in EditorCommand.values)
-              _button(
-                icon: _iconOf(command),
-                tooltip: labelOf(command),
-                selected: active.contains(RichEditorBridgeUtils.tokenOf(
-                  command,
-                )),
-                onPressed:
-                    (enabled && !sourceMode) ? () => onCommand(command) : null,
-                scheme: scheme,
-              ),
+            Expanded(child: _strip(context, scheme)),
             const VerticalDivider(width: 9, indent: 8, endIndent: 8),
             _button(
               icon: LucideIcons.codeXml,
               tooltip: R.current.forumEditorSource,
-              selected: sourceMode,
-              onPressed: enabled ? onToggleSource : null,
+              selected: widget.sourceMode,
+              onPressed: widget.enabled ? widget.onToggleSource : null,
               scheme: scheme,
             ),
           ],
         ),
       ),
     ]);
+  }
+
+  Widget _strip(BuildContext context, ColorScheme scheme) => Stack(
+        children: [
+          NotificationListener<ScrollMetricsNotification>(
+            onNotification: (n) => _sync(n.metrics),
+            child: NotificationListener<ScrollNotification>(
+              onNotification: (n) => _sync(n.metrics),
+              child: ListView(
+                controller: _scroll,
+                scrollDirection: Axis.horizontal,
+                padding: EdgeInsets.zero,
+                children: [
+                  for (final command in EditorCommand.values)
+                    _button(
+                      icon: MoodleRichEditorToolbar._iconOf(command),
+                      tooltip: MoodleRichEditorToolbar.labelOf(command),
+                      selected: widget.active
+                          .contains(RichEditorBridgeUtils.tokenOf(command)),
+                      onPressed: (widget.enabled && !widget.sourceMode)
+                          ? () => widget.onCommand(command)
+                          : null,
+                      scheme: scheme,
+                    ),
+                ],
+              ),
+            ),
+          ),
+          Positioned(
+              left: 0,
+              top: 0,
+              bottom: 0,
+              child: _scrim(context, scheme, trailing: false, show: !_atStart)),
+          Positioned(
+              right: 0,
+              top: 0,
+              bottom: 0,
+              child: _scrim(context, scheme, trailing: true, show: !_atEnd)),
+        ],
+      );
+
+  /// key 是給測試讀透明度用的：AnimatedOpacity 一直都在樹上，只靠
+  /// `find.byIcon` 會一律比得到，測起來是假綠。
+  Widget _scrim(BuildContext context, ColorScheme scheme,
+      {required bool trailing, required bool show}) {
+    final fill = SectionCard.fill(context);
+    return IgnorePointer(
+      child: AnimatedOpacity(
+        key: ValueKey(trailing ? 'toolbar-scrim-end' : 'toolbar-scrim-start'),
+        opacity: show ? 1 : 0,
+        duration: const Duration(milliseconds: 120),
+        child: Container(
+          width: 28,
+          alignment: trailing ? Alignment.centerRight : Alignment.centerLeft,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: trailing ? Alignment.centerLeft : Alignment.centerRight,
+              end: trailing ? Alignment.centerRight : Alignment.centerLeft,
+              colors: [fill.withValues(alpha: 0), fill],
+            ),
+          ),
+          child: Icon(
+              trailing ? LucideIcons.chevronRight : LucideIcons.chevronLeft,
+              size: 14,
+              color: scheme.onSurfaceVariant),
+        ),
+      ),
+    );
   }
 
   Widget _button({

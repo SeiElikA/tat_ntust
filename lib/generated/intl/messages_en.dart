@@ -626,9 +626,6 @@ class MessageLookup extends MessageLookupByLibrary {
       "Clear formatting",
     ),
     "forumEditorHeading": MessageLookupByLibrary.simpleMessage("Heading %s"),
-    "forumEditorImagesKept": MessageLookupByLibrary.simpleMessage(
-      "Images already in this post are kept as they are; the app cannot add new ones yet",
-    ),
     "forumEditorItalic": MessageLookupByLibrary.simpleMessage("Italic"),
     "forumEditorLoadFailed": MessageLookupByLibrary.simpleMessage(
       "The editor could not load, so this post cannot be edited right now",

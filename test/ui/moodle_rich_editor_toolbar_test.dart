@@ -25,9 +25,11 @@ void main() {
     bool enabled = true,
     void Function(EditorCommand)? onCommand,
     VoidCallback? onToggleSource,
+    double width = 1600,
   }) async {
-    // 工具列是橫向捲動的，視窗窄的話後面幾顆根本不會被建出來。
-    tester.view.physicalSize = const Size(1600, 400);
+    // 工具列是橫向捲動的，視窗窄的話後面幾顆根本不會被建出來。預設寬到整排
+    // 都塞得下；要驗證捲動與邊緣提示的那幾個才自己把它縮回手機寬度。
+    tester.view.physicalSize = Size(width, 400);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
@@ -49,6 +51,10 @@ void main() {
   /// `find.byTooltip` 比到的是 Tooltip，IconButton 是它的祖先。
   Finder buttonWithTooltip(String tooltip) => find.ancestor(
       of: find.byTooltip(tooltip), matching: find.byType(IconButton));
+
+  /// 邊緣提示一直都在樹上，只是透明度為 0，所以要讀值不能只比有沒有畫。
+  double opacityOf(WidgetTester tester, String key) =>
+      tester.widget<AnimatedOpacity>(find.byKey(ValueKey(key))).opacity;
 
   testWidgets('每一個指令都有一顆鈕，另外還有一顆原始碼切換', (tester) async {
     await pump(tester);
@@ -143,5 +149,38 @@ void main() {
             .widget<IconButton>(buttonWithTooltip(R.current.forumEditorSource))
             .onPressed,
         isNull);
+  });
+
+  testWidgets('402pt 寬的手機上，原始碼鈕還是在畫面裡', (tester) async {
+    await pump(tester, width: 402);
+
+    // 它不跟著格式鈕一起捲：捲出畫面的話，第一次用的人永遠找不到原始碼模式。
+    final rect = tester.getRect(buttonWithTooltip(R.current.forumEditorSource));
+    expect(rect.right, lessThanOrEqualTo(402));
+    expect(
+        tester
+            .widget<IconButton>(buttonWithTooltip(R.current.forumEditorSource))
+            .onPressed,
+        isNotNull);
+  });
+
+  testWidgets('捲得動的時候右邊有箭頭，捲到底就換左邊', (tester) async {
+    await pump(tester, width: 402);
+
+    expect(opacityOf(tester, 'toolbar-scrim-start'), 0);
+    expect(opacityOf(tester, 'toolbar-scrim-end'), 1);
+
+    await tester.drag(find.byType(ListView), const Offset(-600, 0));
+    await tester.pumpAndSettle();
+
+    expect(opacityOf(tester, 'toolbar-scrim-start'), 1);
+    expect(opacityOf(tester, 'toolbar-scrim-end'), 0);
+  });
+
+  testWidgets('整排塞得下時兩邊都不畫箭頭', (tester) async {
+    await pump(tester);
+
+    expect(opacityOf(tester, 'toolbar-scrim-start'), 0);
+    expect(opacityOf(tester, 'toolbar-scrim-end'), 0);
   });
 }

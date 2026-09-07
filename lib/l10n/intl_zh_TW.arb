@@ -485,7 +485,6 @@
   "forumEditorSource": "原始碼",
   "forumEditorLoading": "編輯器載入中…",
   "forumEditorLoadFailed": "編輯器載不起來，這則貼文暫時無法編輯",
-  "forumEditorImagesKept": "貼文裡的圖片會原樣保留，App 目前不能加新圖",
   "forumEditorUnsafeContent": "內容檢查沒通過，為了不把貼文弄壞已經停止儲存",
   "forumEditAttachmentsWebOnly": "這則貼文有附件，學校的 Moodle 沒開放 App 在不弄壞附件標記的情況下編輯，請到網頁編輯",
   "forumPostActions": "這則貼文",
