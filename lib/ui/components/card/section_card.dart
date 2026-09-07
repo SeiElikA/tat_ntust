@@ -44,11 +44,18 @@ class SectionHeader extends StatelessWidget {
 
 /// 內容卡：surfaceContainer、圓角 12、padding 14/12。
 class SectionCard extends StatelessWidget {
-  const SectionCard(this.children, {super.key});
+  const SectionCard(this.children, {super.key}) : _padding = padding;
+
+  /// 上下讓出 16 的緊湊版。給「高度被鍵盤壓到連編輯面都守不住」的版面用，
+  /// 左右與圓角一律不動——卡片還是同一張卡片。
+  const SectionCard.compact(this.children, {super.key})
+      : _padding = compactPadding;
 
   static const double radius = 12;
   static const EdgeInsets padding =
       EdgeInsets.symmetric(horizontal: 14, vertical: 12);
+  static const EdgeInsets compactPadding =
+      EdgeInsets.symmetric(horizontal: 14, vertical: 4);
 
   /// 卡片底色的唯一出處。編輯面與工具列的漸層都要跟它一致，各自寫一份在
   /// 動態取色的機器上一定會對不起來。
@@ -62,12 +69,14 @@ class SectionCard extends StatelessWidget {
 
   final List<Widget> children;
 
+  final EdgeInsets _padding;
+
   @override
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
       decoration: _decoration(context),
-      padding: padding,
+      padding: _padding,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,

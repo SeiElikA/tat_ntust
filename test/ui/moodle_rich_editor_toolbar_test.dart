@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_app/src/R.dart';
 import 'package:flutter_app/src/util/rich_editor_bridge_utils.dart';
+import 'package:flutter_app/ui/components/card/section_card.dart';
 import 'package:flutter_app/ui/components/editor/moodle_rich_editor_toolbar.dart';
+import 'package:flutter_app/ui/other/lucide_icons.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../helpers/test_l10n.dart';
@@ -26,6 +28,9 @@ void main() {
     void Function(EditorCommand)? onCommand,
     VoidCallback? onToggleSource,
     double width = 1600,
+    double textScale = 1,
+    List<Widget> trailing = const [],
+    bool dense = false,
   }) async {
     // 工具列是橫向捲動的，視窗窄的話後面幾顆根本不會被建出來。預設寬到整排
     // 都塞得下；要驗證捲動與邊緣提示的那幾個才自己把它縮回手機寬度。
@@ -35,13 +40,21 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
 
     await tester.pumpWidget(MaterialApp(
-      home: Scaffold(
-        body: MoodleRichEditorToolbar(
-          active: active,
-          sourceMode: sourceMode,
-          enabled: enabled,
-          onCommand: onCommand ?? (_) {},
-          onToggleSource: onToggleSource ?? () {},
+      home: Builder(
+        builder: (context) => MediaQuery(
+          data: MediaQuery.of(context)
+              .copyWith(textScaler: TextScaler.linear(textScale)),
+          child: Scaffold(
+            body: MoodleRichEditorToolbar(
+              active: active,
+              sourceMode: sourceMode,
+              enabled: enabled,
+              onCommand: onCommand ?? (_) {},
+              onToggleSource: onToggleSource ?? () {},
+              trailing: trailing,
+              dense: dense,
+            ),
+          ),
         ),
       ),
     ));
@@ -182,5 +195,68 @@ void main() {
 
     expect(opacityOf(tester, 'toolbar-scrim-start'), 0);
     expect(opacityOf(tester, 'toolbar-scrim-end'), 0);
+  });
+
+  testWidgets('沒傳 trailing 就一顆都不多——原本的呼叫端一行都不用改', (tester) async {
+    await pump(tester);
+
+    expect(find.byIcon(LucideIcons.chevronDown), findsNothing);
+    expect(find.byType(IconButton),
+        findsNWidgets(EditorCommand.values.length + 1));
+  });
+
+  testWidgets('trailing 掛兩顆、寬 320、字級 3.0：這一列還是 64 高', (tester) async {
+    // 鍵盤釘住的版面每一個數字都建立在這 64 上：這一列一變高，編輯面就變矮。
+    for (final scale in [1.0, 2.0, 3.0]) {
+      await pump(
+        tester,
+        width: 320,
+        textScale: scale,
+        trailing: [
+          IconButton(
+            tooltip: '附件',
+            icon: Badge.count(
+              count: 9,
+              isLabelVisible: true,
+              child: const Icon(LucideIcons.paperclip, size: 18),
+            ),
+            visualDensity: VisualDensity.compact,
+            onPressed: () {},
+          ),
+          IconButton(
+            tooltip: '收起鍵盤',
+            icon: const Icon(LucideIcons.chevronDown, size: 18),
+            visualDensity: VisualDensity.compact,
+            onPressed: () {},
+          ),
+        ],
+      );
+
+      expect(tester.getSize(find.byType(SectionCard)).height, 64,
+          reason: 'textScale=$scale');
+      expect(tester.getSize(find.byType(SectionCard)).height,
+          MoodleRichEditorToolbar.height,
+          reason: 'textScale=$scale');
+      expect(tester.takeException(), isNull, reason: 'textScale=$scale');
+    }
+  });
+
+  testWidgets('dense：讓開的只有卡片的留白，48 高，按鈕一顆都沒縮', (tester) async {
+    // 橫著拿的手機扣掉鍵盤只剩一百多點，這 16 點是編輯面看得到幾行的差別。
+    for (final scale in [1.0, 2.0, 3.0]) {
+      await pump(tester, width: 320, textScale: scale, dense: true);
+
+      expect(tester.getSize(find.byType(SectionCard)).height,
+          MoodleRichEditorToolbar.denseHeight,
+          reason: 'textScale=$scale');
+      expect(tester.getSize(find.byType(SectionCard)).height, 48,
+          reason: 'textScale=$scale');
+      // 觸控範圍是原本的 40，讓開的是卡片上下的留白。
+      expect(
+          tester.getSize(buttonWithTooltip(R.current.forumEditorSource)).height,
+          40,
+          reason: 'textScale=$scale');
+      expect(tester.takeException(), isNull, reason: 'textScale=$scale');
+    }
   });
 }

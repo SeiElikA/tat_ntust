@@ -637,6 +637,9 @@ class MessageLookup extends MessageLookupByLibrary {
       "Clear formatting",
     ),
     "forumEditorHeading": MessageLookupByLibrary.simpleMessage("Heading %s"),
+    "forumEditorHideKeyboard": MessageLookupByLibrary.simpleMessage(
+      "Hide keyboard",
+    ),
     "forumEditorItalic": MessageLookupByLibrary.simpleMessage("Italic"),
     "forumEditorLoadFailed": MessageLookupByLibrary.simpleMessage(
       "The editor could not load, so this post cannot be edited right now",

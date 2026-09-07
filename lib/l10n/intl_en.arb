@@ -486,6 +486,7 @@
   "forumEditorNumberedList": "Numbered list",
   "forumEditorClearFormat": "Clear formatting",
   "forumEditorSource": "HTML source",
+  "forumEditorHideKeyboard": "Hide keyboard",
   "forumEditorLoading": "Loading the editor…",
   "forumEditorLoadFailed": "The editor could not load, so this post cannot be edited right now",
   "forumEditorUnsafeContent": "A safety check on the content failed, so the save was stopped to avoid damaging the post",

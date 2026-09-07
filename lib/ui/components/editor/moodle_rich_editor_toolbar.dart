@@ -24,6 +24,8 @@ class MoodleRichEditorToolbar extends StatefulWidget {
     required this.sourceMode,
     required this.onToggleSource,
     this.enabled = true,
+    this.trailing = const <Widget>[],
+    this.dense = false,
   });
 
   /// 目前游標處生效的格式，值是 [RichEditorBridgeUtils.tokenOf] 的字面值。
@@ -37,6 +39,19 @@ class MoodleRichEditorToolbar extends StatefulWidget {
 
   /// 編輯器還沒準備好、或正在送出時整排停用。
   final bool enabled;
+
+  /// 釘在最右邊、不跟著捲的額外動作（打字時的附件與收鍵盤）。這一列的高度是
+  /// 固定的 40，多放兩顆不會多吃一點高度——實測字級 3.0、寬 320 仍然是 64。
+  final List<Widget> trailing;
+
+  /// 卡片上下的內距讓出 16。給「鍵盤把高度壓到連編輯面都守不住」的版面用，
+  /// **按鈕本身一點都沒縮**：40 的觸控範圍原封不動，讓開的只有留白。
+  final bool dense;
+
+  /// 這一列的高度是固定的，量得到也算得出來，所以版面那一邊可以直接拿它去
+  /// 分高度，不必等 layout 回報。
+  static const double height = 64;
+  static const double denseHeight = 48;
 
   static IconData _iconOf(EditorCommand c) => switch (c) {
         EditorCommand.bold => LucideIcons.bold,
@@ -107,24 +122,24 @@ class _MoodleRichEditorToolbarState extends State<MoodleRichEditorToolbar> {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    return SectionCard([
-      SizedBox(
-        height: 40,
-        child: Row(
-          children: [
-            Expanded(child: _strip(context, scheme)),
-            const VerticalDivider(width: 9, indent: 8, endIndent: 8),
-            _button(
-              icon: LucideIcons.codeXml,
-              tooltip: R.current.forumEditorSource,
-              selected: widget.sourceMode,
-              onPressed: widget.enabled ? widget.onToggleSource : null,
-              scheme: scheme,
-            ),
-          ],
-        ),
+    final row = SizedBox(
+      height: 40,
+      child: Row(
+        children: [
+          Expanded(child: _strip(context, scheme)),
+          const VerticalDivider(width: 9, indent: 8, endIndent: 8),
+          _button(
+            icon: LucideIcons.codeXml,
+            tooltip: R.current.forumEditorSource,
+            selected: widget.sourceMode,
+            onPressed: widget.enabled ? widget.onToggleSource : null,
+            scheme: scheme,
+          ),
+          ...widget.trailing,
+        ],
       ),
-    ]);
+    );
+    return widget.dense ? SectionCard.compact([row]) : SectionCard([row]);
   }
 
   Widget _strip(BuildContext context, ColorScheme scheme) => Stack(

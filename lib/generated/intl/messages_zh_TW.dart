@@ -477,6 +477,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "forumEditorBulletList": MessageLookupByLibrary.simpleMessage("項目符號清單"),
     "forumEditorClearFormat": MessageLookupByLibrary.simpleMessage("清除格式"),
     "forumEditorHeading": MessageLookupByLibrary.simpleMessage("標題 %s"),
+    "forumEditorHideKeyboard": MessageLookupByLibrary.simpleMessage("收起鍵盤"),
     "forumEditorItalic": MessageLookupByLibrary.simpleMessage("斜體"),
     "forumEditorLoadFailed": MessageLookupByLibrary.simpleMessage(
       "編輯器載不起來，這則貼文暫時無法編輯",

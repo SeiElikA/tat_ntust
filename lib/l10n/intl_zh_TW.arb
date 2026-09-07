@@ -486,6 +486,7 @@
   "forumEditorNumberedList": "編號清單",
   "forumEditorClearFormat": "清除格式",
   "forumEditorSource": "原始碼",
+  "forumEditorHideKeyboard": "收起鍵盤",
   "forumEditorLoading": "編輯器載入中…",
   "forumEditorLoadFailed": "編輯器載不起來，這則貼文暫時無法編輯",
   "forumEditorUnsafeContent": "內容檢查沒通過，為了不把貼文弄壞已經停止儲存",

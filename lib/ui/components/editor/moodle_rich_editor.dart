@@ -19,6 +19,10 @@ class MoodleRichEditorController {
   /// 編輯器現在的內容；還沒接上時回 null（呼叫端不可以把 null 當成空內容
   /// 送出去——那會把整篇貼文清掉）。
   Future<String?> content() async => _state?._content();
+
+  /// 收鍵盤。平台視圖握著 first responder，Flutter 的 FocusManager 管不到它。
+  /// 兩條路都走，見 [MoodleRichEditor.dropInputAccessoryView]。
+  Future<void> blur() async => _state?._blur();
 }
 
 /// `assets/editor/` 那一頁的殼。**HTML 進、HTML 出，沒有別的**：不認識
@@ -59,6 +63,21 @@ class MoodleRichEditor extends StatefulWidget {
 
   /// 從載入到握手的等待上限。超過就當成載不起來。
   static const Duration readyTimeout = Duration(seconds: 10);
+
+  /// iOS 把鍵盤和 WKWebView 的 ^ v ✓ 那一條算成同一個 viewInsets（402×874
+  /// 上實測 405 對 336，那一條就是 69pt），而工具列正要釘在那個位置——留著
+  /// 等於為同一段空間付兩次。
+  ///
+  /// 這一條同時是 iOS 內建的收鍵盤入口，所以拿掉它之後，收鍵盤由
+  /// [MoodleRichEditorController.blur] 接手，而那個方法**兩條路都走**：先
+  /// `clearFocus`（iOS 那一邊就是對 WKContentView `resignFirstResponder`，跟
+  /// 打勾做的事一模一樣），再補一次頁面內的 `blur`。原生那條不經過 JS，
+  /// 頁面壞掉、`evaluateJavascript` 沒回應時它照樣收得掉。
+  ///
+  /// 而且**收不掉也不會把人關在裡面**：打字時標題列上有一顆送出，儲存不必先
+  /// 收鍵盤。真機上兩條都失靈就把這一顆改回 false，其餘設計一行都不用動
+  /// （編輯面從 325 退回 256）。
+  static const bool dropInputAccessoryView = true;
 
   @override
   State<MoodleRichEditor> createState() => _MoodleRichEditorState();
@@ -135,6 +154,23 @@ class _MoodleRichEditorState extends State<MoodleRichEditor> {
         source: 'window.__tatEditor.setSourceMode($on);');
   }
 
+  Future<void> _blur() async {
+    final view = _webView;
+    if (view == null) return;
+    // 原生那條先跑：它不經過 JS，頁面沒回應時也還在。順序反過來的話，
+    // evaluateJavascript 一卡住就再也走不到這一行。
+    try {
+      await view.clearFocus();
+    } catch (e) {
+      Log.e('rich editor clearFocus failed: $e');
+    }
+    if (!_ready) return;
+    // 不是橋接指令：碰不到 window.__tatEditor，也不需要動 assets/editor/*。
+    // 頁面的 CSP 管的是頁面自己載的 script，宿主 evaluateJavascript 不受它管。
+    await view.evaluateJavascript(
+        source: 'var e = document.getElementById("ed"); if (e) e.blur();');
+  }
+
   Future<String?> _content() async {
     if (!_ready) return null;
     final raw = await _webView?.evaluateJavascript(
@@ -168,6 +204,7 @@ class _MoodleRichEditorState extends State<MoodleRichEditor> {
         mediaPlaybackRequiresUserGesture: true,
         supportZoom: false,
         transparentBackground: true,
+        disableInputAccessoryView: MoodleRichEditor.dropInputAccessoryView,
         // 沒有這一顆，貼文裡的 <a> 被點到就會把整個編輯器導航走，
         // 使用者還沒存的草稿跟著消失，而且沒有回頭路。
         useShouldOverrideUrlLoading: true,

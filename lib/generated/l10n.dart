@@ -4384,6 +4384,16 @@ class S {
     );
   }
 
+  /// `Hide keyboard`
+  String get forumEditorHideKeyboard {
+    return Intl.message(
+      'Hide keyboard',
+      name: 'forumEditorHideKeyboard',
+      desc: '',
+      args: [],
+    );
+  }
+
   /// `Loading the editor…`
   String get forumEditorLoading {
     return Intl.message(
