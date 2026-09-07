@@ -1,4 +1,5 @@
 import 'package:flutter_app/src/connector/moodle_webapi_connector.dart';
+import 'package:flutter_app/src/util/moodle_forum_utils.dart';
 import 'package:flutter_app/src/model/moodle_webapi/moodle_profile_entity.dart';
 import 'package:flutter_app/src/util/moodle_forum_edit_utils.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -531,6 +532,27 @@ void main() {
     });
   });
 
+  group('getPostForEdit', () {
+    test('要的是資料庫原文：raw=true、filter=false、fileurl=false', () async {
+      Map<String, dynamic>? sent;
+      MoodleWebApiConnector.wsToken = 'tok';
+      MoodleWebApiConnector.wsPost = (parameter) async {
+        sent = Map<String, dynamic>.from(parameter.data as Map);
+        return loadMoodleForumFixture('get_discussion_post');
+      };
+
+      await MoodleWebApiConnector.getPostForEdit(950);
+
+      expect(sent!['wsfunction'], MoodleWebApiConnector.discussionPostFunction);
+      expect(sent!['postid'], '950');
+      // filter 會把 filter plugin 的產物寫死進原文，fileurl 會把
+      // @@PLUGINFILE@@ 換成絕對網址——兩者原樣送回伺服器就是永久污染。
+      expect(sent!['moodlewssettingraw'], 'true');
+      expect(sent!['moodlewssettingfilter'], 'false');
+      expect(sent!['moodlewssettingfileurl'], 'false');
+    });
+  });
+
   group('prepareForumDraftArea', () {
     test('送 area=attachment、draftitemid=0；filestokeep 空的時候整個鍵都不出現', () async {
       Map<String, dynamic>? sent;
@@ -551,6 +573,41 @@ void main() {
       expect(sent!['draftitemid'], '0');
       // 空的 filestokeep ＝全部保留，所以連鍵都不送。
       expect(sent!.keys.join(','), isNot(contains('filestokeep')));
+    });
+
+    test('area: post 時送 area=post，而且 draftitemid 一樣是 0', () async {
+      Map<String, dynamic>? sent;
+      MoodleWebApiConnector.wsToken = 'tok';
+      MoodleWebApiConnector.wsPost = (parameter) async {
+        sent = Map<String, dynamic>.from(parameter.data as Map);
+        return loadMoodleForumFixture('prepare_draft_area_for_post_inline');
+      };
+
+      final area = await MoodleWebApiConnector.prepareForumDraftArea(
+          postId: 951, area: MoodleWebApiConnector.forumDraftAreaPost);
+
+      expect(sent!['area'], 'post');
+      expect(sent!['postid'], '951');
+      expect(sent!['draftitemid'], '0');
+      // 內嵌那一區送非空的 filestokeep 會把要保護的圖片刪掉。
+      expect(sent!.keys.join(','), isNot(contains('filestokeep')));
+      expect(area.draftitemid, 990011);
+    });
+
+    test('messagetext 落地了——它是 draft 網址前綴唯一的來源', () {
+      final area = fixtureDraftArea('prepare_draft_area_for_post_inline');
+
+      expect(area.messagetext, contains('/draftfile.php/'));
+      expect(area.messagetext, contains('/user/draft/990011/'));
+    });
+
+    test('area=attachment 的 messagetext 是 null → 空字串，其他欄位不受影響', () {
+      final area = fixtureDraftArea();
+
+      expect(area.messagetext, '');
+      expect(area.draftitemid, 884411);
+      expect(area.maxbytes, 262144);
+      expect(area.maxfiles, 3);
     });
 
     test('filestokeep 逐筆展開成 filename/filepath', () async {
@@ -622,14 +679,19 @@ void main() {
       };
 
       await MoodleWebApiConnector.updateDiscussionPost(
-          postId: 950, subject: '改過的標題', message: '改過的內文');
+          postId: 950,
+          subject: '改過的標題',
+          message: '改過的內文',
+          messageFormat: MoodleForumUtils.formatHtml);
 
       expect(sent!['wsfunction'],
           MoodleWebApiConnector.updateDiscussionPostFunction);
       expect(sent!['postid'], '950');
       expect(sent!['subject'], '改過的標題');
       expect(sent!['message'], '改過的內文');
-      expect(sent!['messageformat'], '2');
+      // 原文的 format 原樣送回去。寫死 FORMAT_PLAIN 會把一篇 FORMAT_HTML
+      // 貼文永久改成純文字，而這一支不吃 topreferredformat，救不回來。
+      expect(sent!['messageformat'], '1');
       expect(sent!.keys.join(','), isNot(contains('topreferredformat')));
       // 不送 attachmentsid ＝既有附件原封不動。
       expect(sent!.keys.join(','), isNot(contains('attachmentsid')));
@@ -644,10 +706,82 @@ void main() {
       };
 
       await MoodleWebApiConnector.updateDiscussionPost(
-          postId: 950, subject: 's', message: 'm', attachmentsId: 884411);
+          postId: 950,
+          subject: 's',
+          message: 'm',
+          messageFormat: MoodleForumUtils.formatPlain,
+          attachmentsId: 884411);
 
       expect(sent!['options[0][name]'], 'attachmentsid');
       expect(sent!['options[0][value]'], '884411');
+    });
+
+    test('只送 inlineattachmentsid 時它是 options[0]——索引不可以留洞', () async {
+      Map<String, dynamic>? sent;
+      MoodleWebApiConnector.wsToken = 'tok';
+      MoodleWebApiConnector.wsPost = (parameter) async {
+        sent = Map<String, dynamic>.from(parameter.data as Map);
+        return loadMoodleForumFixture('update_discussion_post_ok');
+      };
+
+      await MoodleWebApiConnector.updateDiscussionPost(
+          postId: 950,
+          subject: 's',
+          message: 'm',
+          messageFormat: MoodleForumUtils.formatHtml,
+          inlineAttachmentsId: 771122);
+
+      expect(sent!['options[0][name]'], 'inlineattachmentsid');
+      expect(sent!['options[0][value]'], '771122');
+      expect(sent!.keys.join(','), isNot(contains('options[1]')));
+    });
+
+    test('兩個 id 都送時索引是連號的 0 / 1', () async {
+      Map<String, dynamic>? sent;
+      MoodleWebApiConnector.wsToken = 'tok';
+      MoodleWebApiConnector.wsPost = (parameter) async {
+        sent = Map<String, dynamic>.from(parameter.data as Map);
+        return loadMoodleForumFixture('update_discussion_post_ok');
+      };
+
+      await MoodleWebApiConnector.updateDiscussionPost(
+          postId: 950,
+          subject: 's',
+          message: 'm',
+          messageFormat: MoodleForumUtils.formatHtml,
+          attachmentsId: 884411,
+          inlineAttachmentsId: 990011);
+
+      expect(sent!['options[0][name]'], 'attachmentsid');
+      expect(sent!['options[0][value]'], '884411');
+      expect(sent!['options[1][name]'], 'inlineattachmentsid');
+      expect(sent!['options[1][value]'], '990011');
+      // topreferredformat 在這一支會回 errorinvalidparam。
+      expect(sent!.keys.join(','), isNot(contains('topreferredformat')));
+    });
+
+    test('inlineattachmentsid <= 0 直接拒收——送 0 會把貼文裡的圖片全部刪光', () async {
+      var called = false;
+      MoodleWebApiConnector.wsToken = 'tok';
+      MoodleWebApiConnector.wsPost = (_) async {
+        called = true;
+        return loadMoodleForumFixture('update_discussion_post_ok');
+      };
+
+      for (final bad in [0, -1]) {
+        await expectLater(
+          () => MoodleWebApiConnector.updateDiscussionPost(
+              postId: 950,
+              subject: 's',
+              message: 'm',
+              messageFormat: MoodleForumUtils.formatHtml,
+              inlineAttachmentsId: bad),
+          throwsA(isA<ArgumentError>()),
+        );
+      }
+      // 不可以靜靜改成「不送」：那會退回 IGNORE_FILE_MERGE，把 draftfile
+      // 絕對網址原樣存進資料庫。
+      expect(called, isFalse);
     });
 
     test('cannotupdatepost 一路往上拋', () async {
@@ -657,7 +791,10 @@ void main() {
 
       await expectLater(
         () => MoodleWebApiConnector.updateDiscussionPost(
-            postId: 950, subject: 's', message: 'm'),
+            postId: 950,
+            subject: 's',
+            message: 'm',
+            messageFormat: MoodleForumUtils.formatHtml),
         throwsA(isA<MoodleApiException>()
             .having((e) => e.errorcode, 'errorcode', 'cannotupdatepost')),
       );
@@ -670,7 +807,10 @@ void main() {
 
       await expectLater(
         () => MoodleWebApiConnector.updateDiscussionPost(
-            postId: 950, subject: 's', message: 'm'),
+            postId: 950,
+            subject: 's',
+            message: 'm',
+            messageFormat: MoodleForumUtils.formatHtml),
         throwsA(isA<MoodleApiException>()),
       );
     });

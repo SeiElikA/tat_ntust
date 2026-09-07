@@ -112,6 +112,15 @@ typedef ForumPostEdit = ({
   List<MoodleForumFile> attachments,
 });
 
+/// 按下編輯時要開哪一種編輯器。
+///
+/// 三種都是真的能編輯，沒有一條是死路：
+/// - [plainText]：純文字框（`CourseForumComposePage.edit`）。
+/// - [rawSource]：同一個純文字框，但內容是**原始碼本身**。FORMAT_MARKDOWN
+///   走這一條——Moodle 自己的 Markdown 編輯器就是一個純 textarea。
+/// - [rich]：所見即所得（`CourseForumRichEditPage`）。
+enum ForumEditorKind { plainText, rawSource, rich }
+
 /// 編輯與附件那條路的純函式。不 import connector、不碰 `R.current`、不碰時鐘。
 ///
 /// 為什麼另開一檔而不是塞進 `moodle_forum_utils.dart`：那一支已經 169 行，
@@ -119,17 +128,23 @@ typedef ForumPostEdit = ({
 class MoodleForumEditUtils {
   MoodleForumEditUtils._();
 
-  /// 這篇貼文的原文能不能用一個純文字框安全地覆蓋。
+  /// 這篇貼文適不適合用純文字框編輯。**只在 [editorKindFor] 裡被呼叫。**
   ///
-  /// **這是整個編輯功能最重要的一個可測述詞。** API 完全支援編輯 HTML 貼文
-  /// （`messageformat` 可以送 FORMAT_HTML、`inlineattachmentsid` 也在），
-  /// 擋下來的原因是**我們只有一個純文字輸入框，無法無損還原**：用純文字覆蓋
-  /// 一篇 HTML 貼文會弄丟粗體與連結，而 `@@PLUGINFILE@@` 被換掉之後內嵌圖片
-  /// 會斷、舊檔案變孤兒（與交作業 onlinetext 那一條完全同構）。
+  /// 這是「開哪一種編輯器」的判斷，不是「能不能編輯」：判 false 的
+  /// FORMAT_HTML 貼文走所見即所得編輯器，不會再被擋下來。所以這裡寧可保守，
+  /// 誤判成 false 只是多開一個功能更全的編輯器。
   ///
-  /// FORMAT_PLAIN / FORMAT_MOODLE 一律安全（伺服器存的就是純文字）。
+  /// **但 false 不等於 rich**：FORMAT_MARKDOWN 也會拿到 false，而拿 HTML
+  /// 編輯器去開 Markdown 原始碼再以 HTML 存回去是救不回來的。那一格由
+  /// [editorKindFor] 擋著。
+  ///
+  /// 不送 `inlineattachmentsid` 時 `update_discussion_post` 的
+  /// `$updatepost->itemid` 是 `IGNORE_FILE_MERGE`，`file_save_draft_area_files()`
+  /// 直接 early return，既有內嵌檔案動都不會動——所以覆蓋原文不會弄出孤兒檔。
+  ///
+  /// FORMAT_PLAIN / FORMAT_MOODLE 一律適合（伺服器存的就是純文字）。
   /// FORMAT_HTML 要求：不含 `@@PLUGINFILE@@`、不含 `<img`，而且
-  /// `plainTextToHtml(htmlToPlain(raw))` 正規化換行後等於 `raw`。
+  /// `plainTextToHtml(htmlToPlain(raw))` 正規化後等於 `raw`。
   static bool isPlainRoundTrip(String rawMessage, int rawFormat) {
     if (rawFormat == MoodleForumUtils.formatPlain ||
         rawFormat == MoodleForumUtils.formatMoodle) {
@@ -140,12 +155,22 @@ class MoodleForumEditUtils {
     if (lower.contains('@@pluginfile@@') || lower.contains('<img')) {
       return false;
     }
-    final normalized = _normalizeNewlines(rawMessage);
-    return MoodleForumUtils.plainTextToHtml(htmlToPlain(normalized)) ==
-        normalized;
+    final canonical = _canonical(rawMessage);
+    return MoodleForumUtils.plainTextToHtml(htmlToPlain(canonical)) ==
+        canonical;
   }
 
-  /// [MoodleForumUtils.plainTextToHtml] 的反向：`<br>` → 換行、反解那五個實體。
+  /// 比對前把兩邊拉到同一種寫法。伺服器不管走 `format_text(FORMAT_PLAIN)` 的
+  /// `nl2br` 還是 HTMLPurifier（XHTML 1.0 Transitional）都吐 `<br />`，而
+  /// [MoodleForumUtils.plainTextToHtml] 產的是 `<br>`；單引號同理，PHP `s()`
+  /// 是 ENT_QUOTES 的 `&#039;`，我們產的是 `&#39;`。少了這一步，**任何多行或
+  /// 含單引號的貼文**——包含 App 自己幾秒鐘前發出去的那則——都會被判成不適合。
+  static String _canonical(String html) => _normalizeNewlines(html)
+      .replaceAll(_brTag, '<br>')
+      .replaceAll('&#039;', '&#39;');
+
+  /// [MoodleForumUtils.plainTextToHtml] 的反向：`<br>`／`<br />` → 換行、
+  /// 反解那五個實體（單引號兩種寫法都要）。
   ///
   /// **不要改用 `MoodleAssignSubmitUtils.htmlToPlain`**：那是 util → util 的
   /// 橫向 import，而且它為 onlinetext 的 `<p>` 語意調過（`</p>` 變成兩個換行），
@@ -159,14 +184,30 @@ class MoodleForumEditUtils {
         .replaceAll('&lt;', '<')
         .replaceAll('&gt;', '>')
         .replaceAll('&quot;', '"')
+        .replaceAll('&#039;', "'")
         .replaceAll('&#39;', "'")
         .replaceAll('&amp;', '&');
   }
 
-  static final RegExp _brTag = RegExp(r'<br>', caseSensitive: false);
+  static final RegExp _brTag = RegExp(r'<br\s*/?>', caseSensitive: false);
 
   static String _normalizeNewlines(String text) =>
       text.replaceAll('\r\n', '\n').replaceAll('\r', '\n');
+
+  /// 純文字框的內容 → 送回伺服器的 `(message, messageformat)`。
+  ///
+  /// **原文是 FORMAT_HTML 就要先轉成 HTML 再送。** 直接把純文字配
+  /// FORMAT_HTML 送出去，換行會被 HTML 吃掉；而配 FORMAT_PLAIN 送則會把這篇
+  /// 貼文永久降級成純文字——`update_discussion_post` 不吃 `topreferredformat`
+  /// （見 `MoodleWebApiConnector.updateDiscussionPost`），之後救不回來。
+  static ({String message, int format}) plainEditPayload(
+          String plainText, int rawFormat) =>
+      rawFormat == MoodleForumUtils.formatHtml
+          ? (
+              message: MoodleForumUtils.plainTextToHtml(plainText),
+              format: rawFormat
+            )
+          : (message: plainText, format: rawFormat);
 
   /// 這一篇底下有沒有回覆（遞迴，由 `parentid` 推）。
   ///
@@ -239,6 +280,37 @@ class MoodleForumEditUtils {
         if (!received.contains(name.toLowerCase())) name,
     ];
   }
+
+  /// 這一篇要開哪一種編輯器。**這是這個功能唯一的守門。**
+  ///
+  /// FORMAT_HTML 之外一律不給所見即所得：`isPlainRoundTrip` 對
+  /// FORMAT_MARKDOWN（4）與任何未知格式都回 false，若直接把 false 當成
+  /// 「開 rich」，Markdown 原始碼會被塞進 HTML 編輯器，存回去時再宣告成
+  /// FORMAT_HTML——`update_discussion_post` 不吃 `topreferredformat`，
+  /// 這一步之後救不回來。
+  static ForumEditorKind editorKindFor(String rawMessage, int rawFormat) {
+    if (rawFormat == MoodleForumUtils.formatPlain ||
+        rawFormat == MoodleForumUtils.formatMoodle) {
+      return ForumEditorKind.plainText;
+    }
+    if (rawFormat != MoodleForumUtils.formatHtml) {
+      return ForumEditorKind.rawSource;
+    }
+    return isPlainRoundTrip(rawMessage, rawFormat)
+        ? ForumEditorKind.plainText
+        : ForumEditorKind.rich;
+  }
+
+  /// 純文字框要預填的字。
+  ///
+  /// **只有 FORMAT_HTML 才可以還原成純文字。** 其他格式伺服器存的本來就是
+  /// 原始文字，再過一次 [htmlToPlain] 會把使用者真的打的 `a &amp; b` 悄悄
+  /// 改成 `a & b`——[plainEditPayload] 對非 HTML 是原樣送回，於是這一次編輯
+  /// 就把貼文改掉了，而使用者一個鍵都沒按。
+  static String initialTextFor(String rawMessage, int rawFormat) =>
+      rawFormat == MoodleForumUtils.formatHtml
+          ? htmlToPlain(rawMessage)
+          : rawMessage;
 
   /// 路徑的最後一段。挑檔回來的是完整路徑，送出去與畫面上要的是檔名。
   static String basename(String path) {

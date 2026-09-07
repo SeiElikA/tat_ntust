@@ -1,0 +1,115 @@
+/* 沒有 @import、沒有指向遠端的 url()：font-src 是 'none'，載不到也不該載。
+   深色由宿主用 evaluateJavascript 設 data-theme，跟著 Theme.brightness 走。 */
+:root {
+  --bg: #ffffff;
+  --fg: #1b1b1f;
+  --muted: #45464f;
+  --rule: #c5c6d0;
+  --code-bg: #f1f1f6;
+}
+
+:root[data-theme="dark"] {
+  --bg: #131316;
+  --fg: #e4e2e6;
+  --muted: #c6c6d0;
+  --rule: #46464f;
+  --code-bg: #1f1f24;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--fg);
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif;
+  font-size: 16px;
+  line-height: 1.65;
+  -webkit-text-size-adjust: 100%;
+}
+
+#ed {
+  box-sizing: border-box;
+  min-height: 100vh;
+  padding: 14px 16px 96px;
+  outline: none;
+  /* 長網址與程式碼不可以把整頁撐寬：橫向捲動會讓工具列對不到內容。 */
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+#ed:empty::before {
+  content: attr(data-placeholder);
+  color: var(--muted);
+  pointer-events: none;
+}
+
+#ed p { margin: 0 0 0.9em; }
+
+#ed h3 { font-size: 1.25em; }
+#ed h4 { font-size: 1.1em; }
+#ed h5 { font-size: 1em; }
+#ed h3, #ed h4, #ed h5 {
+  margin: 1.2em 0 0.5em;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+#ed ul, #ed ol { margin: 0 0 0.9em; padding-left: 1.6em; }
+#ed li { margin: 0.2em 0; }
+
+#ed a { color: inherit; }
+
+#ed img {
+  max-width: 100%;
+  height: auto;
+}
+
+#ed blockquote {
+  margin: 0 0 0.9em;
+  padding-left: 12px;
+  border-left: 3px solid var(--rule);
+  color: var(--muted);
+}
+
+#ed pre, #ed code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.92em;
+  background: var(--code-bg);
+}
+
+#ed pre {
+  padding: 10px 12px;
+  border-radius: 8px;
+  overflow-x: auto;
+}
+
+#ed table {
+  border-collapse: collapse;
+  /* 表格是「原樣保留」的主要目標之一，寧可讓它自己捲也不要壓扁欄位。 */
+  display: block;
+  overflow-x: auto;
+  max-width: 100%;
+}
+
+#ed th, #ed td {
+  border: 1px solid var(--rule);
+  padding: 6px 8px;
+}
+
+#ed hr {
+  border: 0;
+  border-top: 1px solid var(--rule);
+  margin: 1.2em 0;
+}
+
+/* 原始碼模式：同一個 #ed，只是內容換成逃脫過的純文字。 */
+#ed.source {
+  white-space: pre-wrap;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 14px;
+  line-height: 1.5;
+}

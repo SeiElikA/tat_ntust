@@ -175,6 +175,9 @@ flutter:
   uses-material-design: true
   assets:
     - assets/
+    # 子目錄不會被 `- assets/` 涵蓋，漏掉這一行的話編輯器在真機上 404，
+    # 而所有測試照樣是綠的。
+    - assets/editor/
     - assets/image/files/
     - assets/launcher/
 

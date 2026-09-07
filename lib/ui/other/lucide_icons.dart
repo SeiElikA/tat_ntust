@@ -20,6 +20,9 @@ class LucideIcons {
   /// award
   static const IconData award = IconData(0xe04f, fontFamily: _family);
 
+  /// bold
+  static const IconData bold = IconData(0xe05d, fontFamily: _family);
+
   /// bell
   static const IconData bell = IconData(0xe059, fontFamily: _family);
 
@@ -105,6 +108,15 @@ class LucideIcons {
   /// graduation-cap
   static const IconData graduationCap = IconData(0xe234, fontFamily: _family);
 
+  /// heading-3
+  static const IconData heading3 = IconData(0xe387, fontFamily: _family);
+
+  /// heading-4
+  static const IconData heading4 = IconData(0xe388, fontFamily: _family);
+
+  /// heading-5
+  static const IconData heading5 = IconData(0xe389, fontFamily: _family);
+
   /// history
   static const IconData history = IconData(0xe1f5, fontFamily: _family);
 
@@ -120,8 +132,14 @@ class LucideIcons {
   /// key-round
   static const IconData keyRound = IconData(0xe4a3, fontFamily: _family);
 
+  /// italic
+  static const IconData italic = IconData(0xe0fb, fontFamily: _family);
+
   /// link
   static const IconData link = IconData(0xe102, fontFamily: _family);
+
+  /// list
+  static const IconData list = IconData(0xe106, fontFamily: _family);
 
   /// list-ordered
   static const IconData listOrdered = IconData(0xe1d1, fontFamily: _family);
@@ -157,6 +175,9 @@ class LucideIcons {
   /// pencil
   static const IconData pencil = IconData(0xe1f9, fontFamily: _family);
 
+  /// pilcrow
+  static const IconData pilcrow = IconData(0xe3a3, fontFamily: _family);
+
   /// pin
   static const IconData pin = IconData(0xe259, fontFamily: _family);
 
@@ -171,6 +192,10 @@ class LucideIcons {
 
   /// refresh-cw
   static const IconData refreshCw = IconData(0xe145, fontFamily: _family);
+
+  /// remove-formatting
+  static const IconData removeFormatting =
+      IconData(0xe3b3, fontFamily: _family);
 
   /// reply
   static const IconData reply = IconData(0xe22a, fontFamily: _family);
@@ -187,6 +212,9 @@ class LucideIcons {
   /// shield-check
   static const IconData shieldCheck = IconData(0xe1ff, fontFamily: _family);
 
+  /// strikethrough
+  static const IconData strikethrough = IconData(0xe177, fontFamily: _family);
+
   /// tag
   static const IconData tag = IconData(0xe17f, fontFamily: _family);
 
@@ -201,6 +229,9 @@ class LucideIcons {
 
   /// undo-2
   static const IconData undo2 = IconData(0xe2a1, fontFamily: _family);
+
+  /// underline
+  static const IconData underline = IconData(0xe19a, fontFamily: _family);
 
   /// user
   static const IconData user = IconData(0xe19f, fontFamily: _family);

@@ -460,13 +460,30 @@ class MessageLookup extends MessageLookupByLibrary {
     "forumEditError": MessageLookupByLibrary.simpleMessage(
       "更新失敗；請重新整理確認是否已更新，不要直接再存一次",
     ),
-    "forumEditInWeb": MessageLookupByLibrary.simpleMessage("在網頁編輯"),
     "forumEditPost": MessageLookupByLibrary.simpleMessage("編輯貼文"),
-    "forumEditRichWebOnly": MessageLookupByLibrary.simpleMessage(
-      "這則貼文有 App 排不出來的排版或圖片，在 App 內編輯會把它們弄掉。",
-    ),
+    "forumEditRichTitle": MessageLookupByLibrary.simpleMessage("編輯貼文"),
     "forumEditWindowClosed": MessageLookupByLibrary.simpleMessage("已超過可以編輯的時間"),
     "forumEdited": MessageLookupByLibrary.simpleMessage("已編輯"),
+    "forumEditorBold": MessageLookupByLibrary.simpleMessage("粗體"),
+    "forumEditorBulletList": MessageLookupByLibrary.simpleMessage("項目符號清單"),
+    "forumEditorClearFormat": MessageLookupByLibrary.simpleMessage("清除格式"),
+    "forumEditorHeading": MessageLookupByLibrary.simpleMessage("標題 %s"),
+    "forumEditorImagesKept": MessageLookupByLibrary.simpleMessage(
+      "貼文裡的圖片會原樣保留，App 目前不能加新圖",
+    ),
+    "forumEditorItalic": MessageLookupByLibrary.simpleMessage("斜體"),
+    "forumEditorLoadFailed": MessageLookupByLibrary.simpleMessage(
+      "編輯器載不起來，這則貼文暫時無法編輯",
+    ),
+    "forumEditorLoading": MessageLookupByLibrary.simpleMessage("編輯器載入中…"),
+    "forumEditorNumberedList": MessageLookupByLibrary.simpleMessage("編號清單"),
+    "forumEditorParagraph": MessageLookupByLibrary.simpleMessage("內文"),
+    "forumEditorSource": MessageLookupByLibrary.simpleMessage("原始碼"),
+    "forumEditorStrikethrough": MessageLookupByLibrary.simpleMessage("刪除線"),
+    "forumEditorUnderline": MessageLookupByLibrary.simpleMessage("底線"),
+    "forumEditorUnsafeContent": MessageLookupByLibrary.simpleMessage(
+      "內容檢查沒通過，為了不把貼文弄壞已經停止儲存",
+    ),
     "forumEmpty": MessageLookupByLibrary.simpleMessage("這個討論區還沒有主題"),
     "forumErrorCannotCreateDiscussion": MessageLookupByLibrary.simpleMessage(
       "這個討論區不接受新主題",

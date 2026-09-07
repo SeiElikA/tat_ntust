@@ -4229,21 +4229,146 @@ class S {
     );
   }
 
-  /// `This post has formatting or images the app cannot reproduce; editing it here would destroy them.`
-  String get forumEditRichWebOnly {
+  /// `Edit post`
+  String get forumEditRichTitle {
     return Intl.message(
-      'This post has formatting or images the app cannot reproduce; editing it here would destroy them.',
-      name: 'forumEditRichWebOnly',
+      'Edit post',
+      name: 'forumEditRichTitle',
       desc: '',
       args: [],
     );
   }
 
-  /// `Edit on the website`
-  String get forumEditInWeb {
+  /// `Bold`
+  String get forumEditorBold {
+    return Intl.message('Bold', name: 'forumEditorBold', desc: '', args: []);
+  }
+
+  /// `Italic`
+  String get forumEditorItalic {
     return Intl.message(
-      'Edit on the website',
-      name: 'forumEditInWeb',
+      'Italic',
+      name: 'forumEditorItalic',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Underline`
+  String get forumEditorUnderline {
+    return Intl.message(
+      'Underline',
+      name: 'forumEditorUnderline',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Strikethrough`
+  String get forumEditorStrikethrough {
+    return Intl.message(
+      'Strikethrough',
+      name: 'forumEditorStrikethrough',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Paragraph`
+  String get forumEditorParagraph {
+    return Intl.message(
+      'Paragraph',
+      name: 'forumEditorParagraph',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Heading %s`
+  String get forumEditorHeading {
+    return Intl.message(
+      'Heading %s',
+      name: 'forumEditorHeading',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Bulleted list`
+  String get forumEditorBulletList {
+    return Intl.message(
+      'Bulleted list',
+      name: 'forumEditorBulletList',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Numbered list`
+  String get forumEditorNumberedList {
+    return Intl.message(
+      'Numbered list',
+      name: 'forumEditorNumberedList',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Clear formatting`
+  String get forumEditorClearFormat {
+    return Intl.message(
+      'Clear formatting',
+      name: 'forumEditorClearFormat',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `HTML source`
+  String get forumEditorSource {
+    return Intl.message(
+      'HTML source',
+      name: 'forumEditorSource',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Loading the editor…`
+  String get forumEditorLoading {
+    return Intl.message(
+      'Loading the editor…',
+      name: 'forumEditorLoading',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `The editor could not load, so this post cannot be edited right now`
+  String get forumEditorLoadFailed {
+    return Intl.message(
+      'The editor could not load, so this post cannot be edited right now',
+      name: 'forumEditorLoadFailed',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Images already in this post are kept as they are; the app cannot add new ones yet`
+  String get forumEditorImagesKept {
+    return Intl.message(
+      'Images already in this post are kept as they are; the app cannot add new ones yet',
+      name: 'forumEditorImagesKept',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `A safety check on the content failed, so the save was stopped to avoid damaging the post`
+  String get forumEditorUnsafeContent {
+    return Intl.message(
+      'A safety check on the content failed, so the save was stopped to avoid damaging the post',
+      name: 'forumEditorUnsafeContent',
       desc: '',
       args: [],
     );

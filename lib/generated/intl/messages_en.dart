@@ -612,17 +612,42 @@ class MessageLookup extends MessageLookupByLibrary {
     "forumEditError": MessageLookupByLibrary.simpleMessage(
       "Update failed; refresh to check whether it went through instead of saving again",
     ),
-    "forumEditInWeb": MessageLookupByLibrary.simpleMessage(
-      "Edit on the website",
-    ),
     "forumEditPost": MessageLookupByLibrary.simpleMessage("Edit post"),
-    "forumEditRichWebOnly": MessageLookupByLibrary.simpleMessage(
-      "This post has formatting or images the app cannot reproduce; editing it here would destroy them.",
-    ),
+    "forumEditRichTitle": MessageLookupByLibrary.simpleMessage("Edit post"),
     "forumEditWindowClosed": MessageLookupByLibrary.simpleMessage(
       "The time window for editing this post has closed",
     ),
     "forumEdited": MessageLookupByLibrary.simpleMessage("edited"),
+    "forumEditorBold": MessageLookupByLibrary.simpleMessage("Bold"),
+    "forumEditorBulletList": MessageLookupByLibrary.simpleMessage(
+      "Bulleted list",
+    ),
+    "forumEditorClearFormat": MessageLookupByLibrary.simpleMessage(
+      "Clear formatting",
+    ),
+    "forumEditorHeading": MessageLookupByLibrary.simpleMessage("Heading %s"),
+    "forumEditorImagesKept": MessageLookupByLibrary.simpleMessage(
+      "Images already in this post are kept as they are; the app cannot add new ones yet",
+    ),
+    "forumEditorItalic": MessageLookupByLibrary.simpleMessage("Italic"),
+    "forumEditorLoadFailed": MessageLookupByLibrary.simpleMessage(
+      "The editor could not load, so this post cannot be edited right now",
+    ),
+    "forumEditorLoading": MessageLookupByLibrary.simpleMessage(
+      "Loading the editor…",
+    ),
+    "forumEditorNumberedList": MessageLookupByLibrary.simpleMessage(
+      "Numbered list",
+    ),
+    "forumEditorParagraph": MessageLookupByLibrary.simpleMessage("Paragraph"),
+    "forumEditorSource": MessageLookupByLibrary.simpleMessage("HTML source"),
+    "forumEditorStrikethrough": MessageLookupByLibrary.simpleMessage(
+      "Strikethrough",
+    ),
+    "forumEditorUnderline": MessageLookupByLibrary.simpleMessage("Underline"),
+    "forumEditorUnsafeContent": MessageLookupByLibrary.simpleMessage(
+      "A safety check on the content failed, so the save was stopped to avoid damaging the post",
+    ),
     "forumEmpty": MessageLookupByLibrary.simpleMessage(
       "This forum has no discussions yet",
     ),
