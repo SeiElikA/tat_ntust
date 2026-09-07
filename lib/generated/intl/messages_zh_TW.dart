@@ -165,8 +165,11 @@ class MessageLookup extends MessageLookupByLibrary {
     "assignOnlineTextPreserved": MessageLookupByLibrary.simpleMessage(
       "這段文字含有圖片或排版，App 不會去動它：儲存時原樣送回，圖片和格式都會保留。要改文字請到網頁；上面的檔案照樣可以增減。",
     ),
-    "assignOnlineTextUnrestorable": MessageLookupByLibrary.simpleMessage(
-      "認不出這段線上文字裡的圖片位址，原樣送回會弄壞它們，這份作業請在網頁繳交",
+    "assignOnlineTextRawFailed": MessageLookupByLibrary.simpleMessage(
+      "讀不到這段線上文字在 Moodle 上的原始內容，這次沒有送出任何東西，請稍後再試一次",
+    ),
+    "assignOnlineTextReadOnly": MessageLookupByLibrary.simpleMessage(
+      "這段文字含有圖片或排版，App 的純文字框改不動它。要改文字請到網頁。",
     ),
     "assignOpenInWeb": MessageLookupByLibrary.simpleMessage("在網頁開啟"),
     "assignOverdueDays": MessageLookupByLibrary.simpleMessage("已逾期 %s 天"),

@@ -35,11 +35,11 @@ enum AssignSubmitBlock {
 /// （`save_submission` / `submissions_open` 從頭到尾沒有檢查 timelimit，
 /// 網頁的 timer.js 歸零時也只是換一行字）。本地擋下來就是把學生已經寫好的
 /// 東西鎖死在畫面上，那是這條路上唯一會弄丟作業的失敗模式。
+///
+/// **「資料庫原文還沒到手」也不在這裡**：那是一趟幾百毫秒、而且重試就好的
+/// 網路往返，做成 disabled 只會讓鈕閃一下又不給重試；改由
+/// `CourseAssignSubmitController.save` 送出前自己再問一次。
 enum AssignSaveBlock {
-  /// 現有線上文字裡的內嵌圖片還原不回 `@@PLUGINFILE@@`。**只有這一種情況
-  /// 才擋**：`file_postupdate_standard_editor` 的 `empty($editor['itemid'])`
-  /// 分支會把送出的字串逐字寫進資料庫，把絕對網址存回去就是永久污染。
-  unrestorableOnlineText,
   filesEmptied,
   overWordLimit,
   statementNotAccepted,
@@ -231,13 +231,11 @@ class MoodleAssignSubmitUtils {
   /// 只回第一個理由——列出全部會把動作列撐成四行，而常見的單一理由看起來
   /// 反而像出了大事。
   static AssignSaveBlock? saveBlockOf({
-    required bool onlineTextUnrestorable,
     required bool filesEmptied,
     required bool overWordLimit,
     required bool statementOk,
     required bool dirty,
   }) {
-    if (onlineTextUnrestorable) return AssignSaveBlock.unrestorableOnlineText;
     if (filesEmptied) return AssignSaveBlock.filesEmptied;
     if (overWordLimit) return AssignSaveBlock.overWordLimit;
     if (!statementOk) return AssignSaveBlock.statementNotAccepted;
@@ -428,11 +426,11 @@ class MoodleAssignSubmitUtils {
   /// `file_rewrite_pluginfile_urls` 的客戶端反向操作：把絕對網址換回
   /// `@@PLUGINFILE@@`，也就是資料庫裡原本的那個字串。
   ///
-  /// **每一次儲存都要跑，不可以有條件。** 送出的字串會被逐字寫進
-  /// `assignsubmission_onlinetext.onlinetext`（`empty($editor['itemid'])`
-  /// 分支），一次把絕對網址存回去就再也救不回來——之後不論用什麼設定重抓，
-  /// 拿到的都是那個網址，而 `webservice/pluginfile.php` 要憑證，連瀏覽器
-  /// 看那份繳交都會壞掉。
+  /// 只跑在 `getOnlineTextForEdit` 拿回來的原文上，而且**每一次都要跑**：
+  /// 送出的字串會被逐字寫進 `assignsubmission_onlinetext.onlinetext`
+  /// （`empty($editor['itemid'])` 分支），一次把絕對網址存回去就再也救不
+  /// 回來——之後不論用什麼設定重抓，拿到的都是那個網址，而
+  /// `webservice/pluginfile.php` 要憑證，連瀏覽器看那份繳交都會壞掉。
   ///
   /// 對已經是 `@@PLUGINFILE@@` 的原文（raw 那一趟拿到的）是 identity：
   /// 前綴根本不在裡面。前綴含 `/{contextid}/assignsubmission_onlinetext/
@@ -448,18 +446,6 @@ class MoodleAssignSubmitUtils {
     if (base == null || base.isEmpty) return html;
     return html.replaceAll(base, MoodlePluginFileUtils.token);
   }
-
-  /// 這段（**已經還原過的**）文字裡還有沒有指向自己這個 filearea 的絕對網址。
-  ///
-  /// 認 component 與 filearea 是刻意的：學生自己貼的其他 Moodle 檔案連結在
-  /// 資料庫裡本來就是絕對網址，拿裸的 `/pluginfile.php/` 去比會把它們一起
-  /// 擋掉——那就是把同一條死路換個名字再走一次。
-  static bool hasAbsolutePluginFileUrl(String html) =>
-      _ownAbsolutePluginFile.hasMatch(html);
-
-  static final RegExp _ownAbsolutePluginFile = RegExp(
-      r'/pluginfile\.php/\d+/assignsubmission_onlinetext/submissions_onlinetext/',
-      caseSensitive: false);
 
   /// 反向，只給編輯框當初值用。
   static String htmlToPlain(String html) {

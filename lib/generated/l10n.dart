@@ -2149,6 +2149,16 @@ class S {
     );
   }
 
+  /// `This text contains images or formatting that the app's plain-text box cannot edit. To change the text itself, edit it on the web.`
+  String get assignOnlineTextReadOnly {
+    return Intl.message(
+      'This text contains images or formatting that the app\'s plain-text box cannot edit. To change the text itself, edit it on the web.',
+      name: 'assignOnlineTextReadOnly',
+      desc: '',
+      args: [],
+    );
+  }
+
   /// `Edit text on the web`
   String get assignEditOnlineTextInWeb {
     return Intl.message(
@@ -2329,11 +2339,11 @@ class S {
     );
   }
 
-  /// `The image addresses in this online text cannot be resolved, so sending it back unchanged would break them. Submit this assignment on the web.`
-  String get assignOnlineTextUnrestorable {
+  /// `Could not read what Moodle actually stores for this online text, so nothing was submitted. Try again in a moment.`
+  String get assignOnlineTextRawFailed {
     return Intl.message(
-      'The image addresses in this online text cannot be resolved, so sending it back unchanged would break them. Submit this assignment on the web.',
-      name: 'assignOnlineTextUnrestorable',
+      'Could not read what Moodle actually stores for this online text, so nothing was submitted. Try again in a moment.',
+      name: 'assignOnlineTextRawFailed',
       desc: '',
       args: [],
     );

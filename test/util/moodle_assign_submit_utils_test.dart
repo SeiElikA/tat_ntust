@@ -229,14 +229,12 @@ void main() {
   /// 永遠不在裡面**——伺服器照收只標記遲交，本地擋下來就是把寫好的東西鎖死。
   group('saveBlockOf', () {
     AssignSaveBlock? call({
-      bool unrestorable = false,
       bool emptied = false,
       bool over = false,
       bool statementOk = true,
       bool dirty = true,
     }) =>
         MoodleAssignSubmitUtils.saveBlockOf(
-          onlineTextUnrestorable: unrestorable,
           filesEmptied: emptied,
           overWordLimit: over,
           statementOk: statementOk,
@@ -247,8 +245,7 @@ void main() {
       expect(call(), isNull);
     });
 
-    test('五個理由各自認得出來', () {
-      expect(call(unrestorable: true), AssignSaveBlock.unrestorableOnlineText);
+    test('四個理由各自認得出來', () {
       expect(call(emptied: true), AssignSaveBlock.filesEmptied);
       expect(call(over: true), AssignSaveBlock.overWordLimit);
       expect(call(statementOk: false), AssignSaveBlock.statementNotAccepted);
@@ -256,14 +253,6 @@ void main() {
     });
 
     test('同時成立時照宣告順序回第一個', () {
-      expect(
-          call(
-              unrestorable: true,
-              emptied: true,
-              over: true,
-              statementOk: false,
-              dirty: false),
-          AssignSaveBlock.unrestorableOnlineText);
       expect(call(emptied: true, over: true, statementOk: false, dirty: false),
           AssignSaveBlock.filesEmptied);
       expect(call(over: true, statementOk: false, dirty: false),
@@ -579,45 +568,6 @@ void main() {
             inline('Lecture (1).png', '$area/Lecture%20%281%29.png'),
           ]),
           token);
-    });
-  });
-
-  /// 還原之後還剩下的絕對網址＝「這一段救不回來」。認 component 與 filearea
-  /// 是規格的一部分：學生自己貼的其他 Moodle 連結本來就是絕對網址。
-  group('hasAbsolutePluginFileUrl', () {
-    const area = 'https://moodle2.ntust.edu.tw/webservice/pluginfile.php'
-        '/555/assignsubmission_onlinetext/submissions_onlinetext/8801';
-
-    test('自己這一區的絕對網址是真的', () {
-      expect(
-          MoodleAssignSubmitUtils.hasAbsolutePluginFileUrl(
-              '<img src="$area/a.png">'),
-          isTrue);
-    });
-
-    test('還原過之後就不是了', () {
-      expect(
-          MoodleAssignSubmitUtils.hasAbsolutePluginFileUrl(
-              '<img src="@@PLUGINFILE@@/a.png">'),
-          isFalse);
-    });
-
-    test('別的 filearea 與純文字都不算——擋掉它們就是把這條路又走回死巷', () {
-      expect(
-          MoodleAssignSubmitUtils.hasAbsolutePluginFileUrl(
-              '<a href="https://moodle2.ntust.edu.tw/pluginfile.php'
-              '/555/mod_resource/content/0/notes.pdf">講義</a>'),
-          isFalse);
-      expect(MoodleAssignSubmitUtils.hasAbsolutePluginFileUrl('<p>一句話</p>'),
-          isFalse);
-    });
-
-    test('沒有 webservice 前綴的那一種寫法也算', () {
-      expect(
-          MoodleAssignSubmitUtils.hasAbsolutePluginFileUrl(
-              '<img src="https://moodle2.ntust.edu.tw/pluginfile.php'
-              '/555/assignsubmission_onlinetext/submissions_onlinetext/8801/a.png">'),
-          isTrue);
     });
   });
 }

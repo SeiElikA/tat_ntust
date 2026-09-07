@@ -350,6 +350,23 @@ void main() {
       expect(opened.single.$2, contains('/mod/assign/view.php?id=93201'));
     });
 
+    testWidgets('只開線上文字的作業也畫得出那張卡', (tester) async {
+      // 這一組的判斷全是短路運算：沒有檔案外掛、沒有字數上限時一個
+      // observable 都讀不到，包錯一層 Obx 就會 improper-use 當場炸掉。
+      final a = submittable()
+        ..configs = [
+          MoodleAssignConfig(
+              plugin: 'onlinetext',
+              subtype: 'assignsubmission',
+              name: 'enabled',
+              value: '1'),
+        ];
+      await pump(tester, a, statusWithEmbeddedImage());
+
+      expect(find.text(R.current.assignOnlineTextPreserved), findsOneWidget);
+      expect(find.text(R.current.assignOnlineTextKeepAsIs), findsOneWidget);
+    });
+
     testWidgets('有字數上限時提示裡帶著上限', (tester) async {
       await pump(tester, submittable(), fixtureStatus('status_can_edit'));
 
@@ -452,8 +469,13 @@ void main() {
   group('線上文字外掛開著就一定要送', () {
     testWidgets('只動檔案時照樣帶著伺服器原本那份文字，不是 null', (tester) async {
       // 伺服器端 assign_submission_onlinetext::save() 沒有 isset 把關：不送
-      // 這個鍵不是「保留」，是被空值覆蓋。
-      final repo = _PendingRepo();
+      // 這個鍵不是「保留」，是被空值覆蓋。送回去的那一份要來自原文那一趟，
+      // 不是狀態物件裡那份算繪過的。
+      final repo = _PendingRepo()
+        ..editText = (
+          rawText: '<p>已附上報告</p>',
+          inlineFiles: const <MoodleAssignFile>[],
+        );
       MoodleRepository.instance = repo;
       FilePickService.instance = _FakePickService([makeFile('extra.pdf')]);
       await pump(tester, submittable(), fixtureStatus('status_draft'));
@@ -467,7 +489,11 @@ void main() {
     });
 
     testWidgets('文字裡有圖也存得下去：送回去的是還原成 @@PLUGINFILE@@ 的原文', (tester) async {
-      final repo = _PendingRepo();
+      final repo = _PendingRepo()
+        ..editText = (
+          rawText: '<p>看圖 <img src="@@PLUGINFILE@@/Lecture%20%281%29.png"></p>',
+          inlineFiles: const <MoodleAssignFile>[],
+        );
       MoodleRepository.instance = repo;
       FilePickService.instance = _FakePickService([makeFile('new.pdf')]);
       await pump(tester, submittable(), statusWithEmbeddedImage());
@@ -514,14 +540,60 @@ void main() {
       expect(find.text(R.current.assignWordCountExceeded), findsNothing);
     });
 
-    testWidgets('推不出前綴時才擋，而且說的是圖片位址認不出來', (tester) async {
+    testWidgets('原文那一趟拿不到時：不寫回算繪過的那一份，而且說得出原因', (tester) async {
+      // 送回去的必須是資料庫原文。拿不到就整趟不送——狀態物件裡那一份是
+      // filter 與 Purifier 跑過的算繪結果，寫回去是永久的。
+      final repo = _RecordingSaveRepo();
+      MoodleRepository.instance = repo;
       FilePickService.instance = _FakePickService([makeFile('new.pdf')]);
       await pump(tester, submittable(), statusWithUnresolvableImage());
 
       await tapAndFlush(tester, addFilesButton());
+      // 擋的不是按鈕：那一趟重試就好，鈕停用了就沒有第二次機會。
+      expect(enabled(tester, saveButton(R.current.assignSaveDraft)), isTrue);
 
-      expect(enabled(tester, saveButton(R.current.assignSaveDraft)), isFalse);
-      expect(find.text(R.current.assignOnlineTextUnrestorable), findsOneWidget);
+      await tester.tap(saveButton(R.current.assignSaveDraft));
+      await tester.pumpAndSettle();
+
+      expect(repo.saved, isNull);
+      expect(ui.toasts, contains(R.current.assignOnlineTextRawFailed));
+    });
+
+    testWidgets('儲存被硬擋下來時就不准再說「原樣送回、檔案照樣可以增減」', (tester) async {
+      // 動作列說 Moodle 會擋下整次儲存，卡片同時說檔案照樣可以增減——
+      // 兩句話不可能同時是真的。
+      final a = submittable()
+        ..configs = [
+          MoodleAssignConfig(
+              plugin: 'file',
+              subtype: 'assignsubmission',
+              name: 'enabled',
+              value: '1'),
+          MoodleAssignConfig(
+              plugin: 'onlinetext',
+              subtype: 'assignsubmission',
+              name: 'enabled',
+              value: '1'),
+          MoodleAssignConfig(
+              plugin: 'onlinetext',
+              subtype: 'assignsubmission',
+              name: 'wordlimitenabled',
+              value: '1'),
+          MoodleAssignConfig(
+              plugin: 'onlinetext',
+              subtype: 'assignsubmission',
+              name: 'wordlimit',
+              value: '1'),
+        ];
+      await pump(tester, a,
+          inlineStatus(text: '<p>one two three <img src="/x.png"></p>'));
+
+      expect(
+          find.text(R.current.assignWordCountExceededReadOnly), findsOneWidget);
+      expect(find.text(R.current.assignOnlineTextPreserved), findsNothing);
+      expect(find.text(R.current.assignOnlineTextKeepAsIs), findsNothing);
+      // 純文字框改不動這一段還是事實，只是不再附贈那句承諾。
+      expect(find.text(R.current.assignOnlineTextReadOnly), findsOneWidget);
     });
   });
 
@@ -920,6 +992,23 @@ class _NoNetworkRepo extends MoodleRepository {
     required MoodleAssignment assignment,
   }) async =>
       editText;
+}
+
+/// 記下 `save_submission` 到底有沒有被送出去。
+class _RecordingSaveRepo extends _NoNetworkRepo {
+  AssignSubmissionDraft? saved;
+
+  @override
+  Future<Result<MoodleAssignSubmitResult>> saveAssignSubmission({
+    required MoodleAssignment assignment,
+    required MoodleAssignSubmissionStatus status,
+    required AssignSubmissionDraft draft,
+    void Function(AssignTransferProgress progress)? onProgress,
+    CancelToken? cancelToken,
+  }) async {
+    saved = draft;
+    return Ok(MoodleAssignSubmitResult(status: status, submitted: false));
+  }
 }
 
 class _StubStartRepository extends _NoNetworkRepo {

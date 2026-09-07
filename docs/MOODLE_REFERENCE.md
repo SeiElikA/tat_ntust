@@ -272,6 +272,14 @@ POST 欄位。TAT 用 `parameter.data` 加 `getJsonByPost`，行為相同，
     檔案時，只送 `files_filemanager` 會把現有的線上文字寫成 null。**外掛開著就
     一定要送這個鍵**，沒動過也要把伺服器原本那一份原樣送回去（不能用
     `htmlToPlain` → `plainToHtml` 重組，那會弄丟粗體之類的標記）。
+  - **「原樣送回」送的必須是 `getOnlineTextForEdit` 拿回來的資料庫原文，不是
+    狀態那一包裡的線上文字。** 狀態是 `moodlewssettingfilter=true` 抓的，
+    `core\formatting::format_text` 已經對它跑完每一個 `TEXTFILTER_ON` 的 filter
+    再過一次 HTML Purifier：`filter_mathjaxloader` 會把整段包進
+    `<span class="filter_mathjaxloader_equation">`、`filter_activitynames` 會塞
+    進 `<a class="autolink">`、Purifier 會把它不認的東西直接刪掉。把那一串寫回
+    去（下一條：送什麼位元組就存什麼）就是拿算繪結果覆蓋掉學生的原文，而且每
+    存一次再包一層。所以原文那一趟拿不到時**寧可整趟不送**，讓使用者再按一次。
   - **`check_word_count` 是唯一會擋下整趟 `save_submission` 的內容限制，而它不
     說自己是誰。** `assign_submission_onlinetext::save()` 超過 `wordlimit` 就
     `return false`，externallib 把它變成同一句 `couldnotsavesubmission`——使用者
@@ -294,7 +302,8 @@ POST 欄位。TAT 用 `parameter.data` 加 `getJsonByPost`，行為相同，
     `$data->{$field} = $editor['text'];`，**送什麼位元組就永久存什麼**，沒有任何
     正規化，也不會把絕對網址反解回 `@@PLUGINFILE@@`。所以現有文字要原樣送回去
     之前，一定要自己先把網址還原成 `@@PLUGINFILE@@`
-    （`MoodleAssignSubmitUtils.restorePluginfileUrls`）——存錯一次就是永久的：
+    （`MoodleAssignSubmitUtils.restorePluginfileUrls`，對原文通常是 identity，
+    守的是站台無視 `moodlewssettingfileurl=false` 的那一種）——存錯一次就是永久的：
     之後不論用什麼設定重抓，拿到的都是那個網址，而 `webservice/pluginfile.php`
     要憑證，連瀏覽器看那份繳交都會壞掉。
   - **`moodlewssettingraw=true` 單獨送沒有用，一定要配 `moodlewssettingfileurl=false`。**

@@ -20,7 +20,6 @@ class CourseAssignSubmitController {
     final sub = status.submissionFor(assignment);
     _serverFiles = sub?.files ?? const [];
     _serverOnlineText = sub?.onlineText ?? '';
-    _serverInlineFiles = sub?.onlineTextFiles ?? const [];
     _serverDrafts = [
       for (final f in _serverFiles)
         OnlineDraftFile(f.filename, f.fileurl,
@@ -45,10 +44,11 @@ class CourseAssignSubmitController {
   MoodleAssignSubmissionStatus get currentStatus => refreshed.value ?? status;
 
   late final List<MoodleAssignFile> _serverFiles;
-  late final String _serverOnlineText;
 
-  /// 線上文字裡內嵌的那幾個檔案。它們的 `fileurl` 就是還原前綴的來源。
-  late final List<MoodleAssignFile> _serverInlineFiles;
+  /// **算繪過的**那一份線上文字：[status] 是 `moodlewssettingfilter=true`
+  /// 抓回來的。只拿來當輸入框的初值與 [textChanged] 的基準，
+  /// **永遠不可以送回伺服器**，見 [onlineTextNeedsRaw]。
+  late final String _serverOnlineText;
   late final List<OnlineDraftFile> _serverDrafts;
 
   /// 伺服器上已經交了的檔案，給畫面比對用。
@@ -128,6 +128,7 @@ class CourseAssignSubmitController {
 
   /// 現有的線上文字適不適合用純文字框編輯。**這只決定開不開輸入框**，
   /// 跟能不能儲存無關：含圖片的文字照樣存得回去，見 [outgoingOnlineText]。
+  /// 也跟要不要去問原文無關，見 [onlineTextNeedsRaw]。
   bool get onlineTextEditable =>
       onlineTextEnabled &&
       MoodleAssignSubmitUtils.onlineTextIsPlain(_serverOnlineText);
@@ -138,50 +139,60 @@ class CourseAssignSubmitController {
 
   /// 這一次要送進 `plugindata[onlinetext_editor][text]` 的字串。
   ///
-  /// null **只有在沒開 onlinetext 外掛時才對**：伺服器的 `save()` 沒有 isset
-  /// 把關，缺這個鍵等於用空值覆蓋掉學生現有的文字。
+  /// 沒開 onlinetext 外掛時是 null，那時候整個鍵都不送。**外掛開著卻回 null
+  /// 代表這一次不可以送**：資料庫原文還沒到手，見 [onlineTextRawMissing]。
+  /// 伺服器的 `save()` 沒有 isset 把關，缺這個鍵等於用空值覆蓋掉學生的文字，
+  /// 所以 [save] 會整趟擋下來，而不是讓 null 流下去。
   ///
-  /// 沒動過就把伺服器那一份送回去，但一定要先還原 `@@PLUGINFILE@@`——
-  /// 送出的字串會被逐字寫進資料庫。
+  /// 還原 `@@PLUGINFILE@@` 對原文通常是 identity（原文本來就帶佔位字串），
+  /// 留著是為了站台無視 `moodlewssettingfileurl=false` 的那一種。
   String? get outgoingOnlineText {
     if (!onlineTextEnabled) return null;
     if (textChanged) {
       return MoodleAssignSubmitUtils.plainToHtml(onlineText.value);
     }
     final fresh = _freshEditText;
+    if (fresh == null) return _serverOnlineText.isEmpty ? '' : null;
     return MoodleAssignSubmitUtils.restorePluginfileUrls(
-      fresh?.rawText ?? _serverOnlineText,
-      fresh?.inlineFiles ?? _serverInlineFiles,
+      fresh.rawText,
+      fresh.inlineFiles,
     );
   }
 
+  /// 沒動過的文字要原樣送回去時，送出去的必須是**資料庫原文**，也就是
+  /// [loadEditableText] 那一趟拿回來的那一份。
+  ///
+  /// [_serverOnlineText] 不行：`core\formatting::format_text` 已經對它跑完
+  /// 每一個啟用中的 filter（MathJax 會把整段包進
+  /// `<span class="filter_mathjaxloader_equation">`、活動名稱會被塞進
+  /// `<a class="autolink">`）再過一次 HTML Purifier（不合規的標籤直接消失）。
+  /// 而 `file_postupdate_standard_editor` 的 `empty($editor['itemid'])` 分支是
+  /// `$data->onlinetext = $editor['text']`——送什麼位元組就永久存什麼，於是
+  /// 算繪的痕跡被存成學生的原文，每存一次再包一層，Purifier 丟掉的救不回來。
+  bool get onlineTextNeedsRaw =>
+      onlineTextEnabled && !textChanged && _serverOnlineText.isNotEmpty;
+
+  /// 原文還沒到手（那一趟還在路上，或失敗了）。[save] 會自己再問一次。
+  bool get onlineTextRawMissing => onlineTextNeedsRaw && _freshEditText == null;
+
   /// 原文那一趟的成果，拿不到就是 null。
   ///
-  /// 原文是空字串時也當成沒拿到：真的空的時候退路那一份也是空的，結果一樣；
-  /// 而兩者不一致時送空字串等於把學生的文字清掉。
+  /// 原文是空字串時也當成沒拿到：文字真的是空的時候根本不會走到這裡
+  /// （[onlineTextNeedsRaw] 已經是 false），所以空字串只可能是回應不對，
+  /// 照收就是把學生的文字清掉。
   AssignOnlineTextEdit? get _freshEditText {
     final edit = editText.value;
     return (edit != null && edit.rawText.isNotEmpty) ? edit : null;
   }
 
-  /// 這段文字**存不回去**：內嵌圖片的網址還原不了，原樣送回去會把它們
-  /// 寫死成要憑證才打得開的絕對網址，而且是永久的。只有這一種情況擋整頁。
+  /// 去問一次資料庫原文。**不可以動 [onlineText] 與 [_serverOnlineText]**：
+  /// 那兩個是輸入框的初值與 [textChanged] 的基準。
   ///
-  /// 拿到原文的那一趟成功時一律放行：那時送回去的跟資料庫裡的是同一串位元組，
-  /// 連學生自己貼進去的絕對網址都只是原封不動地寫回原處。反過來擋，就是又把
-  /// 「文字裡有圖就交不了」換個名字擋回來一次。
-  bool get onlineTextUnrestorable =>
-      onlineTextEnabled &&
-      !textChanged &&
-      _freshEditText == null &&
-      MoodleAssignSubmitUtils.hasAbsolutePluginFileUrl(
-          outgoingOnlineText ?? '');
-
-  /// 不能編輯的那一份文字也要去問一次原文。**不可以動 [onlineText] 與
-  /// `_serverOnlineText`**：那兩個是輸入框的初值與 [textChanged] 的基準。
-  /// 可編輯時直接跳過——那時畫面上就是使用者自己打的字，沒有東西要送回去。
+  /// 文字框開得起來的那一份也要問：只改檔案、文字一個字都沒動時，送回去的
+  /// 一樣是那份算繪過的，見 [onlineTextNeedsRaw]。失敗就留著 null，[save]
+  /// 會再試一次。
   Future<void> loadEditableText() async {
-    if (!onlineTextEnabled || onlineTextEditable) return;
+    if (!onlineTextNeedsRaw) return;
     editText.value = await MoodleRepository.instance
         .fetchOnlineTextForEdit(assignment: assignment);
   }
@@ -228,7 +239,6 @@ class CourseAssignSubmitController {
   /// 儲存鈕為什麼不能按；null = 可以存。**作答時限到期不在裡面**：伺服器
   /// 照收只標記遲交，本地擋下來就是把寫好的東西鎖死在畫面上。
   AssignSaveBlock? get saveBlock => MoodleAssignSubmitUtils.saveBlockOf(
-        onlineTextUnrestorable: onlineTextUnrestorable,
         filesEmptied: filesEmptied,
         overWordLimit: overWordLimit,
         statementOk: _statementOk,
@@ -282,11 +292,21 @@ class CourseAssignSubmitController {
     busy.value = true;
     progress.value = null;
     try {
+      // 原文那一趟是進頁時發的，使用者一秒多之後就按得到儲存，所以它可能還在
+      // 路上；失敗過的那一次也留著 null。這裡再問一次，問不到就整趟都不送。
+      if (onlineTextRawMissing) await loadEditableText();
+      final outgoing = outgoingOnlineText;
+      // 拿不到原文寧可什麼都不做：算繪過的那一份寫回去是永久的，而少存這一次
+      // 只是要使用者再按一次。
+      if (onlineTextEnabled && outgoing == null) {
+        return AssignSaveOutcome(
+            acted: true, error: R.current.assignOnlineTextRawFailed);
+      }
       final result = await MoodleRepository.instance.saveAssignSubmission(
         assignment: assignment,
         status: currentStatus,
         draft: AssignSubmissionDraft(
-          onlineText: outgoingOnlineText,
+          onlineText: outgoing,
           files: filesChanged ? List<AssignDraftFile>.of(files) : null,
           submitForGrading: submitForGrading,
           acceptStatement: accepted.value,

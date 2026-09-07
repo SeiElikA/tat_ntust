@@ -221,8 +221,11 @@ class MessageLookup extends MessageLookupByLibrary {
     "assignOnlineTextPreserved": MessageLookupByLibrary.simpleMessage(
       "This text contains images or formatting, so the app leaves it alone — it is sent back unchanged when you save, so the images and formatting survive. To change the text itself, edit it on the web. You can still add or remove files above.",
     ),
-    "assignOnlineTextUnrestorable": MessageLookupByLibrary.simpleMessage(
-      "The image addresses in this online text cannot be resolved, so sending it back unchanged would break them. Submit this assignment on the web.",
+    "assignOnlineTextRawFailed": MessageLookupByLibrary.simpleMessage(
+      "Could not read what Moodle actually stores for this online text, so nothing was submitted. Try again in a moment.",
+    ),
+    "assignOnlineTextReadOnly": MessageLookupByLibrary.simpleMessage(
+      "This text contains images or formatting that the app\'s plain-text box cannot edit. To change the text itself, edit it on the web.",
     ),
     "assignOpenInWeb": MessageLookupByLibrary.simpleMessage("Open in web"),
     "assignOverdueDays": MessageLookupByLibrary.simpleMessage(

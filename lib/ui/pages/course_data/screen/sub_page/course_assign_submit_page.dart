@@ -240,7 +240,8 @@ class _CourseAssignSubmitPageState extends State<CourseAssignSubmitPage> {
             icon: LucideIcons.fileText,
             title: R.current.assignOnlineText,
             first: !_controller.fileSubmissionEnabled,
-            trailing: !_controller.onlineTextEditable
+            // 「保留原內容」是一句承諾，儲存被硬擋下來時它就是假的。
+            trailing: !_controller.onlineTextEditable && _onlineTextKept
                 ? StatusPill(
                     background:
                         Theme.of(context).colorScheme.surfaceContainerHighest,
@@ -378,9 +379,13 @@ class _CourseAssignSubmitPageState extends State<CourseAssignSubmitPage> {
     final text = Theme.of(context).textTheme;
     if (!_controller.onlineTextEditable) {
       // 純文字框改不動這一段（圖片、排版都會被打平），但它會被原樣送回去，
-      // 所以檔案照樣可以增減——導網頁只是為了改文字本身。
+      // 所以檔案照樣可以增減——導網頁只是為了改文字本身。儲存被硬擋下來時
+      // 那句話就不能講：那時候一個位元組都不會送出去。
       return SectionCard([
-        Text(R.current.assignOnlineTextPreserved,
+        Text(
+            _onlineTextKept
+                ? R.current.assignOnlineTextPreserved
+                : R.current.assignOnlineTextReadOnly,
             style: text.bodyMedium?.copyWith(color: scheme.onSurfaceVariant)),
         const SizedBox(height: 12),
         FilledButton.tonalIcon(
@@ -558,11 +563,20 @@ class _CourseAssignSubmitPageState extends State<CourseAssignSubmitPage> {
     );
   }
 
+  /// 現有的線上文字這一次到底會不會被原樣送回去。硬擋的那幾種狀態下整趟
+  /// 儲存都不會發生，講「原樣送回」「檔案照樣可以增減」就是騙人。
+  ///
+  /// 刻意不自己包一層 `Obx`：讀它的兩處都在工作區那一個 Obx 底下，而
+  /// `saveBlock` 的那幾個輸入全是短路運算——只開線上文字的作業會讓一個新的
+  /// Obx 一個 observable 都沒讀到，GetX 直接丟 improper-use（同 [_startRow]）。
+  bool get _onlineTextKept {
+    final block = _controller.saveBlock;
+    return block == null || !_saveBlockIsError(block);
+  }
+
   /// 超過字數上限而文字框又打不開時要換一句：叫使用者刪減他在 App 裡
   /// 根本碰不到的文字是句廢話。
   String _saveBlockMessage(AssignSaveBlock block) => switch (block) {
-        AssignSaveBlock.unrestorableOnlineText =>
-          R.current.assignOnlineTextUnrestorable,
         AssignSaveBlock.filesEmptied => R.current.assignFilesEmptiedWebOnly,
         AssignSaveBlock.overWordLimit => _controller.onlineTextEditable
             ? R.current.assignWordCountExceeded
@@ -572,12 +586,9 @@ class _CourseAssignSubmitPageState extends State<CourseAssignSubmitPage> {
         AssignSaveBlock.noChanges => R.current.assignBlockedNoChanges,
       };
 
-  /// 前三個是「這樣交出去會壞掉」，後兩個只是「還沒輪到」。
+  /// 前兩個是「這樣交出去會壞掉」，後兩個只是「還沒輪到」。
   static bool _saveBlockIsError(AssignSaveBlock block) => switch (block) {
-        AssignSaveBlock.unrestorableOnlineText ||
-        AssignSaveBlock.filesEmptied ||
-        AssignSaveBlock.overWordLimit =>
-          true,
+        AssignSaveBlock.filesEmptied || AssignSaveBlock.overWordLimit => true,
         AssignSaveBlock.statementNotAccepted ||
         AssignSaveBlock.noChanges =>
           false,
