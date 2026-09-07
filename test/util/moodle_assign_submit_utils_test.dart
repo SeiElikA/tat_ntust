@@ -2,7 +2,9 @@ import 'dart:io';
 
 import 'package:flutter_app/src/model/moodle_webapi/moodle_mod_assign_get_assignments.dart';
 import 'package:flutter_app/src/model/moodle_webapi/moodle_mod_assign_get_submission_status.dart';
+import 'package:flutter_app/src/model/moodle_webapi/moodle_mod_forum_get_discussion_posts.dart';
 import 'package:flutter_app/src/util/moodle_assign_submit_utils.dart';
+import 'package:flutter_app/src/util/moodle_forum_utils.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../helpers/moodle_assign_fixtures.dart';
@@ -227,14 +229,14 @@ void main() {
   /// 永遠不在裡面**——伺服器照收只標記遲交，本地擋下來就是把寫好的東西鎖死。
   group('saveBlockOf', () {
     AssignSaveBlock? call({
-      bool rich = false,
+      bool unrestorable = false,
       bool emptied = false,
       bool over = false,
       bool statementOk = true,
       bool dirty = true,
     }) =>
         MoodleAssignSubmitUtils.saveBlockOf(
-          onlineTextIsRich: rich,
+          onlineTextUnrestorable: unrestorable,
           filesEmptied: emptied,
           overWordLimit: over,
           statementOk: statementOk,
@@ -246,7 +248,7 @@ void main() {
     });
 
     test('五個理由各自認得出來', () {
-      expect(call(rich: true), AssignSaveBlock.richOnlineText);
+      expect(call(unrestorable: true), AssignSaveBlock.unrestorableOnlineText);
       expect(call(emptied: true), AssignSaveBlock.filesEmptied);
       expect(call(over: true), AssignSaveBlock.overWordLimit);
       expect(call(statementOk: false), AssignSaveBlock.statementNotAccepted);
@@ -256,12 +258,12 @@ void main() {
     test('同時成立時照宣告順序回第一個', () {
       expect(
           call(
-              rich: true,
+              unrestorable: true,
               emptied: true,
               over: true,
               statementOk: false,
               dirty: false),
-          AssignSaveBlock.richOnlineText);
+          AssignSaveBlock.unrestorableOnlineText);
       expect(call(emptied: true, over: true, statementOk: false, dirty: false),
           AssignSaveBlock.filesEmptied);
       expect(call(over: true, statementOk: false, dirty: false),
@@ -485,6 +487,136 @@ void main() {
     test('長度不同 = 有變', () {
       expect(
           MoodleAssignSubmitUtils.fileListChanged(const [], [server('a.pdf')]),
+          isTrue);
+    });
+  });
+
+  /// 還原 `@@PLUGINFILE@@`。這是**每一次儲存都要跑**的那一支：送出的字串會被
+  /// `file_postupdate_standard_editor` 的 `empty($editor['itemid'])` 分支逐字
+  /// 寫進資料庫，存錯一次就再也救不回來。
+  group('restorePluginfileUrls', () {
+    const area = 'https://moodle2.ntust.edu.tw/webservice/pluginfile.php'
+        '/555/assignsubmission_onlinetext/submissions_onlinetext/8801';
+
+    MoodleAssignFile inline(String name, String url, {String path = '/'}) =>
+        MoodleAssignFile(filename: name, filepath: path, fileurl: url);
+
+    test('絕對網址換回資料庫原本的那個字串', () {
+      final files = [inline('a.png', '$area/a.png')];
+      expect(
+          MoodleAssignSubmitUtils.restorePluginfileUrls(
+              '<p><img src="$area/a.png"></p>', files),
+          '<p><img src="@@PLUGINFILE@@/a.png"></p>');
+    });
+
+    test('PHP rawurlencode 的檔名也認得——只試 encodeComponent 會對不起來', () {
+      final files = [
+        inline('Lecture (1).png', '$area/Lecture%20%281%29.png'),
+      ];
+      expect(
+          MoodleAssignSubmitUtils.restorePluginfileUrls(
+              '<img src="$area/Lecture%20%281%29.png">', files),
+          '<img src="@@PLUGINFILE@@/Lecture%20%281%29.png">');
+    });
+
+    test('冪等：已經還原過的再跑一次原封不動', () {
+      final files = [inline('a.png', '$area/a.png')];
+      const restored = '<p><img src="@@PLUGINFILE@@/a.png"></p>';
+      expect(MoodleAssignSubmitUtils.restorePluginfileUrls(restored, files),
+          restored);
+      final once = MoodleAssignSubmitUtils.restorePluginfileUrls(
+          '<p><img src="$area/a.png"></p>', files);
+      expect(MoodleAssignSubmitUtils.restorePluginfileUrls(once, files), once);
+    });
+
+    test('沒有內嵌檔案、空字串、名字對不上時都是原樣回傳', () {
+      expect(
+          MoodleAssignSubmitUtils.restorePluginfileUrls('<p>純文字</p>', const []),
+          '<p>純文字</p>');
+      expect(
+          MoodleAssignSubmitUtils.restorePluginfileUrls(
+              '', [inline('a.png', '$area/a.png')]),
+          '');
+      expect(
+          MoodleAssignSubmitUtils.restorePluginfileUrls(
+              '<img src="$area/a.png">', [inline('b.png', '$area/a.png')]),
+          '<img src="$area/a.png">');
+    });
+
+    test('別的 filearea 的 pluginfile 網址不會被動到', () {
+      const other = 'https://moodle2.ntust.edu.tw/webservice/pluginfile.php'
+          '/555/mod_resource/content/0/notes.pdf';
+      final out = MoodleAssignSubmitUtils.restorePluginfileUrls(
+          '<img src="$area/a.png"><a href="$other">講義</a>',
+          [inline('a.png', '$area/a.png')]);
+      expect(out, '<img src="@@PLUGINFILE@@/a.png"><a href="$other">講義</a>');
+    });
+
+    test('一次推導還原同一區的每一個引用', () {
+      final files = [
+        inline('a.png', '$area/a.png'),
+        inline('b.png', '$area/b.png'),
+      ];
+      expect(
+          MoodleAssignSubmitUtils.restorePluginfileUrls(
+              '<img src="$area/a.png"><img src="$area/b.png">', files),
+          '<img src="@@PLUGINFILE@@/a.png"><img src="@@PLUGINFILE@@/b.png">');
+    });
+
+    test('跟討論區那條路是同一個前綴：展開再還原等於沒動過', () {
+      const token = '@@PLUGINFILE@@/Lecture%20%281%29.png';
+      final forumFiles = [
+        MoodleForumFile(
+            filename: 'Lecture (1).png',
+            filepath: '/',
+            url: '$area/Lecture%20%281%29.png'),
+      ];
+      final displayed =
+          MoodleForumUtils.resolveInlinePluginFiles(token, forumFiles);
+      expect(displayed, contains(area));
+      expect(
+          MoodleAssignSubmitUtils.restorePluginfileUrls(displayed, [
+            inline('Lecture (1).png', '$area/Lecture%20%281%29.png'),
+          ]),
+          token);
+    });
+  });
+
+  /// 還原之後還剩下的絕對網址＝「這一段救不回來」。認 component 與 filearea
+  /// 是規格的一部分：學生自己貼的其他 Moodle 連結本來就是絕對網址。
+  group('hasAbsolutePluginFileUrl', () {
+    const area = 'https://moodle2.ntust.edu.tw/webservice/pluginfile.php'
+        '/555/assignsubmission_onlinetext/submissions_onlinetext/8801';
+
+    test('自己這一區的絕對網址是真的', () {
+      expect(
+          MoodleAssignSubmitUtils.hasAbsolutePluginFileUrl(
+              '<img src="$area/a.png">'),
+          isTrue);
+    });
+
+    test('還原過之後就不是了', () {
+      expect(
+          MoodleAssignSubmitUtils.hasAbsolutePluginFileUrl(
+              '<img src="@@PLUGINFILE@@/a.png">'),
+          isFalse);
+    });
+
+    test('別的 filearea 與純文字都不算——擋掉它們就是把這條路又走回死巷', () {
+      expect(
+          MoodleAssignSubmitUtils.hasAbsolutePluginFileUrl(
+              '<a href="https://moodle2.ntust.edu.tw/pluginfile.php'
+              '/555/mod_resource/content/0/notes.pdf">講義</a>'),
+          isFalse);
+      expect(MoodleAssignSubmitUtils.hasAbsolutePluginFileUrl('<p>一句話</p>'),
+          isFalse);
+    });
+
+    test('沒有 webservice 前綴的那一種寫法也算', () {
+      expect(
+          MoodleAssignSubmitUtils.hasAbsolutePluginFileUrl(
+              '<img src="https://moodle2.ntust.edu.tw/pluginfile.php'
+              '/555/assignsubmission_onlinetext/submissions_onlinetext/8801/a.png">'),
           isTrue);
     });
   });

@@ -2119,11 +2119,41 @@ class S {
     );
   }
 
-  /// `The current online text contains images or formatting that in-app editing would destroy. Edit it on the web.`
-  String get assignOnlineTextNotEditable {
+  /// `The existing online text is over the word limit, so Moodle will reject the whole save. Trim it on the web.`
+  String get assignWordCountExceededReadOnly {
     return Intl.message(
-      'The current online text contains images or formatting that in-app editing would destroy. Edit it on the web.',
-      name: 'assignOnlineTextNotEditable',
+      'The existing online text is over the word limit, so Moodle will reject the whole save. Trim it on the web.',
+      name: 'assignWordCountExceededReadOnly',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Kept as-is`
+  String get assignOnlineTextKeepAsIs {
+    return Intl.message(
+      'Kept as-is',
+      name: 'assignOnlineTextKeepAsIs',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `This text contains images or formatting, so the app leaves it alone — it is sent back unchanged when you save, so the images and formatting survive. To change the text itself, edit it on the web. You can still add or remove files above.`
+  String get assignOnlineTextPreserved {
+    return Intl.message(
+      'This text contains images or formatting, so the app leaves it alone — it is sent back unchanged when you save, so the images and formatting survive. To change the text itself, edit it on the web. You can still add or remove files above.',
+      name: 'assignOnlineTextPreserved',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Edit text on the web`
+  String get assignEditOnlineTextInWeb {
+    return Intl.message(
+      'Edit text on the web',
+      name: 'assignEditOnlineTextInWeb',
       desc: '',
       args: [],
     );
@@ -2299,11 +2329,11 @@ class S {
     );
   }
 
-  /// `The existing online text cannot be safely overwritten in the app; submit this assignment on the web`
-  String get assignSubmitBlockedByOnlineText {
+  /// `The image addresses in this online text cannot be resolved, so sending it back unchanged would break them. Submit this assignment on the web.`
+  String get assignOnlineTextUnrestorable {
     return Intl.message(
-      'The existing online text cannot be safely overwritten in the app; submit this assignment on the web',
-      name: 'assignSubmitBlockedByOnlineText',
+      'The image addresses in this online text cannot be resolved, so sending it back unchanged would break them. Submit this assignment on the web.',
+      name: 'assignOnlineTextUnrestorable',
       desc: '',
       args: [],
     );
@@ -2424,16 +2454,6 @@ class S {
     return Intl.message(
       'Added now · %s',
       name: 'assignFileJustAdded',
-      desc: '',
-      args: [],
-    );
-  }
-
-  /// `Read-only`
-  String get assignReadOnly {
-    return Intl.message(
-      'Read-only',
-      name: 'assignReadOnly',
       desc: '',
       args: [],
     );

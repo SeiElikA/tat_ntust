@@ -103,6 +103,9 @@ class MessageLookup extends MessageLookupByLibrary {
     "assignDueInDays": MessageLookupByLibrary.simpleMessage("%s 天後截止"),
     "assignDueInHours": MessageLookupByLibrary.simpleMessage("%s 小時後截止"),
     "assignDueSoon": MessageLookupByLibrary.simpleMessage("一小時內截止"),
+    "assignEditOnlineTextInWeb": MessageLookupByLibrary.simpleMessage(
+      "在網頁編輯文字",
+    ),
     "assignEditSubmission": MessageLookupByLibrary.simpleMessage("編輯繳交"),
     "assignExtensionDueDate": MessageLookupByLibrary.simpleMessage("延長期限"),
     "assignFeedback": MessageLookupByLibrary.simpleMessage("老師回饋"),
@@ -158,8 +161,12 @@ class MessageLookup extends MessageLookupByLibrary {
     "assignOnlineTextHint": MessageLookupByLibrary.simpleMessage(
       "這裡輸入的內容會以純文字送出",
     ),
-    "assignOnlineTextNotEditable": MessageLookupByLibrary.simpleMessage(
-      "目前的線上文字含有圖片或排版，在 App 內編輯會破壞它，請在網頁修改",
+    "assignOnlineTextKeepAsIs": MessageLookupByLibrary.simpleMessage("保留原內容"),
+    "assignOnlineTextPreserved": MessageLookupByLibrary.simpleMessage(
+      "這段文字含有圖片或排版，App 不會去動它：儲存時原樣送回，圖片和格式都會保留。要改文字請到網頁；上面的檔案照樣可以增減。",
+    ),
+    "assignOnlineTextUnrestorable": MessageLookupByLibrary.simpleMessage(
+      "認不出這段線上文字裡的圖片位址，原樣送回會弄壞它們，這份作業請在網頁繳交",
     ),
     "assignOpenInWeb": MessageLookupByLibrary.simpleMessage("在網頁開啟"),
     "assignOverdueDays": MessageLookupByLibrary.simpleMessage("已逾期 %s 天"),
@@ -167,7 +174,6 @@ class MessageLookup extends MessageLookupByLibrary {
     "assignOverdueJustNow": MessageLookupByLibrary.simpleMessage("剛過截止時間"),
     "assignPreparingFile": MessageLookupByLibrary.simpleMessage("正在準備 %s"),
     "assignPreviousAttempts": MessageLookupByLibrary.simpleMessage("先前的繳交"),
-    "assignReadOnly": MessageLookupByLibrary.simpleMessage("唯讀"),
     "assignRemoveConfirm": MessageLookupByLibrary.simpleMessage(
       "會刪掉這次繳交的全部檔案與文字，而且沒有辦法復原",
     ),
@@ -222,9 +228,6 @@ class MessageLookup extends MessageLookupByLibrary {
     "assignSubmit": MessageLookupByLibrary.simpleMessage("繳交"),
     "assignSubmitAgainWarning": MessageLookupByLibrary.simpleMessage(
       "重新繳交會用這次的清單覆蓋目前已交的檔案",
-    ),
-    "assignSubmitBlockedByOnlineText": MessageLookupByLibrary.simpleMessage(
-      "現有的線上文字在 App 內無法安全覆蓋，這份作業請在網頁繳交",
     ),
     "assignSubmitCancelled": MessageLookupByLibrary.simpleMessage("已取消上傳"),
     "assignSubmitDirectConfirm": MessageLookupByLibrary.simpleMessage(
@@ -295,6 +298,9 @@ class MessageLookup extends MessageLookupByLibrary {
     "assignWordCount": MessageLookupByLibrary.simpleMessage("字數 %s / 上限 %s"),
     "assignWordCountExceeded": MessageLookupByLibrary.simpleMessage(
       "超過字數上限，請刪減後再繳交",
+    ),
+    "assignWordCountExceededReadOnly": MessageLookupByLibrary.simpleMessage(
+      "現有的線上文字超過字數上限，Moodle 會擋下整次儲存，請在網頁刪減",
     ),
     "assignment": MessageLookupByLibrary.simpleMessage("作業"),
     "assignmentDetail": MessageLookupByLibrary.simpleMessage("作業詳情"),

@@ -82,6 +82,9 @@ class _CourseAssignSubmitPageState extends State<CourseAssignSubmitPage> {
         .addListener(() => _controller.onlineText.value = _textController.text);
     _nowUnix.value = _serverUnix();
     _syncTicker();
+    // 存不進快取的一趟，拿來把「原樣送回」送的東西從算繪結果換成資料庫原文。
+    // 失敗也不影響儲存，所以不擋畫面、不報錯。
+    unawaited(_controller.loadEditableText());
   }
 
   @override
@@ -237,12 +240,12 @@ class _CourseAssignSubmitPageState extends State<CourseAssignSubmitPage> {
             icon: LucideIcons.fileText,
             title: R.current.assignOnlineText,
             first: !_controller.fileSubmissionEnabled,
-            trailing: _controller.onlineTextIsRich
+            trailing: !_controller.onlineTextEditable
                 ? StatusPill(
                     background:
                         Theme.of(context).colorScheme.surfaceContainerHighest,
                     foreground: Theme.of(context).colorScheme.onSurfaceVariant,
-                    label: R.current.assignReadOnly,
+                    label: R.current.assignOnlineTextKeepAsIs,
                   )
                 : null,
           ),
@@ -374,15 +377,16 @@ class _CourseAssignSubmitPageState extends State<CourseAssignSubmitPage> {
     final scheme = Theme.of(context).colorScheme;
     final text = Theme.of(context).textTheme;
     if (!_controller.onlineTextEditable) {
-      // 覆蓋含內嵌檔案的線上文字會留下孤兒檔案、圖片連結失效，所以導網頁。
+      // 純文字框改不動這一段（圖片、排版都會被打平），但它會被原樣送回去，
+      // 所以檔案照樣可以增減——導網頁只是為了改文字本身。
       return SectionCard([
-        Text(R.current.assignOnlineTextNotEditable,
+        Text(R.current.assignOnlineTextPreserved,
             style: text.bodyMedium?.copyWith(color: scheme.onSurfaceVariant)),
         const SizedBox(height: 12),
         FilledButton.tonalIcon(
           onPressed: () => unawaited(_openInWeb()),
           icon: const Icon(LucideIcons.externalLink, size: 18),
-          label: Text(R.current.assignOpenInWeb),
+          label: Text(R.current.assignEditOnlineTextInWeb),
         ),
       ]);
     }
@@ -554,11 +558,15 @@ class _CourseAssignSubmitPageState extends State<CourseAssignSubmitPage> {
     );
   }
 
-  static String _saveBlockMessage(AssignSaveBlock block) => switch (block) {
-        AssignSaveBlock.richOnlineText =>
-          R.current.assignSubmitBlockedByOnlineText,
+  /// 超過字數上限而文字框又打不開時要換一句：叫使用者刪減他在 App 裡
+  /// 根本碰不到的文字是句廢話。
+  String _saveBlockMessage(AssignSaveBlock block) => switch (block) {
+        AssignSaveBlock.unrestorableOnlineText =>
+          R.current.assignOnlineTextUnrestorable,
         AssignSaveBlock.filesEmptied => R.current.assignFilesEmptiedWebOnly,
-        AssignSaveBlock.overWordLimit => R.current.assignWordCountExceeded,
+        AssignSaveBlock.overWordLimit => _controller.onlineTextEditable
+            ? R.current.assignWordCountExceeded
+            : R.current.assignWordCountExceededReadOnly,
         AssignSaveBlock.statementNotAccepted =>
           R.current.assignBlockedStatement,
         AssignSaveBlock.noChanges => R.current.assignBlockedNoChanges,
@@ -566,7 +574,7 @@ class _CourseAssignSubmitPageState extends State<CourseAssignSubmitPage> {
 
   /// 前三個是「這樣交出去會壞掉」，後兩個只是「還沒輪到」。
   static bool _saveBlockIsError(AssignSaveBlock block) => switch (block) {
-        AssignSaveBlock.richOnlineText ||
+        AssignSaveBlock.unrestorableOnlineText ||
         AssignSaveBlock.filesEmptied ||
         AssignSaveBlock.overWordLimit =>
           true,

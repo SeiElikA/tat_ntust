@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter_app/src/model/moodle_webapi/moodle_mod_assign_get_assignments.dart';
 import 'package:flutter_app/src/model/moodle_webapi/moodle_mod_assign_get_submission_status.dart';
 import 'package:flutter_app/src/util/moodle_assign_attempt_utils.dart';
+import 'package:flutter_app/src/util/moodle_pluginfile_utils.dart';
 
 /// 為什麼不能在 App 內交這份作業。null 代表可以交。
 enum AssignSubmitBlock {
@@ -35,7 +36,10 @@ enum AssignSubmitBlock {
 /// 網頁的 timer.js 歸零時也只是換一行字）。本地擋下來就是把學生已經寫好的
 /// 東西鎖死在畫面上，那是這條路上唯一會弄丟作業的失敗模式。
 enum AssignSaveBlock {
-  richOnlineText,
+  /// 現有線上文字裡的內嵌圖片還原不回 `@@PLUGINFILE@@`。**只有這一種情況
+  /// 才擋**：`file_postupdate_standard_editor` 的 `empty($editor['itemid'])`
+  /// 分支會把送出的字串逐字寫進資料庫，把絕對網址存回去就是永久污染。
+  unrestorableOnlineText,
   filesEmptied,
   overWordLimit,
   statementNotAccepted,
@@ -75,6 +79,17 @@ class AssignTransferProgress {
   /// 整體的 0..1；[total] 為 0 時是 null（沒有東西可以量）。
   double? get overall => total <= 0 ? null : (done + ratio) / total;
 }
+
+/// 未經算繪的線上文字，由 `MoodleWebApiConnector.getOnlineTextForEdit` 回傳。
+///
+/// **刻意不是 `MoodleAssignSubmissionStatus`**：[rawText] 是資料庫原文
+/// （含 `@@PLUGINFILE@@`），包成狀態物件就會有人拿去畫面上畫、或寫進
+/// `cache_moodle_assign_status`——那一頁會把佔位字串當成圖片網址畫出破圖，
+/// 而且是從快取來的，下次進來還是破的。用不同的型別讓它不可能發生。
+typedef AssignOnlineTextEdit = ({
+  String rawText,
+  List<MoodleAssignFile> inlineFiles,
+});
 
 /// 編輯頁上的一份草稿；repository 與 UI 共用的值型別。
 class AssignSubmissionDraft {
@@ -216,13 +231,13 @@ class MoodleAssignSubmitUtils {
   /// 只回第一個理由——列出全部會把動作列撐成四行，而常見的單一理由看起來
   /// 反而像出了大事。
   static AssignSaveBlock? saveBlockOf({
-    required bool onlineTextIsRich,
+    required bool onlineTextUnrestorable,
     required bool filesEmptied,
     required bool overWordLimit,
     required bool statementOk,
     required bool dirty,
   }) {
-    if (onlineTextIsRich) return AssignSaveBlock.richOnlineText;
+    if (onlineTextUnrestorable) return AssignSaveBlock.unrestorableOnlineText;
     if (filesEmptied) return AssignSaveBlock.filesEmptied;
     if (overWordLimit) return AssignSaveBlock.overWordLimit;
     if (!statementOk) return AssignSaveBlock.statementNotAccepted;
@@ -410,6 +425,42 @@ class MoodleAssignSubmitUtils {
     ].join();
   }
 
+  /// `file_rewrite_pluginfile_urls` 的客戶端反向操作：把絕對網址換回
+  /// `@@PLUGINFILE@@`，也就是資料庫裡原本的那個字串。
+  ///
+  /// **每一次儲存都要跑，不可以有條件。** 送出的字串會被逐字寫進
+  /// `assignsubmission_onlinetext.onlinetext`（`empty($editor['itemid'])`
+  /// 分支），一次把絕對網址存回去就再也救不回來——之後不論用什麼設定重抓，
+  /// 拿到的都是那個網址，而 `webservice/pluginfile.php` 要憑證，連瀏覽器
+  /// 看那份繳交都會壞掉。
+  ///
+  /// 對已經是 `@@PLUGINFILE@@` 的原文（raw 那一趟拿到的）是 identity：
+  /// 前綴根本不在裡面。前綴含 `/{contextid}/assignsubmission_onlinetext/
+  /// submissions_onlinetext/{submissionid}/`，所以指向別的地方的
+  /// pluginfile 網址動都不會動。
+  static String restorePluginfileUrls(
+      String html, List<MoodleAssignFile> inlineFiles) {
+    if (html.isEmpty || inlineFiles.isEmpty) return html;
+    final base = MoodlePluginFileUtils.baseOf([
+      for (final f in inlineFiles)
+        (filepath: f.filepath, filename: f.filename, url: f.fileurl),
+    ]);
+    if (base == null || base.isEmpty) return html;
+    return html.replaceAll(base, MoodlePluginFileUtils.token);
+  }
+
+  /// 這段（**已經還原過的**）文字裡還有沒有指向自己這個 filearea 的絕對網址。
+  ///
+  /// 認 component 與 filearea 是刻意的：學生自己貼的其他 Moodle 檔案連結在
+  /// 資料庫裡本來就是絕對網址，拿裸的 `/pluginfile.php/` 去比會把它們一起
+  /// 擋掉——那就是把同一條死路換個名字再走一次。
+  static bool hasAbsolutePluginFileUrl(String html) =>
+      _ownAbsolutePluginFile.hasMatch(html);
+
+  static final RegExp _ownAbsolutePluginFile = RegExp(
+      r'/pluginfile\.php/\d+/assignsubmission_onlinetext/submissions_onlinetext/',
+      caseSensitive: false);
+
   /// 反向，只給編輯框當初值用。
   static String htmlToPlain(String html) {
     if (html.isEmpty) return '';
@@ -429,8 +480,14 @@ class MoodleAssignSubmitUtils {
     return text.replaceFirst(RegExp(r'\n+$'), '');
   }
 
-  /// 現有的線上文字能不能用純文字框安全覆蓋。`onlinetext_editor.itemid`
-  /// 送 0 會整段跳過 draft 同步，內嵌圖片會變成死連結。
+  /// 現有的線上文字適不適合用純文字框編輯——**這是「開哪一種編輯器」的判斷，
+  /// 不是「能不能存檔」**。判 false 就走所見即所得編輯器。
+  ///
+  /// 因果不要寫反：`onlinetext_editor.itemid` 送 0 會讓
+  /// `file_postupdate_standard_editor()` 走 `empty($editor['itemid'])` 分支，
+  /// **跳過 draft 同步正是既有內嵌圖片活下來的原因**；真正會殺檔案的是送一個
+  /// 非 0、內容不完整的 draft itemid。官方 App 也是送 0
+  /// （`handler.ts`：`itemid: 0, // Can't add new files yet`）。
   static bool onlineTextIsPlain(String html) {
     if (html.isEmpty) return true;
     final lower = html.toLowerCase();

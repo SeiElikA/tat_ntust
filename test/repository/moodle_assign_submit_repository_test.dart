@@ -390,6 +390,40 @@ void main() {
     });
   });
 
+  /// 存回去之前拿原文的那一趟。它跟畫面上那一份長得很像，所以型別與快取
+  /// 這兩道防線都要有測試守著。
+  group('fetchOnlineTextForEdit', () {
+    Future<AssignOnlineTextEdit?> fetch() =>
+        repo.fetchOnlineTextForEdit(assignment: submittable());
+
+    test('拿得到原文，但 cache_moodle_assign_status 底下什麼都沒寫', () async {
+      MoodleWebApiConnector.wsToken = 'token-123';
+      MoodleWebApiConnector.userId = '5252';
+      MoodleWebApiConnector.wsPost =
+          (_) async => loadMoodleAssignFixture('status_onlinetext_inline');
+
+      final edit = await fetch();
+
+      expect(edit!.rawText, contains('<img'));
+      // 進了快取的話，詳情頁之後每次都會把 @@PLUGINFILE@@ 畫成破圖。
+      expect(
+          await CacheStore.instance
+              .read(MoodleRepository.submissionStatusKey(submittable().id)),
+          isNull);
+    });
+
+    test('那一趟失敗回 null，不是丟例外——儲存不可以因此變成不可能', () async {
+      MoodleWebApiConnector.wsToken = 'token-123';
+      MoodleWebApiConnector.userId = '5252';
+      MoodleWebApiConnector.wsPost = (_) async => throw MoodleApiException(
+          wsFunction: MoodleWebApiConnector.submissionStatusFunction,
+          errorcode: 'invalidtoken',
+          message: 'x');
+
+      expect(await fetch(), isNull);
+    });
+  });
+
   group('被伺服器拒絕（save_submission 不是原子的）', () {
     MoodleApiException rejected() => MoodleApiException(
         wsFunction: 'mod_assign_save_submission',
@@ -545,7 +579,8 @@ void main() {
         acceptStatement: false,
       );
 
-      expect(result.dataOrNull!.error, R.current.assignSubmitForGradingRejected);
+      expect(
+          result.dataOrNull!.error, R.current.assignSubmitForGradingRejected);
       expect(result.dataOrNull!.submitted, isFalse);
       expect(result.dataOrNull!.status, isNotNull);
       expect(repo.refetchCalls, 1);

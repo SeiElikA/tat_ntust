@@ -54,8 +54,34 @@ void main() {
           isFalse);
     });
 
-    test('`<br />` 這種變體判成不安全——保守勝過把別人的排版覆蓋掉', () {
-      expect(MoodleForumEditUtils.isPlainRoundTrip('一<br />二', html), isFalse);
+    test('伺服器真正吐回來的寫法（`<br />` + `&#039;`）要判成安全', () {
+      // 這一組不是 plainTextToHtml() 的輸出，是伺服器的：`format_text` 的
+      // nl2br 與 HTMLPurifier（XHTML 1.0 Transitional）都吐 `<br />`，
+      // PHP `s()` 是 ENT_QUOTES 的 `&#039;`。以前拿 `<br>` 去比，於是**任何
+      // 多行或含單引號的貼文**都被判成不安全——包含 App 自己幾秒鐘前發的那則。
+      expect(MoodleForumEditUtils.isPlainRoundTrip('一<br />二', html), isTrue);
+      expect(MoodleForumEditUtils.isPlainRoundTrip('一<br/>二', html), isTrue);
+      expect(
+          MoodleForumEditUtils.isPlainRoundTrip('他說 &#039;單引號&#039;', html),
+          isTrue);
+      expect(MoodleForumEditUtils.htmlToPlain('一<br />二'), '一\n二');
+      expect(MoodleForumEditUtils.htmlToPlain('&#039;x&#039;'), "'x'");
+    });
+
+    test('plainEditPayload：FORMAT_HTML 的貼文要轉成 HTML 再送回去', () {
+      // 純文字直接配 FORMAT_HTML 送出去，換行會被 HTML 吃掉；配 FORMAT_PLAIN
+      // 送則會把貼文永久降級成純文字，而這一支不吃 topreferredformat。
+      final p = MoodleForumEditUtils.plainEditPayload('一\n二', html);
+      expect(p.message, '一<br>二');
+      expect(p.format, html);
+    });
+
+    test('plainEditPayload：原本就是純文字的貼文原樣送回，format 不變', () {
+      for (final f in [plain, moodle]) {
+        final p = MoodleForumEditUtils.plainEditPayload('一\n二', f);
+        expect(p.message, '一\n二');
+        expect(p.format, f, reason: '不可以趁編輯把 format 改掉');
+      }
     });
 
     test('認不得的 format（MARKDOWN=4）一律不安全', () {

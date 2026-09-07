@@ -39,6 +39,7 @@ import 'package:flutter_app/src/model/moodle_webapi/moodle_user_picture.dart';
 import 'package:flutter_app/src/store/model.dart';
 import 'package:flutter_app/src/util/html_utils.dart';
 import 'package:flutter_app/src/util/moodle_course_name_utils.dart';
+import 'package:flutter_app/src/util/moodle_assign_submit_utils.dart';
 import 'package:flutter_app/src/util/moodle_forum_edit_utils.dart';
 import 'package:flutter_app/src/util/moodle_forum_utils.dart';
 
@@ -1457,8 +1458,14 @@ class MoodleWebApiConnector {
   static Future<ForumPostEdit?> getPostForEdit(int postId) async {
     try {
       return postForEditOf(await _callWs(discussionPostFunction, {
-        "moodlewssettingfilter": "true",
-        "moodlewssettingfileurl": "true",
+        // 編輯要的是資料庫原文，不是算繪結果：`filter` 會把 filter plugin
+        // （多媒體、詞彙連結）的產物寫死進去，`fileurl` 會把
+        // `@@PLUGINFILE@@` 換成絕對網址——兩者原樣送回伺服器就是永久污染。
+        // post_exporter 本來就可能不跑 `format_text`；真是那樣這三個設定是
+        // no-op，不是的話正好修掉，兩種情況下都正確。
+        "moodlewssettingraw": "true",
+        "moodlewssettingfilter": "false",
+        "moodlewssettingfileurl": "false",
         "postid": postId.toString(),
       }));
     } catch (e, stack) {
@@ -1549,12 +1556,23 @@ class MoodleWebApiConnector {
   ///    `$DB->set_field('forum_posts','attachment','')`：**貼文的 attachment
   ///    旗標會被清成空字串**，檔案還在，但主題清單的迴紋針會憑空消失。
   ///    所以「原本有附件」或「使用者新加了附件」時一律要送。
+  /// 4. **[messageFormat] 一定要帶原文的 format 回去。** 這一支不吃
+  ///    `topreferredformat`（見 1.），寫死送 FORMAT_PLAIN 會把一篇
+  ///    FORMAT_HTML 貼文永久改成純文字，而且救不回來。
   static Future<void> updateDiscussionPost({
     required int postId,
     required String subject,
     required String message,
+    required int messageFormat,
     int? attachmentsId,
+    int? inlineAttachmentsId,
   }) async {
+    // 索引要連號：只送 inlineattachmentsid 時它必須是 options[0]。
+    final options = <(String, String)>[
+      if (attachmentsId != null) ("attachmentsid", attachmentsId.toString()),
+      if (inlineAttachmentsId != null)
+        ("inlineattachmentsid", inlineAttachmentsId.toString()),
+    ];
     try {
       final result = await _callWs(
         updateDiscussionPostFunction,
@@ -1562,10 +1580,10 @@ class MoodleWebApiConnector {
           "postid": postId.toString(),
           "subject": subject,
           "message": message,
-          "messageformat": forumMessageFormatPlain,
-          if (attachmentsId != null) ...{
-            "options[0][name]": "attachmentsid",
-            "options[0][value]": attachmentsId.toString(),
+          "messageformat": messageFormat.toString(),
+          for (final (i, o) in options.indexed) ...{
+            "options[$i][name]": o.$1,
+            "options[$i][value]": o.$2,
           },
         },
         treatWarningsAsError: true,
@@ -2034,6 +2052,53 @@ class MoodleWebApiConnector {
       _reportFailure(submissionStatusFunction, e, stack);
       return null;
     }
+  }
+
+  /// 要把現有線上文字原樣送回去之前打的那一趟：拿**資料庫原文**與內嵌檔案。
+  ///
+  /// **這一份回應不可以包成 [MoodleAssignSubmissionStatus]、也不可以進快取。**
+  /// 三個設定缺一不可，而且 `fileurl` 要單獨看：`core_external\util::format_text`
+  /// 先做 `file_rewrite_pluginfile_urls` 才檢查 `raw`，只送 raw 的話
+  /// `@@PLUGINFILE@@` 照樣會被換成絕對網址。
+  static Future<AssignOnlineTextEdit?> getOnlineTextForEdit(
+    int assignId, {
+    required bool teamSubmission,
+  }) async {
+    try {
+      final uid = await _ensureUserId();
+      if (uid == null) return null;
+
+      final result = await _callWs(submissionStatusFunction, {
+        "moodlewssettingraw": "true",
+        "moodlewssettingfilter": "false",
+        "moodlewssettingfileurl": "false",
+        "assignid": assignId.toString(),
+        "userid": uid,
+      });
+      return onlineTextForEditOf(result, teamSubmission: teamSubmission);
+    } catch (e, stack) {
+      _reportFailure(submissionStatusFunction, e, stack);
+      return null;
+    }
+  }
+
+  /// 形狀不對、或這份作業還沒有繳交紀錄時回 null。[teamSubmission] 決定要讀
+  /// `teamsubmission` 還是 `submission`——順序不能用 null 合併，見
+  /// `MoodleAssignSubmissionStatus.submissionFor`。
+  @visibleForTesting
+  static AssignOnlineTextEdit? onlineTextForEditOf(
+    dynamic result, {
+    required bool teamSubmission,
+  }) {
+    if (result is! Map) return null;
+    final status = MoodleAssignSubmissionStatus.fromJson(
+        Map<String, dynamic>.from(result));
+    final last = status.lastattempt;
+    final sub = teamSubmission
+        ? (last?.teamsubmission ?? last?.submission)
+        : last?.submission;
+    if (sub == null) return null;
+    return (rawText: sub.onlineText, inlineFiles: sub.onlineTextFiles);
   }
 
   /// 形狀不對回 null。`gradefordisplay` 是 HTML 片段（如 `85.00&nbsp;/&nbsp;100.00`），

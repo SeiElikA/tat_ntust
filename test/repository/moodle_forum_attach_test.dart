@@ -15,6 +15,7 @@ import 'package:flutter_app/src/service/connectivity_probe.dart';
 import 'package:flutter_app/src/service/task_ui_delegate.dart';
 import 'package:flutter_app/src/store/cache_store.dart';
 import 'package:flutter_app/src/util/moodle_forum_edit_utils.dart';
+import 'package:flutter_app/src/util/moodle_forum_utils.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../helpers/fake_auth_session.dart';
@@ -46,6 +47,8 @@ class _FakeRepo extends MoodleRepository {
   final uploadedItemIds = <int?>[];
   final prepareCalls = <List<({String filename, String filepath})>>[];
   final updateAttachmentIds = <int?>[];
+  final updateMessages = <String>[];
+  final updateFormats = <int>[];
   int? replyAttachmentsId;
   int? discussionAttachmentsId;
   int deleteCalls = 0;
@@ -109,10 +112,14 @@ class _FakeRepo extends MoodleRepository {
     required int postId,
     required String subject,
     required String message,
+    required int messageFormat,
     int? attachmentsId,
+    int? inlineAttachmentsId,
   }) async {
     updateCalls++;
     updateAttachmentIds.add(attachmentsId);
+    updateMessages.add(message);
+    updateFormats.add(messageFormat);
     final error = updateError;
     if (error != null) throw error;
   }
@@ -365,6 +372,7 @@ void main() {
   group('editPost', () {
     test('原本沒有附件、也沒加 → **不送** attachmentsid（旗標本來就是空的）', () async {
       final result = await repo.editPost(
+        rawFormat: MoodleForumUtils.formatPlain,
         postId: 950,
         subject: 's',
         text: 'm',
@@ -382,6 +390,7 @@ void main() {
       repo.refreshedAttachments = [online('a.pdf')];
 
       await repo.editPost(
+        rawFormat: MoodleForumUtils.formatPlain,
         postId: 950,
         subject: 's',
         text: 'm',
@@ -398,6 +407,7 @@ void main() {
 
     test('把既有附件全部移除時送哨兵名單——空陣列是「全部保留」，不是「全部刪掉」', () async {
       await repo.editPost(
+        rawFormat: MoodleForumUtils.formatPlain,
         postId: 950,
         subject: 's',
         text: 'm',
@@ -416,6 +426,7 @@ void main() {
       repo.refreshedAttachments = [online('a.pdf'), online('new.pdf')];
 
       await repo.editPost(
+        rawFormat: MoodleForumUtils.formatPlain,
         postId: 950,
         subject: 's',
         text: 'm',
@@ -440,6 +451,7 @@ void main() {
       );
 
       final result = await repo.editPost(
+        rawFormat: MoodleForumUtils.formatPlain,
         postId: 950,
         subject: 's',
         text: 'm',
@@ -470,6 +482,7 @@ void main() {
       );
 
       final result = await repo.editPost(
+        rawFormat: MoodleForumUtils.formatPlain,
         postId: 950,
         subject: 's',
         text: 'm',
@@ -485,6 +498,7 @@ void main() {
 
     test('空內文 → 直接失敗，一個請求都不送（伺服器會靜靜不改然後回 status: true）', () async {
       final result = await repo.editPost(
+        rawFormat: MoodleForumUtils.formatPlain,
         postId: 950,
         subject: 's',
         text: '   ',
@@ -499,6 +513,7 @@ void main() {
 
     test('空標題 → 直接失敗', () async {
       final result = await repo.editPost(
+        rawFormat: MoodleForumUtils.formatPlain,
         postId: 950,
         subject: '  ',
         text: 'm',
@@ -516,6 +531,7 @@ void main() {
           MoodleApiException(wsFunction: 'x', errorcode: 'cannotupdatepost');
 
       final result = await repo.editPost(
+        rawFormat: MoodleForumUtils.formatPlain,
         postId: 950,
         subject: 's',
         text: 'm',
@@ -533,6 +549,7 @@ void main() {
       repo.refreshedAttachments = const [];
 
       final result = await repo.editPost(
+        rawFormat: MoodleForumUtils.formatPlain,
         postId: 950,
         subject: 's',
         text: 'm',

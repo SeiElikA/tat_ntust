@@ -248,6 +248,13 @@ class MoodleAssignSubmission {
           if (p.type == 'file') ...p.allFiles
       ];
 
+  /// 線上文字裡內嵌的那幾個檔案。onlinetext 外掛只有
+  /// `submissions_onlinetext` 一個 filearea，所以整包攤平不會混到別人的。
+  List<MoodleAssignFile> get onlineTextFiles => [
+        for (final p in plugins)
+          if (p.type == 'onlinetext') ...p.allFiles
+      ];
+
   /// 線上文字（onlinetext 外掛），HTML；沒有就空字串。
   String get onlineText {
     for (final p in plugins) {

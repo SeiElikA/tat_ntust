@@ -76,12 +76,12 @@ void main() {
 
   group('writeShapeErrorOf', () {
     test('List 才是這兩支的合法回應', () {
-      expect(
-          MoodleWebApiConnector.writeShapeErrorOf(const [], wsFunction: 'x'),
+      expect(MoodleWebApiConnector.writeShapeErrorOf(const [], wsFunction: 'x'),
           isNull);
       expect(
-          MoodleWebApiConnector.writeShapeErrorOf(const [{'warningcode': 'a'}],
-              wsFunction: 'x'),
+          MoodleWebApiConnector.writeShapeErrorOf(const [
+            {'warningcode': 'a'}
+          ], wsFunction: 'x'),
           isNull);
     });
 
@@ -99,6 +99,52 @@ void main() {
         expect(error, isNotNull, reason: '$body 應該被判成失敗');
         expect(error!.errorcode, 'badresponse');
       }
+    });
+  });
+
+  /// 存回去之前要先拿到資料庫原文。三個設定缺一不可，而 `fileurl` 要單獨
+  /// 確認：`util::format_text` 先改寫網址才檢查 `raw`。
+  group('getOnlineTextForEdit', () {
+    test('三個設定都送，而且是同一支 get_submission_status', () async {
+      MoodleWebApiConnector.userId = '5252';
+      stubWs(loadMoodleAssignFixture('status_onlinetext_inline'));
+
+      final edit = await MoodleWebApiConnector.getOnlineTextForEdit(4201,
+          teamSubmission: false);
+
+      final data = sent.single.data!;
+      expect(
+          data['wsfunction'], MoodleWebApiConnector.submissionStatusFunction);
+      expect(data['assignid'], '4201');
+      expect(data['moodlewssettingraw'], 'true');
+      expect(data['moodlewssettingfilter'], 'false');
+      // 單獨一條：只送 raw 的話 @@PLUGINFILE@@ 照樣會被換成絕對網址。
+      expect(data['moodlewssettingfileurl'], 'false');
+      expect(edit!.inlineFiles.single.filename, 'Lecture (1).png');
+    });
+
+    test('沒有繳交紀錄時回 null，不是一份空的原文', () {
+      expect(
+          MoodleWebApiConnector.onlineTextForEditOf(
+              loadMoodleAssignFixture('status_none'),
+              teamSubmission: false),
+          isNull);
+      expect(
+          MoodleWebApiConnector.onlineTextForEditOf('<html>',
+              teamSubmission: false),
+          isNull);
+    });
+
+    test('團隊作業讀的是 teamsubmission 那一筆', () {
+      final team = MoodleWebApiConnector.onlineTextForEditOf(
+          loadMoodleAssignFixture('status_team_draft'),
+          teamSubmission: true);
+      final own = MoodleWebApiConnector.onlineTextForEditOf(
+          loadMoodleAssignFixture('status_team_draft'),
+          teamSubmission: false);
+
+      expect(team, isNotNull);
+      expect(team!.rawText, isNot(own?.rawText));
     });
   });
 
@@ -307,8 +353,9 @@ void main() {
     });
 
     test('下載失敗回 false 而不是拋', () async {
-      MoodleWebApiConnector.fileDownloader =
-          (url, savePath, {cancelToken, onProgress}) async => throw Exception('boom');
+      MoodleWebApiConnector.fileDownloader = (url, savePath,
+              {cancelToken, onProgress}) async =>
+          throw Exception('boom');
 
       expect(
           await MoodleWebApiConnector.downloadFileTo(

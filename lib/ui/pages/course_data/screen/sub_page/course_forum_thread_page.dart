@@ -418,6 +418,7 @@ class _CourseForumThreadPageState extends State<CourseForumThreadPage> {
               postId: p.id,
               subject: subject,
               text: text,
+              rawFormat: fresh.rawFormat,
               keepAttachments: keep,
               newAttachments: added,
               hadAttachments: fresh.attachments.isNotEmpty,
