@@ -161,6 +161,15 @@ POST 欄位。TAT 用 `parameter.data` 加 `getJsonByPost`，行為相同，
     （**`fileurl`**、有 mimetype），貼文的 `attachments[]` 是
     `stored_file_exporter`（**`url`**、沒有 mimetype）——共用一個 Dart 模型會讓
     draft 區的檔案全部拿到空網址。
+  - **`stored_file_exporter` 的 `url` 是 `pluginfile.php` 加 `?forcedownload=1`**
+    （`files/classes/external/stored_file_exporter.php` 的
+    `make_pluginfile_url($…, $forcedownload = true)`，query 由
+    `lib/classes/url.php` 的 `make_file_url()` 掛上）。兩個後果：拿它去比對
+    `filepath + filename` 的尾巴一定要**先切掉 query**；而 `?token=` 只有
+    `webservice/pluginfile.php` 認得，`pluginfile.php` 走瀏覽器 session，所以加
+    憑證之前要先把路徑換過去（官方 App 的 `CoreSites.fixPluginfileURL()` 同此）。
+    `external_util::get_area_files()` 給的 `fileurl` 走
+    `make_webservice_pluginfile_url()`，本來就是對的那一支，沒有這個問題。
   - **`mod/forum:editownpost` 這個 capability 不存在**（`mod/forum/db/access.php`
     沒有它），所以 `get_forum_access_information` **答不出**「我能不能編輯我自己
     的貼文」；`candeleteownpost` 有，但它只是五個條件裡的一個，是必要非充分。

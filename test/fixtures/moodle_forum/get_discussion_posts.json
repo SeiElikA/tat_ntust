@@ -62,7 +62,7 @@
           "icon": "pdf",
           "timecreatedformatted": "2025/09/03",
           "timemodifiedformatted": "2025/09/03",
-          "url": "https://moodle2.ntust.edu.tw/webservice/pluginfile.php/123/mod_forum/attachment/900/slides.pdf",
+          "url": "https://moodle2.ntust.edu.tw/pluginfile.php/123/mod_forum/attachment/900/slides.pdf?forcedownload=1",
           "urls": {
             "export": null
           },
@@ -91,7 +91,7 @@
           "icon": "image",
           "timecreatedformatted": "2025/09/03",
           "timemodifiedformatted": "2025/09/03",
-          "url": "https://moodle2.ntust.edu.tw/webservice/pluginfile.php/123/mod_forum/post/900/inline%20image.png"
+          "url": "https://moodle2.ntust.edu.tw/pluginfile.php/123/mod_forum/post/900/inline%20image.png?forcedownload=1"
         }
       ],
       "tags": [],

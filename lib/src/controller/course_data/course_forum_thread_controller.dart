@@ -90,13 +90,18 @@ class CourseForumThreadController {
         cancelToken: cancelToken,
       );
 
+  /// [inlineHtml] 非 null 時走所見即所得那條路（[text] 不再是純文字）；
+  /// [inlineFiles] 是那篇貼文的 `messageinlinefiles`。
   Future<Result<ForumEditOutcome>> editPost({
     required int postId,
     required String subject,
     required String text,
+    required int rawFormat,
     required List<MoodleForumFile> keepAttachments,
     required List<File> newAttachments,
     required bool hadAttachments,
+    String? inlineHtml,
+    List<MoodleForumFile> inlineFiles = const [],
     ForumAttachPolicy policy = const ForumAttachPolicy.off(),
     void Function(ForumTransferProgress progress)? onProgress,
     CancelToken? cancelToken,
@@ -105,9 +110,12 @@ class CourseForumThreadController {
         postId: postId,
         subject: subject,
         text: text,
+        rawFormat: rawFormat,
         keepAttachments: keepAttachments,
         newAttachments: newAttachments,
         hadAttachments: hadAttachments,
+        inlineHtml: inlineHtml,
+        inlineFiles: inlineFiles,
         policy: policy,
         onProgress: onProgress,
         cancelToken: cancelToken,

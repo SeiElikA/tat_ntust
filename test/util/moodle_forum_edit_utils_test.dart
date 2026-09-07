@@ -54,8 +54,33 @@ void main() {
           isFalse);
     });
 
-    test('`<br />` 這種變體判成不安全——保守勝過把別人的排版覆蓋掉', () {
-      expect(MoodleForumEditUtils.isPlainRoundTrip('一<br />二', html), isFalse);
+    test('伺服器真正吐回來的寫法（`<br />` + `&#039;`）要判成安全', () {
+      // 這一組不是 plainTextToHtml() 的輸出，是伺服器的：`format_text` 的
+      // nl2br 與 HTMLPurifier（XHTML 1.0 Transitional）都吐 `<br />`，
+      // PHP `s()` 是 ENT_QUOTES 的 `&#039;`。以前拿 `<br>` 去比，於是**任何
+      // 多行或含單引號的貼文**都被判成不安全——包含 App 自己幾秒鐘前發的那則。
+      expect(MoodleForumEditUtils.isPlainRoundTrip('一<br />二', html), isTrue);
+      expect(MoodleForumEditUtils.isPlainRoundTrip('一<br/>二', html), isTrue);
+      expect(MoodleForumEditUtils.isPlainRoundTrip('他說 &#039;單引號&#039;', html),
+          isTrue);
+      expect(MoodleForumEditUtils.htmlToPlain('一<br />二'), '一\n二');
+      expect(MoodleForumEditUtils.htmlToPlain('&#039;x&#039;'), "'x'");
+    });
+
+    test('plainEditPayload：FORMAT_HTML 的貼文要轉成 HTML 再送回去', () {
+      // 純文字直接配 FORMAT_HTML 送出去，換行會被 HTML 吃掉；配 FORMAT_PLAIN
+      // 送則會把貼文永久降級成純文字，而這一支不吃 topreferredformat。
+      final p = MoodleForumEditUtils.plainEditPayload('一\n二', html);
+      expect(p.message, '一<br>二');
+      expect(p.format, html);
+    });
+
+    test('plainEditPayload：原本就是純文字的貼文原樣送回，format 不變', () {
+      for (final f in [plain, moodle]) {
+        final p = MoodleForumEditUtils.plainEditPayload('一\n二', f);
+        expect(p.message, '一\n二');
+        expect(p.format, f, reason: '不可以趁編輯把 format 改掉');
+      }
     });
 
     test('認不得的 format（MARKDOWN=4）一律不安全', () {
@@ -176,6 +201,93 @@ void main() {
       expect(MoodleForumEditUtils.exceedsCount(4, 3), isTrue);
       expect(MoodleForumEditUtils.exceedsSize(100, 100), isFalse);
       expect(MoodleForumEditUtils.exceedsSize(101, 100), isTrue);
+    });
+  });
+
+  group('editorKindFor', () {
+    const markdown = 4;
+
+    test('FORMAT_PLAIN / FORMAT_MOODLE 不管內容一律純文字框', () {
+      for (final format in [plain, moodle]) {
+        for (final message in [
+          'a &amp; b',
+          '<img src="x">',
+          '<table></table>'
+        ]) {
+          expect(MoodleForumEditUtils.editorKindFor(message, format),
+              ForumEditorKind.plainText,
+              reason: '$format / $message');
+        }
+      }
+    });
+
+    test('FORMAT_HTML 而且過得了 round-trip → 純文字框', () {
+      // `<p>` 本身過不了 round-trip（htmlToPlain 不認 <p>），所以那種貼文
+      // 走 rich——這裡要挑真的過得了的：App 自己發出去的那種。
+      expect(MoodleForumEditUtils.editorKindFor('謝謝老師！', html),
+          ForumEditorKind.plainText);
+      expect(
+          MoodleForumEditUtils.editorKindFor(
+              MoodleForumUtils.plainTextToHtml('第一行\n第二行'), html),
+          ForumEditorKind.plainText);
+    });
+
+    test('FORMAT_HTML 而且撐不進純文字框 → 所見即所得', () {
+      for (final message in [
+        '<p><img src="@@PLUGINFILE@@/a.png"></p>',
+        '<p><img src="https://x/y.png"></p>',
+        '<table><tr><td>1</td></tr></table>',
+        '<p>期中考範圍如圖 <b>重要</b></p>',
+      ]) {
+        expect(MoodleForumEditUtils.editorKindFor(message, html),
+            ForumEditorKind.rich,
+            reason: message);
+      }
+    });
+
+    test('FORMAT_MARKDOWN 與未知格式 → 原始碼，**永遠不是 rich**', () {
+      // 把 Markdown 塞進 HTML 編輯器再以 FORMAT_HTML 存回去是救不回來的：
+      // update_discussion_post 不吃 topreferredformat。
+      expect(MoodleForumEditUtils.editorKindFor('## 標題', markdown),
+          ForumEditorKind.rawSource);
+      expect(MoodleForumEditUtils.editorKindFor('<img src="x">', markdown),
+          ForumEditorKind.rawSource);
+      expect(MoodleForumEditUtils.editorKindFor('whatever', 7),
+          ForumEditorKind.rawSource);
+    });
+
+    test('每一個格式都答得出來，而且只有 FORMAT_HTML 可能是 rich', () {
+      for (var format = -1; format <= 8; format++) {
+        final kind =
+            MoodleForumEditUtils.editorKindFor('<img src="x">', format);
+        if (kind == ForumEditorKind.rich) expect(format, html);
+      }
+    });
+  });
+
+  group('initialTextFor', () {
+    const markdown = 4;
+
+    test('非 HTML 的格式原樣帶進去，來回一趟一個位元組都不變', () {
+      const fixtures = [
+        (message: 'a &amp; b <br> c', format: plain),
+        (message: '第一行\n第二行', format: plain),
+        (message: 'a < b &amp;&amp; c', format: moodle),
+        (message: '## 標題\n\n- 一\n- 二', format: markdown),
+        (message: '`code &amp; more`', format: markdown),
+      ];
+      for (final f in fixtures) {
+        final seeded = MoodleForumEditUtils.initialTextFor(f.message, f.format);
+        expect(seeded, f.message, reason: '${f.format}');
+        final payload = MoodleForumEditUtils.plainEditPayload(seeded, f.format);
+        expect(payload.message, f.message);
+        expect(payload.format, f.format);
+      }
+    });
+
+    test('FORMAT_HTML 才還原成純文字', () {
+      expect(MoodleForumEditUtils.initialTextFor('a &amp; b<br>c', html),
+          'a & b\nc');
     });
   });
 

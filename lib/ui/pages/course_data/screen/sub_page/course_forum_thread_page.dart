@@ -13,6 +13,7 @@ import 'package:flutter_app/src/model/moodle_webapi/moodle_mod_forum_get_forum_d
 import 'package:flutter_app/src/repository/result.dart';
 import 'package:flutter_app/src/service/task_ui_delegate.dart';
 import 'package:flutter_app/src/util/language_utils.dart';
+import 'package:flutter_app/src/util/moodle_draft_url_utils.dart';
 import 'package:flutter_app/src/util/moodle_forum_edit_utils.dart';
 import 'package:flutter_app/src/util/moodle_forum_utils.dart';
 import 'package:flutter_app/ui/components/custom_appbar.dart';
@@ -21,6 +22,7 @@ import 'package:flutter_app/ui/components/page/result_view.dart';
 import 'package:flutter_app/ui/components/page/web_view_opener.dart';
 import 'package:flutter_app/ui/other/lucide_icons.dart';
 import 'package:flutter_app/ui/pages/course_data/screen/sub_page/course_forum_compose_page.dart';
+import 'package:flutter_app/ui/pages/course_data/screen/sub_page/course_forum_rich_edit_page.dart';
 import 'package:flutter_app/ui/pages/course_data/screen/widgets/forum_attach_picker.dart';
 import 'package:flutter_app/ui/pages/course_data/screen/widgets/forum_bottom_bar.dart';
 import 'package:flutter_app/ui/pages/course_data/screen/widgets/forum_composer_bar.dart';
@@ -393,19 +395,40 @@ class _CourseForumThreadPageState extends State<CourseForumThreadPage> {
       await _controller.loadPosts(keepVisible: true);
       return;
     }
-    if (!MoodleForumEditUtils.isPlainRoundTrip(
-        fresh.rawMessage, fresh.rawFormat)) {
-      await _richEditDialog();
-      return;
-    }
     if (!mounted) return;
     final isTopicPost = !p.hasparent;
+    switch (
+        MoodleForumEditUtils.editorKindFor(fresh.rawMessage, fresh.rawFormat)) {
+      // 排版或內嵌圖片撐不進純文字框 → 所見即所得。內嵌檔案的對照表只有
+      // 討論串上那一篇有：`getPostForEdit` 刻意不帶
+      // `includeinlineattachments`，它的 `messageinlinefiles` 永遠是空的。
+      case ForumEditorKind.rich:
+        await _startRichEdit(p, fresh, isTopicPost: isTopicPost);
+      case ForumEditorKind.plainText:
+        await _startPlainEdit(p, fresh, isTopicPost: isTopicPost);
+      // 框裡是原始碼，不是還原出來的純文字：那一行說明也要跟著換，否則畫面會
+      // 叫使用者去網頁版做一件他現在就做得到的事。
+      case ForumEditorKind.rawSource:
+        await _startPlainEdit(p, fresh,
+            isTopicPost: isTopicPost,
+            formattingNote: fresh.rawFormat == MoodleForumUtils.formatMarkdown
+                ? R.current.forumMarkdownSource
+                : R.current.forumRawSourceEdit);
+    }
+  }
+
+  /// 純文字框那條路。**預填的字一定要走 [MoodleForumEditUtils.initialTextFor]**：
+  /// 無條件套 `htmlToPlain` 會把 FORMAT_PLAIN 貼文裡真的打出來的 `a &amp; b`
+  /// 悄悄改成 `a & b`，而 `plainEditPayload` 對非 HTML 是原樣送回。
+  Future<void> _startPlainEdit(MoodleForumPost p, ForumPostEdit fresh,
+      {required bool isTopicPost, String? formattingNote}) async {
     final outcome = await Get.to<ForumEditOutcome>(
       () => CourseForumComposePage.edit(
         postId: p.id,
         isTopicPost: isTopicPost,
         initialSubject: fresh.subject,
-        initialText: MoodleForumEditUtils.htmlToPlain(fresh.rawMessage),
+        initialText: MoodleForumEditUtils.initialTextFor(
+            fresh.rawMessage, fresh.rawFormat),
         existingAttachments: fresh.attachments,
         // 每一次送出都是一把新的 token。`??=` 會把使用者取消過的那一把一直
         // 遞回去，而 dio 對已取消的 token 是在送出之前就直接丟——重試永遠
@@ -418,6 +441,7 @@ class _CourseForumThreadPageState extends State<CourseForumThreadPage> {
               postId: p.id,
               subject: subject,
               text: text,
+              rawFormat: fresh.rawFormat,
               keepAttachments: keep,
               newAttachments: added,
               hadAttachments: fresh.attachments.isNotEmpty,
@@ -436,8 +460,71 @@ class _CourseForumThreadPageState extends State<CourseForumThreadPage> {
         openWebView: widget.openWebView,
         webUrl: _discussionUrl(),
         webTitle: _title,
+        formattingNote: formattingNote,
       ),
     );
+    await _afterEdit(outcome, isTopicPost: isTopicPost);
+  }
+
+  /// 所見即所得那條路。編輯器裡看到的網址必須是**當下就載得動**的：先把
+  /// `@@PLUGINFILE@@` 展開成真網址，再逐一換成帶憑證的版本。頁面本身不做這
+  /// 兩件事，它只收一段 HTML。
+  ///
+  /// [p] 的 `messageinlinefiles` 是對照表的唯一來源——`getPostForEdit` 那一趟
+  /// 刻意不帶 `includeinlineattachments`，它回的永遠是空陣列。
+  Future<void> _startRichEdit(MoodleForumPost p, ForumPostEdit fresh,
+      {required bool isTopicPost}) async {
+    final inlineFiles = p.messageinlinefiles;
+    final html = MoodleDraftUrlUtils.rewriteInlineUrlsForDisplay(
+      MoodleForumUtils.resolveInlinePluginFiles(fresh.rawMessage, inlineFiles),
+      inlineFiles,
+      MoodleWebApiConnector.fileUrlWithToken,
+    );
+    final outcome = await Get.to<ForumEditOutcome>(
+      () => CourseForumRichEditPage(
+        postId: p.id,
+        isTopicPost: isTopicPost,
+        initialSubject: fresh.subject,
+        initialHtml: html,
+        existingAttachments: fresh.attachments,
+        // 每一次送出都是一把新的 token，理由同 [_startPlainEdit]。
+        onSend: (subject, editedHtml, keep, added,
+            {required onProgress}) async {
+          final token = CancelToken();
+          _cancelToken = token;
+          try {
+            return await _controller.editPost(
+              postId: p.id,
+              subject: subject,
+              // 純文字那一格在這條路上用不到，但 repository 的空內容守門要
+              // 看得到東西，所以帶同一份 HTML 進去。
+              text: editedHtml,
+              rawFormat: fresh.rawFormat,
+              keepAttachments: keep,
+              newAttachments: added,
+              hadAttachments: fresh.attachments.isNotEmpty,
+              inlineHtml: editedHtml,
+              inlineFiles: inlineFiles,
+              policy: _editAttachPolicy,
+              onProgress: onProgress,
+              cancelToken: token,
+            );
+          } finally {
+            _cancelToken = null;
+          }
+        },
+        attachPolicy: _editAttachPolicy,
+        onPickFiles: _pickFiles,
+        onCancelUpload: () => _cancelToken?.cancel(),
+        onOpenAttachment: (f) async => _download(f),
+      ),
+    );
+    await _afterEdit(outcome, isTopicPost: isTopicPost);
+  }
+
+  /// 兩種編輯器共用的收尾。
+  Future<void> _afterEdit(ForumEditOutcome? outcome,
+      {required bool isTopicPost}) async {
     if (outcome == null || !mounted) return;
     // 回傳裡沒有更新後的貼文，所以一定要重讀伺服器。
     await _controller.loadPosts(keepVisible: true);
@@ -462,26 +549,6 @@ class _CourseForumThreadPageState extends State<CourseForumThreadPage> {
       MoodleWebApiConnector.canPrepareForumDraftArea
           ? _controller.policy
           : const ForumAttachPolicy.off();
-
-  /// 這是網頁連結唯一一次真的是答案，而且理由寫在同一句話裡。
-  Future<void> _richEditDialog() => Get.dialog<void>(
-        AlertDialog.adaptive(
-          content: Text(R.current.forumEditRichWebOnly),
-          actions: [
-            TextButton(
-              onPressed: () => Get.back<void>(),
-              child: Text(R.current.cancel),
-            ),
-            TextButton(
-              onPressed: () {
-                Get.back<void>();
-                unawaited(_openInWeb());
-              },
-              child: Text(R.current.forumEditInWeb),
-            ),
-          ],
-        ),
-      );
 
   Future<void> _confirmDelete(MoodleForumPost p) async {
     final isTopicPost = !p.hasparent;

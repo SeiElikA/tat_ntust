@@ -4,18 +4,19 @@ import 'package:json_annotation/json_annotation.dart';
 
 part 'moodle_mod_forum_draft_area.g.dart';
 
-/// `mod_forum_prepare_draft_area_for_post` 的回應（`area` 一律是 `attachment`）。
+/// `mod_forum_prepare_draft_area_for_post` 的回應。`area` 是 `attachment`
+/// （附件）或 `post`（內嵌圖片），兩者回的東西不一樣。
 ///
 /// `areaoptions` 是伺服器把 PHP 關聯陣列攤成 `[{name, value}]`，`value` 是
 /// PARAM_RAW（數字會是字串），所以 [maxbytes] / [maxfiles] 由
 /// [MoodleForumDraftArea.fromJson] 之外的 [intOptionOf] 自己挑出來。
-/// `messagetext` 不落地：只有 `area == 'post'` 才有內容。
 class MoodleForumDraftArea {
   const MoodleForumDraftArea({
     required this.draftitemid,
     this.files = const [],
     this.maxbytes = 0,
     this.maxfiles = 0,
+    this.messagetext = "",
   });
 
   final int draftitemid;
@@ -28,6 +29,13 @@ class MoodleForumDraftArea {
 
   /// `$forum->maxattachments`。0 ＝解不出來。
   final int maxfiles;
+
+  /// 貼文原文，`@@PLUGINFILE@@` 已經被伺服器換成 draft 區的絕對網址。
+  /// **只有 `area == 'post'` 才有內容**，附件那一區固定是 null ⇒ 空字串。
+  ///
+  /// 它是 `usercontextid` 唯一可靠的來源，所以存檔時的 draft 網址前綴一定要
+  /// 從這裡讀出來（見 `MoodleDraftUrlUtils.draftPrefixIn`），不可以自己組。
+  final String messagetext;
 
   /// `areaoptions` 裡的一個整數設定。`value` 是 PARAM_RAW，數字可能是字串，
   /// 解不出來回 0（不知道）。

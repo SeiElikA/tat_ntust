@@ -47,6 +47,7 @@ class CourseForumComposePage extends StatefulWidget {
     required this.webUrl,
     required this.webTitle,
   })  : onSendEdit = null,
+        formattingNote = null,
         postId = 0,
         isTopicPost = true,
         initialSubject = "",
@@ -77,6 +78,7 @@ class CourseForumComposePage extends StatefulWidget {
     required this.openWebView,
     required this.webUrl,
     required this.webTitle,
+    this.formattingNote,
   })  : onSendDiscussion = null,
         forumName = "";
 
@@ -115,6 +117,14 @@ class CourseForumComposePage extends StatefulWidget {
 
   /// 點開伺服器上既有的那一份確認。只有編輯模式有。
   final Future<void> Function(MoodleForumFile file)? onOpenAttachment;
+
+  /// 底下那一行說明。null ＝ 預設的「粗體、清單、表格請在網頁版編輯」。
+  ///
+  /// **原始碼那條路一定要換掉。** `ForumEditorKind.rawSource` 填進框裡的是
+  /// 貼文的原始碼（FORMAT_MARKDOWN 就是 Markdown），`plainEditPayload` 又是
+  /// 原樣送回，所以 `**粗體**`、`- 清單` 打在這個框裡就會生效——照預設那句寫
+  /// 等於憑空多一條「請去網頁版」的死路，而且是假的。
+  final String? formattingNote;
 
   final WebViewOpener openWebView;
 
@@ -391,7 +401,7 @@ class _CourseForumComposePageState extends State<CourseForumComposePage> {
         ],
         const SizedBox(height: 8),
         // 一行說明，沒有鈕：這不是一個做得到的動作，只是一件事實。
-        Text(R.current.forumFormattingInWeb,
+        Text(widget.formattingNote ?? R.current.forumFormattingInWeb,
             style: text.bodySmall?.copyWith(color: scheme.onSurfaceVariant)),
       ],
     );

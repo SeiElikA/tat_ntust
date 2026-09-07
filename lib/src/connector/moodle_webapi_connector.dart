@@ -215,6 +215,10 @@ class MoodleWebApiConnector {
   /// 其他值丟 `invalid_parameter_exception`（**沒有** forum errorcode）。
   static const String forumDraftAreaAttachment = "attachment";
 
+  /// 內嵌圖片那一區。`area='post'` 才會把貼文的內嵌檔案種進 draft 區，
+  /// 而且**只有它**會回 `messagetext`（附件那一區固定是 null）。
+  static const String forumDraftAreaPost = "post";
+
   /// FORMAT_PLAIN。`messageformat` 的 VALUE_DEFAULT 是 FORMAT_HTML，
   /// 不送就等於宣告「這是 HTML」，手機上打的純文字會掉換行、`a < b` 被吃掉。
   static const String forumMessageFormatPlain = "2";
@@ -442,7 +446,25 @@ class MoodleWebApiConnector {
         unawaited(_probeTokenPluginFile(tokenUrl));
       }
     }
-    return Connector.uriAddQuery(fileUrl, {"token": token});
+    return Connector.uriAddQuery(_webservicePluginFileUrl(fileUrl), {
+      "token": token,
+    });
+  }
+
+  /// `?token=` 只有 `webservice/pluginfile.php` 認得：`pluginfile.php` 走的是
+  /// 瀏覽器 session（`NO_MOODLE_COOKIES` 只設在前者），帶著 token 一樣被踢去
+  /// 登入頁。討論區的附件與內嵌圖片走 `stored_file_exporter`，它組網址用的是
+  /// `make_pluginfile_url()`——正是不吃 token 的那一支，所以加憑證之前要先換
+  /// 過去。官方 App 的 `CoreSites.fixPluginfileURL()` 做的也是同一件事。
+  static String _webservicePluginFileUrl(String fileUrl) {
+    // 只動 '?' 前面那一段：query 裡也可能出現 pluginfile.php。
+    final queryAt = fileUrl.indexOf('?');
+    final path = queryAt < 0 ? fileUrl : fileUrl.substring(0, queryAt);
+    if (path.contains("/webservice/pluginfile.php")) return fileUrl;
+    final at = path.indexOf("/pluginfile.php");
+    if (at < 0) return fileUrl;
+    final query = queryAt < 0 ? "" : fileUrl.substring(queryAt);
+    return "${path.substring(0, at)}/webservice${path.substring(at)}$query";
   }
 
   /// 用 privatetoken 換一把一次性的 autologin 鑰匙（IP 綁定、60 秒後失效）。
@@ -1457,8 +1479,14 @@ class MoodleWebApiConnector {
   static Future<ForumPostEdit?> getPostForEdit(int postId) async {
     try {
       return postForEditOf(await _callWs(discussionPostFunction, {
-        "moodlewssettingfilter": "true",
-        "moodlewssettingfileurl": "true",
+        // 編輯要的是資料庫原文，不是算繪結果：`filter` 會把 filter plugin
+        // （多媒體、詞彙連結）的產物寫死進去，`fileurl` 會把
+        // `@@PLUGINFILE@@` 換成絕對網址——兩者原樣送回伺服器就是永久污染。
+        // post_exporter 本來就可能不跑 `format_text`；真是那樣這三個設定是
+        // no-op，不是的話正好修掉，兩種情況下都正確。
+        "moodlewssettingraw": "true",
+        "moodlewssettingfilter": "false",
+        "moodlewssettingfileurl": "false",
         "postid": postId.toString(),
       }));
     } catch (e, stack) {
@@ -1472,11 +1500,17 @@ class MoodleWebApiConnector {
   /// **空的 [filesToKeep] ＝全部保留，不是全部刪掉**（伺服器只在名單非空時
   /// 才刪掉不在名單上的）。要移除某個既有附件，就把要留下的列出來。
   ///
+  /// [area] 只能是 [forumDraftAreaAttachment] 或 [forumDraftAreaPost]，其他值
+  /// 丟 `invalid_parameter_exception`。兩者是完全不同的檔案區：`post` 種的是
+  /// **內嵌圖片**，而且只有它會在 `messagetext` 回貼文原文＋draft 網址前綴。
+  /// 對 `post` 區送非空的 [filesToKeep] 會把要保護的圖片刪掉，呼叫端一律送空。
+  ///
   /// 它會先驗 `can_edit_post()`，不過就丟 **`noviewdiscussionspermission`**
   /// ——那個 errorcode 會騙人，字面是「沒有檢視權限」，實際意思是「你不能
   /// 編輯這一篇」（多半是超過 `$CFG->maxeditingtime`）。
   static Future<MoodleForumDraftArea> prepareForumDraftArea({
     required int postId,
+    String area = forumDraftAreaAttachment,
     List<({String filename, String filepath})> filesToKeep = const [],
   }) async {
     try {
@@ -1484,7 +1518,7 @@ class MoodleWebApiConnector {
         prepareDraftAreaFunction,
         {
           "postid": postId.toString(),
-          "area": forumDraftAreaAttachment,
+          "area": area,
           "draftitemid": "0",
           for (var i = 0; i < filesToKeep.length; i++) ...{
             "filestokeep[$i][filename]": filesToKeep[i].filename,
@@ -1493,17 +1527,17 @@ class MoodleWebApiConnector {
         },
         treatWarningsAsError: true,
       );
-      final area = draftAreaOf(result);
+      final parsed = draftAreaOf(result);
       // 證明不了 draft 區存在就不能拿它去覆蓋附件——送一個假的 itemid 進
       // update_discussion_post 會把既有附件同步成空的。
-      if (area == null) {
+      if (parsed == null) {
         throw MoodleApiException(
           wsFunction: prepareDraftAreaFunction,
           errorcode: "couldnotadd",
           message: "回應裡沒有可用的 draftitemid，無法確認 draft 區真的開好了",
         );
       }
-      return area;
+      return parsed;
     } catch (e, stack) {
       _reportAndRethrow(prepareDraftAreaFunction, e, stack);
     }
@@ -1529,6 +1563,10 @@ class MoodleWebApiConnector {
           MoodleForumDraftArea.intOptionOf(result["areaoptions"], "maxbytes"),
       maxfiles:
           MoodleForumDraftArea.intOptionOf(result["areaoptions"], "maxfiles"),
+      // `area == 'attachment'` 時伺服器送回 null，那時它就是空字串。
+      messagetext: result["messagetext"] is String
+          ? result["messagetext"] as String
+          : "",
     );
   }
 
@@ -1549,12 +1587,36 @@ class MoodleWebApiConnector {
   ///    `$DB->set_field('forum_posts','attachment','')`：**貼文的 attachment
   ///    旗標會被清成空字串**，檔案還在，但主題清單的迴紋針會憑空消失。
   ///    所以「原本有附件」或「使用者新加了附件」時一律要送。
+  /// 4. **[messageFormat] 一定要帶原文的 format 回去。** 這一支不吃
+  ///    `topreferredformat`（見 1.），寫死送 FORMAT_PLAIN 會把一篇
+  ///    FORMAT_HTML 貼文永久改成純文字，而且救不回來。
   static Future<void> updateDiscussionPost({
     required int postId,
     required String subject,
     required String message,
+    required int messageFormat,
     int? attachmentsId,
+    int? inlineAttachmentsId,
   }) async {
+    // **送 0 會把貼文裡的內嵌圖片全部刪光。** 伺服器端是
+    // `clean_param($option['value'], PARAM_INT)` 之後 `isset()`，而 isset(0)
+    // 是 true，於是 itemid 變成 0 → draft 區是空的 →
+    // `file_save_draft_area_files()` 那個 `if (!isset($newhashes[$oldhash]))
+    // { $oldfile->delete(); }` 迴圈把每一張圖都刪掉。
+    //
+    // 這裡丟例外而不是靜靜改成 null：改成 null 等於退回 IGNORE_FILE_MERGE，
+    // 那會把我們送出去的 draftfile 絕對網址原樣存進資料庫，圖片一樣壞掉，
+    // 只是要等到 draft 區被 cron 清掉才看得出來。
+    if (inlineAttachmentsId != null && inlineAttachmentsId <= 0) {
+      throw ArgumentError.value(inlineAttachmentsId, 'inlineAttachmentsId',
+          '必須是 prepare_draft_area_for_post(area: post) 回傳的正整數');
+    }
+    // 索引要連號：只送 inlineattachmentsid 時它必須是 options[0]。
+    final options = <(String, String)>[
+      if (attachmentsId != null) ("attachmentsid", attachmentsId.toString()),
+      if (inlineAttachmentsId != null)
+        ("inlineattachmentsid", inlineAttachmentsId.toString()),
+    ];
     try {
       final result = await _callWs(
         updateDiscussionPostFunction,
@@ -1562,10 +1624,10 @@ class MoodleWebApiConnector {
           "postid": postId.toString(),
           "subject": subject,
           "message": message,
-          "messageformat": forumMessageFormatPlain,
-          if (attachmentsId != null) ...{
-            "options[0][name]": "attachmentsid",
-            "options[0][value]": attachmentsId.toString(),
+          "messageformat": messageFormat.toString(),
+          for (final (i, o) in options.indexed) ...{
+            "options[$i][name]": o.$1,
+            "options[$i][value]": o.$2,
           },
         },
         treatWarningsAsError: true,

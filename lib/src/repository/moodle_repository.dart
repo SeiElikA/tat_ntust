@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:dio/dio.dart' show CancelToken;
 import 'package:flutter/foundation.dart';
+import 'package:flutter_app/debug/log/log.dart';
 import 'package:flutter_app/src/R.dart';
 import 'package:flutter_app/src/auth/auth_session.dart';
 import 'package:flutter_app/src/connector/moodle_webapi_connector.dart';
@@ -32,6 +33,7 @@ import 'package:flutter_app/src/util/moodle_assign_attempt_utils.dart';
 import 'package:flutter_app/src/util/moodle_assign_submit_utils.dart';
 import 'package:flutter_app/src/util/moodle_assign_utils.dart';
 import 'package:flutter_app/src/util/moodle_avatar_utils.dart';
+import 'package:flutter_app/src/util/moodle_draft_url_utils.dart';
 import 'package:flutter_app/src/util/moodle_forum_edit_utils.dart';
 import 'package:flutter_app/src/util/moodle_forum_utils.dart';
 import 'package:flutter_app/src/util/moodle_quiz_utils.dart';
@@ -483,26 +485,40 @@ class MoodleRepository {
         attachmentsId: attachmentsId,
       );
 
+  /// [area] 是 `attachment`（附件）或 `post`（內嵌圖片）。
+  ///
+  /// **`post` 區只能配空的 [filesToKeep]。** 非空的名單會刪掉不在名單上的
+  /// 檔案，而這條路上那些檔案正是要保護的內嵌圖片；附件那一區的呼叫端就
+  /// 刻意送過一份對不到任何檔案的哨兵名單來清空，破壞性的寫法在這個
+  /// codebase 裡只隔一個函式。
   @visibleForTesting
   Future<MoodleForumDraftArea> writeForumDraftArea({
     required int postId,
     required List<({String filename, String filepath})> filesToKeep,
-  }) =>
-      MoodleWebApiConnector.prepareForumDraftArea(
-          postId: postId, filesToKeep: filesToKeep);
+    String area = MoodleWebApiConnector.forumDraftAreaAttachment,
+  }) {
+    assert(area != MoodleWebApiConnector.forumDraftAreaPost ||
+        filesToKeep.isEmpty);
+    return MoodleWebApiConnector.prepareForumDraftArea(
+        postId: postId, area: area, filesToKeep: filesToKeep);
+  }
 
   @visibleForTesting
   Future<void> writePostUpdate({
     required int postId,
     required String subject,
     required String message,
+    required int messageFormat,
     int? attachmentsId,
+    int? inlineAttachmentsId,
   }) =>
       MoodleWebApiConnector.updateDiscussionPost(
         postId: postId,
         subject: subject,
         message: message,
+        messageFormat: messageFormat,
         attachmentsId: attachmentsId,
+        inlineAttachmentsId: inlineAttachmentsId,
       );
 
   @visibleForTesting
@@ -662,13 +678,21 @@ class MoodleRepository {
   /// 那時種不出一個含既有附件的 draft 區，只剩「不送 attachmentsid」一條路，
   /// 而那正是上面那段寫著不可以做的事。檔案雖然保得住，主題清單的迴紋針會
   /// 憑空消失——把它報成「已更新，附件維持原樣」是說反話。
+  ///
+  /// [inlineHtml] 非 null 代表這一趟走所見即所得那條路：[text] 不再是純文字，
+  /// 而 [inlineFiles] 是這篇貼文的 `messageinlinefiles`（由呼叫端從討論串上
+  /// 那一篇帶進來——`getPostForEdit` 刻意不帶 `includeinlineattachments`，
+  /// 它回的永遠是空陣列）。
   Future<Result<ForumEditOutcome>> editPost({
     required int postId,
     required String subject,
     required String text,
+    required int rawFormat,
     required List<MoodleForumFile> keepAttachments,
     required List<File> newAttachments,
     required bool hadAttachments,
+    String? inlineHtml,
+    List<MoodleForumFile> inlineFiles = const [],
     ForumAttachPolicy policy = const ForumAttachPolicy.off(),
     void Function(ForumTransferProgress progress)? onProgress,
     CancelToken? cancelToken,
@@ -684,9 +708,12 @@ class MoodleRepository {
             postId: postId,
             subject: subject,
             text: text,
+            rawFormat: rawFormat,
             keepAttachments: keepAttachments,
             newAttachments: newAttachments,
             hadAttachments: hadAttachments,
+            inlineHtml: inlineHtml,
+            inlineFiles: inlineFiles,
             policy: policy,
             onProgress: onProgress,
             cancelToken: cancelToken,
@@ -698,10 +725,13 @@ class MoodleRepository {
     required int postId,
     required String subject,
     required String text,
+    required int rawFormat,
     required List<MoodleForumFile> keepAttachments,
     required List<File> newAttachments,
     required bool hadAttachments,
     required ForumAttachPolicy policy,
+    String? inlineHtml,
+    List<MoodleForumFile> inlineFiles = const [],
     void Function(ForumTransferProgress progress)? onProgress,
     CancelToken? cancelToken,
   }) async {
@@ -710,11 +740,12 @@ class MoodleRepository {
     if (subject.trim().isEmpty) {
       throw TaskFailure(FetchFailed(R.current.forumSubjectRequired));
     }
-    if (text.trim().isEmpty) {
+    if ((inlineHtml ?? text).trim().isEmpty) {
       throw TaskFailure(FetchFailed(R.current.forumMessageRequired));
     }
 
     int? attachmentsId;
+    int? inlineAttachmentsId;
     try {
       if (hadAttachments || newAttachments.isNotEmpty) {
         if (!MoodleWebApiConnector.canPrepareForumDraftArea) {
@@ -732,11 +763,31 @@ class MoodleRepository {
           cancelToken: cancelToken,
         );
       }
+      final String message;
+      final int messageFormat;
+      if (inlineHtml == null) {
+        final payload = MoodleForumEditUtils.plainEditPayload(text, rawFormat);
+        message = payload.message;
+        messageFormat = payload.format;
+      } else {
+        // **格式一定要帶原文的回去。** `messageformat` 的 VALUE_DEFAULT 是
+        // FORMAT_HTML，不送不是「維持原樣」而是「宣告這是 HTML」。
+        messageFormat = rawFormat;
+        final rich = await _inlineEditPayload(
+          postId: postId,
+          html: inlineHtml,
+          inlineFiles: inlineFiles,
+        );
+        message = rich.message;
+        inlineAttachmentsId = rich.inlineAttachmentsId;
+      }
       await writePostUpdate(
         postId: postId,
         subject: subject,
-        message: text,
+        message: message,
+        messageFormat: messageFormat,
         attachmentsId: attachmentsId,
+        inlineAttachmentsId: inlineAttachmentsId,
       );
     } on MoodleApiException catch (e) {
       throw TaskFailure(FetchFailed(forumPostFailureMessage(e)));
@@ -756,6 +807,85 @@ class MoodleRepository {
           ? null
           : sprintf(R.current.forumAttachmentMissing, [missing.join('、')]),
     );
+  }
+
+  /// 所見即所得那條路的內文：編輯器吐出來的 HTML → 可以送回伺服器的字串
+  /// 加上（或不加）`inlineattachmentsid`。
+  ///
+  /// **只有兩種一致的模式，不可以混。** 這段 HTML 現在指不到任何一個內嵌檔案
+  /// 時完全不打 `prepare_draft_area_for_post`、也不送 `inlineattachmentsid`
+  /// ——伺服器端 `$updatepost->itemid` 維持 `IGNORE_FILE_MERGE`，
+  /// `file_save_draft_area_files()` early return，內容原樣存、既有檔案動都
+  /// 不動。反之一定要三件事一起做：開 draft 區、把圖片網址換成那一區的
+  /// draftfile 網址、送出那個 itemid。
+  ///
+  /// 判斷依據是**內容**而不是 `inlineFiles.isNotEmpty`：使用者在網頁版刪掉
+  /// `<img>` 之後 Moodle 不會把檔案從貼文的 filearea 拿掉，`messageinlinefiles`
+  /// 於是留著孤兒。拿它當條件就會去開一個 messagetext 裡根本沒有 draftfile
+  /// 網址的 draft 區，前綴挑不出來，這則貼文從此永遠存不回去。
+  ///
+  /// 少做其中任何一件都是永久性的傷害：送 draftfile 網址卻不送 itemid，
+  /// 那些絕對網址會原樣存進資料庫，而 draft 區在 `$CFG->draftfilelifetime`
+  /// 之後被 cron 清掉，圖片就再也回不來了。
+  ///
+  /// draft 區是在**存檔這一刻**才開的，不是打開編輯器的時候：
+  /// `prepare_draft_area_for_post` 會重跑一次 `can_edit_post()`，讓它在
+  /// 「什麼都還沒寫」的時間點失敗，比寫到一半才發現好。
+  Future<({String message, int? inlineAttachmentsId})> _inlineEditPayload({
+    required int postId,
+    required String html,
+    required List<MoodleForumFile> inlineFiles,
+  }) async {
+    var message = html;
+    int? inlineAttachmentsId;
+
+    if (MoodleDraftUrlUtils.referencesInlineFiles(html, inlineFiles)) {
+      final area = await writeForumDraftArea(
+        postId: postId,
+        // **一定是空的。** 非空的 filestokeep 會刪掉不在名單上的檔案，
+        // 而這一區裡的檔案正是要保護的內嵌圖片。
+        filesToKeep: const [],
+        area: MoodleWebApiConnector.forumDraftAreaPost,
+      );
+      final prefix = MoodleDraftUrlUtils.draftPrefixIn(
+        area.messagetext,
+        area.draftitemid,
+        host: MoodleWebApiConnector.host,
+      );
+      // 前綴裡的 usercontextid 沒有第二個來源，猜一個出來寫進貼文就是永久
+      // 壞掉的圖片。寧可什麼都不寫。
+      if (prefix == null) {
+        Log.e('draft prefix missing for post $postId');
+        throw TaskFailure(FetchFailed(R.current.forumEditorUnsafeContent));
+      }
+      message = MoodleDraftUrlUtils.rewriteInlineUrlsForSave(
+          html, inlineFiles, prefix);
+      inlineAttachmentsId = area.draftitemid;
+    }
+
+    // fail closed：有一張圖沒換回去就整趟不寫。清掉再送等於把「圖片會不見」
+    // 換成「使用者不知道圖片不見了」。
+    final leak = MoodleDraftUrlUtils.tokenLeakIn(
+      message,
+      host: MoodleWebApiConnector.host,
+      wsToken: MoodleWebApiConnector.wsToken,
+      accessKey: MoodleWebApiConnector.siteInfo?.userprivateaccesskey,
+      inlineTails: MoodleDraftUrlUtils.inlineTailsOf(inlineFiles),
+    );
+    if (leak != null) {
+      // 只記長度：真的外洩時那一段字串本身就是 token。
+      Log.e('refuse to save post $postId: unsafe url (${leak.length} chars)');
+      throw TaskFailure(FetchFailed(R.current.forumEditorUnsafeContent));
+    }
+    // 反過來也要成立：內容裡有 draftfile 網址就一定得帶著那一區的 itemid。
+    // 沒有 itemid 時伺服器不會反向改寫，那個絕對網址會原樣存進資料庫，而
+    // draft 區在 `$CFG->draftfilelifetime` 之後被 cron 清掉，圖片再也回不來。
+    // 用真的檢查而不是 assert：release 版也要擋。
+    if (inlineAttachmentsId == null && message.contains('/draftfile.php/')) {
+      Log.e('refuse to save post $postId: draftfile url without an itemid');
+      throw TaskFailure(FetchFailed(R.current.forumEditorUnsafeContent));
+    }
+    return (message: message, inlineAttachmentsId: inlineAttachmentsId);
   }
 
   /// 編輯路徑的 draft 區：先把既有附件種進去（`filestokeep` 決定留哪些，

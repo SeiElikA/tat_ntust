@@ -46,13 +46,18 @@ class SectionHeader extends StatelessWidget {
 class SectionCard extends StatelessWidget {
   const SectionCard(this.children, {super.key});
 
-  static const double _radius = 12;
-  static const EdgeInsets _padding =
+  static const double radius = 12;
+  static const EdgeInsets padding =
       EdgeInsets.symmetric(horizontal: 14, vertical: 12);
 
+  /// 卡片底色的唯一出處。編輯面與工具列的漸層都要跟它一致，各自寫一份在
+  /// 動態取色的機器上一定會對不起來。
+  static Color fill(BuildContext context) =>
+      Theme.of(context).colorScheme.surfaceContainer;
+
   static BoxDecoration _decoration(BuildContext context) => BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainer,
-        borderRadius: BorderRadius.circular(_radius),
+        color: fill(context),
+        borderRadius: BorderRadius.circular(radius),
       );
 
   final List<Widget> children;
@@ -62,7 +67,7 @@ class SectionCard extends StatelessWidget {
     return Container(
       width: double.infinity,
       decoration: _decoration(context),
-      padding: _padding,
+      padding: padding,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
@@ -82,7 +87,7 @@ class SectionCardSliver extends StatelessWidget {
   @override
   Widget build(BuildContext context) => DecoratedSliver(
         decoration: SectionCard._decoration(context),
-        sliver: SliverPadding(padding: SectionCard._padding, sliver: sliver),
+        sliver: SliverPadding(padding: SectionCard.padding, sliver: sliver),
       );
 }
 

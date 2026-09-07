@@ -7,6 +7,7 @@ import 'package:flutter_app/src/connector/moodle_webapi_connector.dart';
 import 'package:flutter_app/src/model/moodle_webapi/moodle_profile_entity.dart';
 import 'package:flutter_app/src/repository/result.dart';
 import 'package:flutter_app/ui/pages/course_data/screen/sub_page/course_forum_compose_page.dart';
+import 'package:flutter_app/ui/pages/course_data/screen/sub_page/course_forum_rich_edit_page.dart';
 import 'package:sprintf/sprintf.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_app/src/auth/auth_session.dart';
@@ -600,7 +601,7 @@ void main() {
   });
 
   group('編輯的守門', () {
-    testWidgets('原文含 <img> → 出現說明對話框，而不是編輯頁', (tester) async {
+    testWidgets('原文含 <img> → 推所見即所得編輯頁，**不再出現任何對話框**', (tester) async {
       MoodleRepository.instance = _FakeRepo()
         ..nextEditSource = fixturePostForEdit('get_discussion_post_rich');
       await seedPosts(7701, [postWith(id: 900, reply: true, edit: true)]);
@@ -611,8 +612,77 @@ void main() {
       await tester.tap(find.text(R.current.forumEditPost));
       await tester.pumpAndSettle();
 
-      expect(find.text(R.current.forumEditRichWebOnly), findsOneWidget);
+      expect(find.byType(CourseForumRichEditPage), findsOneWidget);
       expect(find.byType(CourseForumComposePage), findsNothing);
+      expect(find.byType(AlertDialog), findsNothing);
+    });
+
+    testWidgets('FORMAT_MARKDOWN → 純文字框，內容是**原始碼本身**，不套 htmlToPlain',
+        (tester) async {
+      const markdown = '## 標題\n\na &amp; b';
+      final source = fixturePostForEdit();
+      MoodleRepository.instance = _FakeRepo()
+        ..nextEditSource = (
+          id: source.id,
+          subject: source.subject,
+          rawMessage: markdown,
+          rawFormat: 4,
+          canEdit: true,
+          attachments: source.attachments,
+        );
+      await seedPosts(7701, [postWith(id: 900, reply: true, edit: true)]);
+
+      await pump(tester);
+      await tester.tap(actionsButton());
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(R.current.forumEditPost));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(CourseForumComposePage), findsOneWidget);
+      expect(find.byType(CourseForumRichEditPage), findsNothing);
+      // `&amp;` 沒有被還原成 `&`：那會是一次使用者沒按過任何鍵的內容竄改。
+      expect(find.text(markdown), findsOneWidget);
+      // 這個框吃的是 Markdown 原始碼，`**粗體**` 打在這裡就會生效；
+      // 底下那一行不可以還在叫人去網頁版做這件事。
+      expect(find.text(R.current.forumMarkdownSource), findsOneWidget);
+      expect(find.text(R.current.forumFormattingInWeb), findsNothing);
+    });
+
+    testWidgets('內嵌圖片：@@PLUGINFILE@@ 展開成帶憑證的網址推進所見即所得編輯頁', (tester) async {
+      MoodleWebApiConnector.wsToken = '0f1e2d3c4b5a69788796a5b4c3d2e1f0';
+      MoodleWebApiConnector.siteInfo = MoodleProfileEntity();
+      // 釘住「探測完成、站台不支援 tokenpluginfile」那一格。
+      MoodleWebApiConnector.tokenPluginFileWorks = false;
+      MoodleRepository.instance = _FakeRepo()
+        ..nextEditSource = fixturePostForEdit('get_discussion_post_rich');
+      final post = postWith(id: 900, reply: true, edit: true);
+      // stored_file_exporter 真正回的形狀：pluginfile.php ＋ ?forcedownload=1。
+      post.messageinlinefiles = [
+        MoodleForumFile(
+          filename: 'scope.png',
+          filepath: '/',
+          url: '${MoodleWebApiConnector.host}/pluginfile.php/8801/mod_forum'
+              '/post/951/scope.png?forcedownload=1',
+        ),
+      ];
+      await seedPosts(7701, [post]);
+
+      await pump(tester);
+      await tester.tap(actionsButton());
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(R.current.forumEditPost));
+      await tester.pumpAndSettle();
+
+      final page = tester.widget<CourseForumRichEditPage>(
+          find.byType(CourseForumRichEditPage));
+      // 換不掉就是「使用者看到 alt 文字取代了自己的圖」。
+      expect(page.initialHtml, isNot(contains('@@PLUGINFILE@@')));
+      expect(
+          page.initialHtml,
+          contains('${MoodleWebApiConnector.host}/webservice/pluginfile.php'
+              '/8801/mod_forum/post/951/scope.png?'));
+      expect(page.initialHtml, contains('token='));
+      expect(page.initialHtml, contains('<b>重要</b>'));
     });
 
     testWidgets('伺服器說已經不能編輯了 → 吐「已超過可以編輯的時間」，**不提網頁**', (tester) async {
@@ -636,7 +706,7 @@ void main() {
 
       expect(ui.toasts, contains(R.current.forumEditWindowClosed));
       expect(find.byType(CourseForumComposePage), findsNothing);
-      expect(find.text(R.current.forumEditInWeb), findsNothing);
+      expect(find.byType(CourseForumRichEditPage), findsNothing);
     });
 
     testWidgets('拿不到原文 → 吐更新失敗，不推一頁空的編輯器', (tester) async {

@@ -35,13 +35,25 @@ class MoodleForumUtils {
   static String? _pluginFileBase(MoodleForumFile f) {
     final raw = '${f.filepath}${f.filename}';
     if (raw.isEmpty || f.url.isEmpty) return null;
+    // `stored_file_exporter` 組網址時第七個引數寫死 true
+    // （`make_pluginfile_url($…, $forcedownload = true)`），所以這裡的 url
+    // 一定以 `?forcedownload=1` 結尾。不先切掉，三種寫法沒有一個對得上，
+    // `@@PLUGINFILE@@` 會原封不動留在畫面上。
+    final path = _withoutQuery(f.url);
     for (final suffix in [raw, _encodePath(raw), _rawEncodePath(raw)]) {
-      if (f.url.endsWith(suffix)) {
-        return f.url.substring(0, f.url.length - suffix.length);
+      if (path.endsWith(suffix)) {
+        return path.substring(0, path.length - suffix.length);
       }
     }
     return null;
   }
+
+  static String _withoutQuery(String url) {
+    final cut = url.indexOf(_queryOrFragment);
+    return cut < 0 ? url : url.substring(0, cut);
+  }
+
+  static final RegExp _queryOrFragment = RegExp(r'[?#]');
 
   /// 逐段 encode，`/` 留著當分隔符。
   static String _encodePath(String path) =>
@@ -114,6 +126,7 @@ class MoodleForumUtils {
   static const int formatMoodle = 0;
   static const int formatHtml = 1;
   static const int formatPlain = 2;
+  static const int formatMarkdown = 4;
 
   /// 伺服器存的 `message` + `messageformat` → 可以直接餵給 HtmlWidget 的 HTML。
   ///

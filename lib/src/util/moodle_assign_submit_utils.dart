@@ -429,8 +429,14 @@ class MoodleAssignSubmitUtils {
     return text.replaceFirst(RegExp(r'\n+$'), '');
   }
 
-  /// 現有的線上文字能不能用純文字框安全覆蓋。`onlinetext_editor.itemid`
-  /// 送 0 會整段跳過 draft 同步，內嵌圖片會變成死連結。
+  /// 現有的線上文字適不適合用純文字框編輯——**這是「開哪一種編輯器」的判斷，
+  /// 不是「能不能存檔」**。判 false 就走所見即所得編輯器。
+  ///
+  /// 因果不要寫反：`onlinetext_editor.itemid` 送 0 會讓
+  /// `file_postupdate_standard_editor()` 走 `empty($editor['itemid'])` 分支，
+  /// **跳過 draft 同步正是既有內嵌圖片活下來的原因**；真正會殺檔案的是送一個
+  /// 非 0、內容不完整的 draft itemid。官方 App 也是送 0
+  /// （`handler.ts`：`itemid: 0, // Can't add new files yet`）。
   static bool onlineTextIsPlain(String html) {
     if (html.isEmpty) return true;
     final lower = html.toLowerCase();
