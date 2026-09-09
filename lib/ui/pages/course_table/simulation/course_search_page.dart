@@ -1,0 +1,353 @@
+import 'dart:async';
+
+import 'package:flutter/material.dart';
+import 'package:flutter_app/ui/components/tat_progress.dart';
+import 'package:flutter_app/src/R.dart';
+import 'package:flutter_app/src/config/app_tokens.dart';
+import 'package:flutter_app/src/config/app_typography.dart';
+import 'package:flutter_app/src/model/course/course_main_extra_json.dart';
+import 'package:flutter_app/src/model/course/course_department.dart';
+import 'package:flutter_app/src/model/course/course_query_filter.dart';
+import 'package:flutter_app/src/model/course_table/course_time.dart';
+import 'package:flutter_app/src/util/course_table_conflict.dart';
+import 'package:flutter_app/src/util/course_table_control.dart';
+import 'package:flutter_app/ui/components/chip/tat_filter_chip.dart';
+import 'package:flutter_app/ui/components/custom_appbar.dart';
+import 'package:flutter_app/ui/components/input/search_bar.dart';
+import 'package:flutter_app/ui/components/page/section_empty_state.dart';
+import 'package:flutter_app/ui/other/lucide_icons.dart';
+import 'package:flutter_app/ui/other/theme_context.dart';
+import 'package:flutter_app/ui/pages/course_table/simulation/course_filter_page.dart';
+import 'package:flutter_app/ui/pages/course_table/simulation/simulation_page.dart';
+import 'package:sprintf/sprintf.dart';
+
+/// 模擬排課的搜尋課程頁。
+///
+/// 跟「導入其他課程」那一頁的差別是這裡**看得到衝堂**：每一張卡片自己算會不會
+/// 撞到（實際課表 ＋ 草稿已經加的課），撞到就在卡片上寫是跟哪一門撞、撞在哪一節。
+/// 沒有這一行，使用者要一路加完再回課表才看得出排不排得下。
+///
+/// 搜尋怎麼打由呼叫端注入：這一頁不碰 repository 也不 import route_utils。
+class CourseSearchPage extends StatefulWidget {
+  const CourseSearchPage({
+    super.key,
+    required this.editor,
+    required this.search,
+    required this.loadColleges,
+    required this.loadDepartments,
+  });
+
+  final SimulationEditor editor;
+
+  /// 丟一組查詢條件回一批課。學期由呼叫端在 closure 裡綁好。
+  final Future<List<CourseMainInfoJson>> Function(CourseQueryFilter filter)
+      search;
+
+  /// 系所篩選的兩層資料來源。
+  final Future<List<CollegeJson>> Function() loadColleges;
+  final Future<List<DepartmentJson>> Function(String collegeNo) loadDepartments;
+
+  @override
+  State<CourseSearchPage> createState() => _CourseSearchPageState();
+}
+
+class _CourseSearchPageState extends State<CourseSearchPage> {
+  final CourseTableControl _control = CourseTableControl();
+
+  List<CourseMainInfoJson> _results = [];
+  bool _loading = false;
+  bool _searched = false;
+
+  /// 設計稿的「只看不衝堂」。加退選現場最常問的就是「哪些我排得進去」。
+  /// 這一個是**畫面上**篩的：衝不衝堂伺服器不知道。
+  bool _hideConflict = false;
+
+  /// 這一個是**伺服器**篩的，每一項都對得上 querycourse 真的吃的參數。
+  CourseQueryFilter _filter = const CourseQueryFilter();
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: mainAppbar(title: R.current.courseSearchTitle, isShowBack: true),
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+            child: CourseSearchBar(onSubmit: _onSubmit),
+          ),
+          _filters(),
+          Expanded(child: _body()),
+        ],
+      ),
+    );
+  }
+
+  Widget _filters() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            TatFilterChip(
+              icon: LucideIcons.filter,
+              label: R.current.courseSearchFilter,
+              selected: _filter.hasRefinements,
+              onTap: () => unawaited(_openFilter()),
+            ),
+            TatFilterChip(
+              label: R.current.courseSearchHideConflict,
+              selected: _hideConflict,
+              onTap: () => setState(() => _hideConflict = !_hideConflict),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// 改完條件就直接重查：篩選是伺服器端的，不重查畫面不會變。
+  ///
+  /// 沒打關鍵字也要查——「英語授課的通識」本身就是一個完整的問題，不該逼使用者
+  /// 先隨便打一個字。條件全空才不查，那會讓伺服器回整個學期。
+  Future<void> _openFilter() async {
+    final next =
+        await Navigator.of(context).push<CourseQueryFilter>(MaterialPageRoute(
+            builder: (context) => CourseFilterPage(
+                  filter: _filter,
+                  loadColleges: widget.loadColleges,
+                  loadDepartments: widget.loadDepartments,
+                )));
+    if (next == null || !mounted) return;
+    setState(() => _filter = next);
+    if (!next.isEmpty) await _run(next);
+  }
+
+  Widget _body() {
+    if (_loading) return const Center(child: TatProgress());
+    if (!_searched) {
+      return SectionEmptyState(
+        icon: LucideIcons.search,
+        message: R.current.courseSearchTitle,
+      );
+    }
+    final visible = _visible();
+    if (visible.isEmpty) {
+      return SectionEmptyState(
+        icon: LucideIcons.search,
+        message: R.current.courseSearchNotFound,
+      );
+    }
+    return ListView.separated(
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 8),
+      itemCount: visible.length + 1,
+      separatorBuilder: (_, __) => const SizedBox(height: 8),
+      itemBuilder: (context, index) =>
+          index == 0 ? _countLine() : _card(visible[index - 1]),
+    );
+  }
+
+  /// 「18 門 · 其中 11 門與課表衝堂」。第二段只有真的有衝堂時才出現。
+  Widget _countLine() {
+    final clashes = _results.where((c) => _conflictsOf(c).isNotEmpty).length;
+    final parts = [
+      sprintf(R.current.courseSearchResultSummary, [_results.length]),
+      if (clashes > 0)
+        sprintf(R.current.courseSearchConflictSummary, [clashes]),
+    ];
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 2),
+      child: Text(
+        parts.join(' · '),
+        style: AppTypography.tabular(context.text.bodySmall!)
+            .copyWith(color: context.scheme.onSurfaceVariant),
+      ),
+    );
+  }
+
+  List<CourseMainInfoJson> _visible() => _hideConflict
+      ? _results.where((c) => _conflictsOf(c).isEmpty).toList()
+      : _results;
+
+  /// 這門課會撞到什麼。實際課表與草稿都要看：草稿裡剛加的課也算數。
+  List<ConflictCell> _conflictsOf(CourseMainInfoJson course) {
+    final cells = <ConflictCell>[];
+    final base = widget.editor.base;
+    if (base != null) {
+      cells.addAll(CourseTableConflict.conflictsOf(base, course));
+    }
+    cells.addAll(CourseTableConflict.conflictsOf(widget.editor.draft, course));
+    return cells;
+  }
+
+  Widget _card(CourseMainInfoJson course) {
+    final scheme = context.scheme;
+    final text = context.text;
+    final added = widget.editor.contains(course.course.id);
+    final conflicts = _conflictsOf(course);
+    return Container(
+      decoration: BoxDecoration(
+        color: context.tokens.card,
+        borderRadius: BorderRadius.circular(TatTokens.radiusCard),
+      ),
+      padding: const EdgeInsets.fromLTRB(12, 12, 8, 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(course.course.name,
+                    style: text.titleSmall?.copyWith(color: scheme.onSurface)),
+                const SizedBox(height: 4),
+                Text(
+                  _metaOf(course),
+                  style: AppTypography.tabular(text.bodySmall!)
+                      .copyWith(color: scheme.onSurfaceVariant, height: 1.45),
+                ),
+                Text(
+                  _timeOf(course),
+                  style: AppTypography.tabular(text.bodySmall!)
+                      .copyWith(color: scheme.onSurfaceVariant, height: 1.45),
+                ),
+                for (final line in _conflictLines(conflicts)) ...[
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Icon(LucideIcons.triangleAlert,
+                          size: 14, color: scheme.error),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(line,
+                            style:
+                                text.bodySmall?.copyWith(color: scheme.error)),
+                      ),
+                    ],
+                  ),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          _toggle(course, added),
+        ],
+      ),
+    );
+  }
+
+  /// 「AC5009701 · 3 學分 · 選修」。
+  ///
+  /// 必選修來自 querycourse 的 `RequireOption`，值域只有 R / E（實測 1151 學期
+  /// 1222 / 3060 門）；認不得的值就不顯示，不要硬猜一個。
+  String _metaOf(CourseMainInfoJson course) {
+    final parts = [
+      course.course.id,
+      if (course.course.credits.trim().isNotEmpty)
+        sprintf(R.current.creditCount, [course.course.credits]),
+      if (_requireOptionLabel(course.course.category) != null)
+        _requireOptionLabel(course.course.category)!,
+    ];
+    return parts.join(' · ');
+  }
+
+  static String? _requireOptionLabel(String requireOption) =>
+      switch (requireOption.trim().toUpperCase()) {
+        'R' => R.current.courseRequired,
+        'E' => R.current.courseElective,
+        _ => null,
+      };
+
+  String _timeOf(CourseMainInfoJson course) {
+    final parts = [
+      if (course.getTeacherName().trim().isNotEmpty) course.getTeacherName(),
+      if (_slots(course).isNotEmpty) _slots(course),
+      if (course.getClassroomName().trim().isNotEmpty)
+        course.getClassroomName(),
+    ];
+    return parts.join(' · ');
+  }
+
+  /// 「三 8　四 3·4」。`courseTimeString` 給的是「三_8 四_34 」那種內部格式，
+  /// 直接印出來會看到底線，而且連在一起的節次分不出是 34 還是 3 跟 4。
+  String _slots(CourseMainInfoJson course) {
+    final days = <String>[];
+    for (final day in CourseTableConflict.days) {
+      final sections = CourseTableConflict.sectionsOf(course.course.time[day]);
+      if (sections.isEmpty) continue;
+      final labels =
+          sections.map((s) => _control.getSectionString(s.index)).join('·');
+      days.add('${_control.getDayString(day.index)} $labels');
+    }
+    return days.join('　');
+  }
+
+  /// 「與 離散數學（三 9、四 3·4） 衝堂」。
+  ///
+  /// 同一門課撞好幾節只寫一行，但**要把撞到的節次全部列出來**：只印第一節會讓
+  /// 使用者以為只差一節，退掉一節就排得進去。
+  List<String> _conflictLines(List<ConflictCell> conflicts) {
+    final byCourse = <String, List<ConflictCell>>{};
+    for (final cell in conflicts) {
+      byCourse.putIfAbsent(cell.base.main.course.id, () => []).add(cell);
+    }
+    return [
+      for (final cells in byCourse.values)
+        sprintf(R.current.courseSearchConflictWith, [
+          cells.first.base.main.course.name,
+          _slotsOfCells(cells),
+        ]),
+    ];
+  }
+
+  /// 撞到的格子照星期併成「三 9、四 3·4」。
+  String _slotsOfCells(List<ConflictCell> cells) {
+    final byDay = <Day, List<String>>{};
+    for (final cell in cells) {
+      byDay
+          .putIfAbsent(cell.day, () => [])
+          .add(_control.getSectionString(cell.section.index));
+    }
+    return [
+      for (final entry in byDay.entries)
+        '${_control.getDayString(entry.key.index)} ${entry.value.join('·')}',
+    ].join('、');
+  }
+
+  Widget _toggle(CourseMainInfoJson course, bool added) {
+    final scheme = context.scheme;
+    return IconButton(
+      tooltip:
+          added ? R.current.simulationRemoveCourse : R.current.courseSearchAdd,
+      onPressed: () => setState(() {
+        if (added) {
+          widget.editor.remove(course.course.id);
+        } else {
+          widget.editor.add(course);
+        }
+      }),
+      icon: Icon(added ? LucideIcons.check : LucideIcons.plus),
+      color: added ? scheme.primary : scheme.onSurfaceVariant,
+    );
+  }
+
+  Future<void> _onSubmit(String keyword) {
+    setState(() => _filter = _filter.copyWith(courseNo: keyword));
+    return _run(_filter.copyWith(courseNo: keyword));
+  }
+
+  Future<void> _run(CourseQueryFilter filter) async {
+    setState(() {
+      _loading = true;
+      _searched = true;
+    });
+    final results = await widget.search(filter);
+    if (!mounted) return;
+    setState(() {
+      _results = results;
+      _loading = false;
+    });
+  }
+}

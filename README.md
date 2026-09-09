@@ -45,6 +45,33 @@ https://www.gdaily.org/26293/altstore-ipa
 ## 聯絡我們
 - [seielika064@icloud.com](mailto:seielika064@icloud.com)
   
+
+--------------------------------
+## 開發
+
+### 環境
+Flutter SDK 版本鎖定在 `.fvmrc`（目前 3.38.5）。可用 [fvm](https://fvm.app/) 或
+[Puro](https://puro.dev/) 管理，兩者都會讀到同一個版本號。
+
+Firebase 設定檔不在版控，建置前需自行放置：
+- `android/app/google-services.json`
+- `ios/Runner/GoogleService-Info.plist`
+
+在 git worktree 內開發時，這兩個檔案不會被帶過去（worktree 只取得被追蹤的
+檔案），需要從主 checkout 手動複製。
+
+### 常用指令
+```bash
+flutter pub get --enforce-lockfile   # 安裝依賴，並確認 pubspec.lock 未被更動
+dart analyze --fatal-infos           # 靜態分析（CI 門檻：零 error、零 warning、零 info）
+flutter test                         # 單元測試（跑測試前必須先 pub get）
+python3 tool/deps.py                 # 分層與匯入環度量
+python3 tool/deps.py --check         # CI 模式，超過棘輪門檻時失敗
+```
+
+### 文件
+- [架構地圖](docs/ARCHITECTURE.md) — 五層堆疊、請求路徑、登入策略、外部系統
+
 ## 貢獻者
 - [morris13579](https://github.com/morris13579)
 
