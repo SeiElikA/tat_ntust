@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_app/src/R.dart';
+import 'package:flutter_app/src/model/course/course_main_extra_json.dart';
 import 'package:flutter_app/src/model/course_table/course_table_json.dart';
+import 'package:flutter_app/src/util/course_table_conflict.dart';
 import 'package:flutter_app/src/util/ui_utils.dart';
 
 /// 課表用的星期名稱，索引對齊 [Day] 的順序。
@@ -175,5 +177,21 @@ class CourseTableControl {
 
   String getSectionString(int section) {
     return sectionStringList[section];
+  }
+
+  /// 一門課的上課時段，「三 8　四 3·4」。
+  ///
+  /// `courseTimeString` 給的是「三_8 四_34 」那種內部格式，直接印出來會看到
+  /// 底線，而且連在一起的節次分不出是 34 還是 3 跟 4。
+  String slotLabel(CourseMainInfoJson course) {
+    final days = <String>[];
+    for (final day in CourseTableConflict.days) {
+      final sections = CourseTableConflict.sectionsOf(course.course.time[day]);
+      if (sections.isEmpty) continue;
+      final labels =
+          sections.map((s) => getSectionString(s.index)).join('·');
+      days.add('${getDayString(day.index)} $labels');
+    }
+    return days.join('　');
   }
 }

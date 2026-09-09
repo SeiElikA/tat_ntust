@@ -217,4 +217,65 @@ void main() {
       expect(find.textContaining('_'), findsNothing);
     });
   });
+
+  group('草稿清單 sheet', () {
+    // 課名在背後的格子裡也會出現（而且跨幾節就出現幾次），所以一律用課號認：
+    // 只有 sheet 的副標會印課號。
+    testWidgets('摘要那一列點下去，攤開目前選的課', (tester) async {
+      final base = tableOf([courseOf('CS1001', '線性代數', {Day.monday: '3 4'})]);
+      final draft = tableOf([
+        courseOf('CS2002', '編譯器設計', {Day.wednesday: '6 7'}),
+        courseOf('CS2003', '機器學習', {Day.thursday: '3'}),
+      ]);
+      await pumpSimulation(tester, base: base, draft: draft);
+
+      expect(find.textContaining('CS2002'), findsNothing, reason: '還沒展開');
+
+      await tester.tap(find.textContaining(RegExp(r'^草稿')));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('CS2002'), findsOneWidget);
+      expect(find.textContaining('CS2003'), findsOneWidget);
+      expect(find.textContaining('CS1001'), findsNothing,
+          reason: '實際課表的課不屬於草稿清單');
+    });
+
+    testWidgets('一門課跨好幾節只列一次', (tester) async {
+      final draft =
+          tableOf([courseOf('CS2002', '編譯器設計', {Day.wednesday: '6 7 8'})]);
+      await pumpSimulation(tester, base: tableOf([]), draft: draft);
+
+      await tester.tap(find.textContaining(RegExp(r'^草稿')));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('CS2002'), findsOneWidget);
+    });
+
+    testWidgets('在清單裡移除，格子上那一門就跟著消失', (tester) async {
+      final draft =
+          tableOf([courseOf('CS2002', '編譯器設計', {Day.wednesday: '6 7'})]);
+      await pumpSimulation(tester, base: tableOf([]), draft: draft);
+
+      await tester.tap(find.textContaining(RegExp(r'^草稿')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip(R.current.simulationRemoveCourse));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('CS2002'), findsNothing, reason: 'sheet 裡先消失');
+
+      await tester.tapAt(const Offset(10, 10));
+      await tester.pumpAndSettle();
+
+      expect(find.text('編譯器設計'), findsNothing, reason: '格子上也要沒有');
+    });
+
+    testWidgets('草稿是空的就顯示空狀態，不是一片空白', (tester) async {
+      await pumpSimulation(tester, base: tableOf([]), draft: tableOf([]));
+
+      await tester.tap(find.textContaining(RegExp(r'^草稿')));
+      await tester.pumpAndSettle();
+
+      expect(find.text(R.current.simulationEmptyHint), findsWidgets);
+    });
+  });
 }

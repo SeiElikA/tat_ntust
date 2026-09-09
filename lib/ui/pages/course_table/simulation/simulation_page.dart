@@ -14,6 +14,7 @@ import 'package:flutter_app/ui/components/custom_appbar.dart';
 import 'package:flutter_app/ui/components/page/notice_bar.dart';
 import 'package:flutter_app/ui/other/lucide_icons.dart';
 import 'package:flutter_app/ui/other/theme_context.dart';
+import 'package:flutter_app/ui/pages/course_table/simulation/draft_course_sheet.dart';
 import 'package:flutter_app/ui/pages/course_table/simulation/simulation_table.dart';
 import 'package:sprintf/sprintf.dart';
 
@@ -75,7 +76,6 @@ class _SimulationPageState extends State<SimulationPage> {
   final CourseTableControl _control = CourseTableControl();
 
   /// 底部摘要可以收起來：課表本身才是這一頁的主角。
-  bool _summaryOpen = true;
 
   CourseTableJson get _draft => widget.draft.table;
 
@@ -186,7 +186,7 @@ class _SimulationPageState extends State<SimulationPage> {
             mainAxisSize: MainAxisSize.min,
             children: [
               InkWell(
-                onTap: () => setState(() => _summaryOpen = !_summaryOpen),
+                onTap: () => unawaited(_openDraftList(conflicts)),
                 child: Row(
                   children: [
                     Icon(LucideIcons.flaskConical,
@@ -203,39 +203,33 @@ class _SimulationPageState extends State<SimulationPage> {
                             style: AppTypography.tabular(text.titleSmall!)
                                 .copyWith(color: scheme.onSurface),
                           ),
-                          if (_summaryOpen) ...[
-                            const SizedBox(height: 2),
-                            if (draftCredit == 0 &&
-                                _draft.getCourseIdList().isEmpty)
-                              Text(
-                                R.current.simulationEmptyHint,
-                                style: text.bodySmall
-                                    ?.copyWith(color: scheme.onSurfaceVariant),
-                              )
-                            else
-                              Text(
-                                '${sprintf(R.current.simulationTotalSummary, [
-                                      total
-                                    ])} · ${conflicts.isEmpty ? R.current.simulationNoConflict : sprintf(R.current.simulationConflictCount, [
-                                        conflicts.length
-                                      ])}',
-                                style: AppTypography.tabular(text.bodySmall!)
-                                    .copyWith(
-                                        color: conflicts.isEmpty
-                                            ? scheme.onSurfaceVariant
-                                            : scheme.error),
-                              ),
-                          ],
+                          const SizedBox(height: 2),
+                          if (draftCredit == 0 &&
+                              _draft.getCourseIdList().isEmpty)
+                            Text(
+                              R.current.simulationEmptyHint,
+                              style: text.bodySmall
+                                  ?.copyWith(color: scheme.onSurfaceVariant),
+                            )
+                          else
+                            Text(
+                              '${sprintf(R.current.simulationTotalSummary, [
+                                    total
+                                  ])} · ${conflicts.isEmpty ? R.current.simulationNoConflict : sprintf(R.current.simulationConflictCount, [
+                                      conflicts.length
+                                    ])}',
+                              style: AppTypography.tabular(text.bodySmall!)
+                                  .copyWith(
+                                      color: conflicts.isEmpty
+                                          ? scheme.onSurfaceVariant
+                                          : scheme.error),
+                            ),
                         ],
                       ),
                     ),
-                    Icon(
-                      _summaryOpen
-                          ? LucideIcons.chevronDown
-                          : LucideIcons.chevronUp,
-                      size: 18,
-                      color: scheme.onSurfaceVariant,
-                    ),
+                    const SizedBox(width: 4),
+                    Icon(LucideIcons.chevronUp,
+                        size: 18, color: scheme.onSurfaceVariant),
                   ],
                 ),
               ),
@@ -254,6 +248,23 @@ class _SimulationPageState extends State<SimulationPage> {
         ),
       ),
     );
+  }
+
+  /// 摘要那一列點下去看選了什麼。
+  ///
+  /// 這裡本來是摺疊：點一下只多顯示／少顯示一行字，而且藏掉的正是「加上實際
+  /// 課表共幾學分、幾處衝堂」——使用者開這一頁就是要看那一行。改成攤開草稿的
+  /// 課，那個往上的箭頭才對得起它給的暗示。
+  Future<void> _openDraftList(List<ConflictCell> conflicts) async {
+    await showDraftCourseSheet(
+      context: context,
+      draft: _draft,
+      control: _control,
+      conflictIds: conflicts.map((c) => c.overlay.main.course.id).toSet(),
+      onRemove: _removeCourse,
+    );
+    if (!mounted) return;
+    setState(() {});
   }
 
   Future<void> _openSearch() async {

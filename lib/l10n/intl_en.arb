@@ -590,6 +590,7 @@
   "simulationNoConflict": "No clashes",
   "simulationEmptyHint": "No courses yet. Tap Search courses below to start planning.",
   "simulationNew": "New draft table",
+  "simulationDraftListTitle": "Selected courses",
   "simulationRemoveCourse": "Remove from draft",
   "courseSearchTitle": "Search courses",
   "courseSearchHideConflict": "Hide clashes",

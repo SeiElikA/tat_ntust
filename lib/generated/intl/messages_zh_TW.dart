@@ -952,6 +952,7 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "simulationConflictCount": MessageLookupByLibrary.simpleMessage("%s 處衝堂"),
     "simulationDraftLabel": MessageLookupByLibrary.simpleMessage("%s 加退選草稿"),
+    "simulationDraftListTitle": MessageLookupByLibrary.simpleMessage("目前選的課"),
     "simulationDraftSummary": MessageLookupByLibrary.simpleMessage(
       "草稿 %s 門 · %s 學分",
     ),

@@ -5344,6 +5344,16 @@ class S {
     );
   }
 
+  /// `Selected courses`
+  String get simulationDraftListTitle {
+    return Intl.message(
+      'Selected courses',
+      name: 'simulationDraftListTitle',
+      desc: '',
+      args: [],
+    );
+  }
+
   /// `Remove from draft`
   String get simulationRemoveCourse {
     return Intl.message(

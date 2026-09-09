@@ -309,25 +309,11 @@ class _CourseSearchPageState extends State<CourseSearchPage> {
   String _timeOf(CourseMainInfoJson course) {
     final parts = [
       if (course.getTeacherName().trim().isNotEmpty) course.getTeacherName(),
-      if (_slots(course).isNotEmpty) _slots(course),
+      if (_control.slotLabel(course).isNotEmpty) _control.slotLabel(course),
       if (course.getClassroomName().trim().isNotEmpty)
         course.getClassroomName(),
     ];
     return parts.join(' · ');
-  }
-
-  /// 「三 8　四 3·4」。`courseTimeString` 給的是「三_8 四_34 」那種內部格式，
-  /// 直接印出來會看到底線，而且連在一起的節次分不出是 34 還是 3 跟 4。
-  String _slots(CourseMainInfoJson course) {
-    final days = <String>[];
-    for (final day in CourseTableConflict.days) {
-      final sections = CourseTableConflict.sectionsOf(course.course.time[day]);
-      if (sections.isEmpty) continue;
-      final labels =
-          sections.map((s) => _control.getSectionString(s.index)).join('·');
-      days.add('${_control.getDayString(day.index)} $labels');
-    }
-    return days.join('　');
   }
 
   /// 「與 離散數學（三 9、四 3·4） 衝堂」。

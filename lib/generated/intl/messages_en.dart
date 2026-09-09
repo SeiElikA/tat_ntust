@@ -1352,6 +1352,9 @@ class MessageLookup extends MessageLookupByLibrary {
     "simulationDraftLabel": MessageLookupByLibrary.simpleMessage(
       "%s add-drop draft",
     ),
+    "simulationDraftListTitle": MessageLookupByLibrary.simpleMessage(
+      "Selected courses",
+    ),
     "simulationDraftSummary": MessageLookupByLibrary.simpleMessage(
       "Draft: %s courses, %s credits",
     ),

@@ -590,6 +590,7 @@
   "simulationNoConflict": "沒有衝堂",
   "simulationEmptyHint": "還沒加任何課。按下面的「搜尋課程」開始排。",
   "simulationNew": "新增模擬課表",
+  "simulationDraftListTitle": "目前選的課",
   "simulationRemoveCourse": "從草稿移除",
   "courseSearchTitle": "搜尋課程",
   "courseSearchHideConflict": "只看不衝堂",
