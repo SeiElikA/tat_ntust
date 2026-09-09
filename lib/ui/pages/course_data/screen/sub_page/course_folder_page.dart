@@ -5,8 +5,10 @@ import 'package:flutter_app/src/R.dart';
 import 'package:flutter_app/src/connector/moodle_webapi_connector.dart';
 import 'package:flutter_app/src/model/course_table/course_table_json.dart';
 import 'package:flutter_app/src/model/moodle_webapi/moodle_core_course_get_contents.dart';
+import 'package:flutter_app/src/util/file_icon_utils.dart';
 import 'package:flutter_app/src/util/file_utils.dart';
 import 'package:flutter_app/src/util/moodle_folder_utils.dart';
+import 'package:flutter_app/src/util/ui_utils.dart';
 import 'package:flutter_app/ui/components/card/section_card.dart';
 import 'package:flutter_app/ui/components/custom_appbar.dart';
 import 'package:flutter_app/ui/components/page/empty_state.dart';
@@ -16,6 +18,7 @@ import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import 'package:sprintf/sprintf.dart';
 import 'package:flutter_app/ui/other/lucide_icons.dart';
+import 'package:flutter_app/ui/other/theme_context.dart';
 
 /// 資料夾模組的某一層。Moodle 只回檔案，子資料夾是從 `filepath` 推出來的，
 /// 見 [MoodleFolderUtils]。
@@ -47,37 +50,40 @@ class CourseFolderPage extends StatelessWidget {
       appBar: baseAppbar(title: _title),
       body: listing.isEmpty
           ? EmptyState(
-              icon: LucideIcons.folder,
+              icon: LucideIconsThin.folder,
               message: R.current.folderEmpty,
             )
           : _tree(context, listing),
     );
   }
 
-  /// 一層可能有上百個檔案，所以列留在 sliver 裡逐列建構。
+  /// 一層可能有上百個檔案，所以列留在 sliver 裡逐列建構。一列一塊、彼此
+  /// 差 2px（[UIUtils.getBorderRadius]），與 App 其他清單同一套。
   Widget _tree(BuildContext context, MoodleFolderListing listing) {
-    final divided = listing.folders.isNotEmpty && listing.files.isNotEmpty;
+    final total = listing.folders.length + listing.files.length;
     return CustomScrollView(
       slivers: [
         SliverPadding(
           padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
           sliver: SliverToBoxAdapter(
-            child: SectionHeader(
-              icon: LucideIcons.folder,
-              title: _breadcrumb,
-              first: true,
-            ),
+            child: SectionHeader(title: _breadcrumb, first: true),
           ),
         ),
         SliverPadding(
           padding: const EdgeInsets.fromLTRB(12, 0, 12, 32),
-          sliver: SectionCardSliver(
-            sliver: SliverList.builder(
-              itemCount: listing.folders.length +
-                  (divided ? 1 : 0) +
-                  listing.files.length,
-              itemBuilder: (context, index) =>
-                  _rowAt(context, listing, index, divided),
+          sliver: SliverList.builder(
+            itemCount: total,
+            itemBuilder: (context, index) => Padding(
+              padding: EdgeInsets.only(top: index == 0 ? 0 : 2),
+              child: Material(
+                color: context.tokens.card,
+                borderRadius: UIUtils.getBorderRadius(index, total),
+                clipBehavior: Clip.antiAlias,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 14),
+                  child: _rowAt(context, listing, index),
+                ),
+              ),
             ),
           ),
         ),
@@ -85,18 +91,12 @@ class CourseFolderPage extends StatelessWidget {
     );
   }
 
-  /// 先子資料夾、有兩者時一條分隔線、再檔案。
-  Widget _rowAt(BuildContext context, MoodleFolderListing listing, int index,
-      bool divided) {
+  /// 先子資料夾、再檔案。
+  Widget _rowAt(BuildContext context, MoodleFolderListing listing, int index) {
     if (index < listing.folders.length) {
       return _folderTile(context, listing.folders[index]);
     }
-    var i = index - listing.folders.length;
-    if (divided) {
-      if (i == 0) return const SectionDivider();
-      i -= 1;
-    }
-    return _fileTile(context, listing.files[i]);
+    return _fileTile(context, listing.files[index - listing.folders.length]);
   }
 
   Widget _fileTile(BuildContext context, Contents c) {
@@ -118,9 +118,9 @@ class CourseFolderPage extends StatelessWidget {
     return MoodleFileTile(
       filename: folder.name,
       subtitle: sprintf(R.current.folderFileCount, [folder.fileCount]),
-      leading: Icon(LucideIcons.folder, size: 24, color: scheme.primary),
+      leading: Icon(LucideIconsThin.folder, size: 20, color: scheme.primary),
       trailing: Icon(LucideIcons.chevronRight,
-          size: 18, color: scheme.onSurfaceVariant),
+          size: 17, color: scheme.onSurfaceVariant),
       // GetX 拿 widget 型別當路由名，同一頁再推一次會被 preventDuplicates
       // 當成重複而靜默不推，子資料夾就點不進去。
       onTap: () => unawaited(Get.to(
@@ -130,9 +130,12 @@ class CourseFolderPage extends StatelessWidget {
     );
   }
 
-  /// 兩者都沒有時回 null，那一列就維持單行。
+  /// 「PDF · 2.4 MB · 3/1/2025 10:00」。副檔名排在最前面，和檔案分頁的
+  /// 檔案列同一個順序。全部都沒有時回 null，那一列就維持單行。
   String? _fileSubtitle(Contents c) {
+    final extension = FileIconUtils.extensionOf(c.filename)?.toUpperCase();
     final parts = [
+      if (extension != null && extension.isNotEmpty) extension,
       if (c.filesize > 0) FileUtils.formatBytes(c.filesize, 1),
       if (c.timemodified > 0) _formatTime(c.timemodified),
     ];

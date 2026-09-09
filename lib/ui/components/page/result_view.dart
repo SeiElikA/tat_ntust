@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_app/src/R.dart';
 import 'package:flutter_app/src/repository/result.dart';
 import 'package:flutter_app/ui/components/page/loading_page.dart';
+import 'package:flutter_app/ui/components/page/notice_bar.dart';
 import 'package:get/get.dart';
 import 'package:flutter_app/ui/other/lucide_icons.dart';
 
@@ -48,48 +49,20 @@ class ResultView<T> extends StatelessWidget {
         Stale<T>(:final data, :final reason) => Column(
             mainAxisSize: shrinkWrap ? MainAxisSize.min : MainAxisSize.max,
             children: [
-              _StaleBanner(message: reason.message, onRetry: onRetry),
+              // 「你看到的是舊資料」用中性的 info：這不是一件需要搶眼的事。
+              // 圖示蓋成 history，比 info 更準確地說出「舊」。
+              NoticeBar(
+                message: reason.message,
+                kind: NoticeKind.info,
+                icon: LucideIcons.history,
+                actionLabel: R.current.refresh,
+                onAction: onRetry,
+              ),
               if (shrinkWrap) builder(data) else Expanded(child: builder(data)),
             ],
           ),
         Failed<T>(:final reason) => errorBuilder(reason.message),
       };
     });
-  }
-}
-
-/// 「你看到的是舊資料」的橫幅。
-class _StaleBanner extends StatelessWidget {
-  const _StaleBanner({required this.message, this.onRetry});
-
-  final String message;
-  final Future<void> Function()? onRetry;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Material(
-      color: scheme.surfaceContainerHighest,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        child: Row(
-          children: [
-            Icon(LucideIcons.history, size: 16, color: scheme.onSurfaceVariant),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                message,
-                style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
-              ),
-            ),
-            if (onRetry != null)
-              TextButton(
-                onPressed: onRetry,
-                child: Text(R.current.refresh),
-              ),
-          ],
-        ),
-      ),
-    );
   }
 }

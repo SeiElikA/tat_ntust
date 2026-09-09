@@ -11,7 +11,6 @@ import 'package:path/path.dart' as p;
 
 /// 檔案總管用得到的工具。
 class FileUtils {
-
   static String formatBytes(bytes, decimals) {
     if (bytes == 0) return "0.0 KB";
     var k = 1024,

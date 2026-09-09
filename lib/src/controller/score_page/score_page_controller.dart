@@ -13,6 +13,7 @@ class ScorePageController extends GetxController
   var state = ScoreUIState.loading.obs;
   var semesterScoreList = <SemesterScoreJson>[].obs;
   var currentTabIndex = 0.obs;
+
   /// 只在 initTask 成功走到最後才會有值，所以是可空而不是 late：initTask 有
   /// 兩條 early return，late 的 LateInitializationError 會從 GetX 那個沒有
   /// try/catch 的 _removeDependencyByRoute 迴圈中間拋出，同一條 route 上排在

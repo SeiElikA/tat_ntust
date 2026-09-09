@@ -4,6 +4,7 @@ import 'package:flutter_app/src/repository/retry.dart';
 import 'package:flutter_app/debug/log/log.dart';
 import 'package:flutter_app/src/auth/auth_session.dart';
 import 'package:flutter_app/src/connector/course_connector.dart';
+import 'package:flutter_app/src/model/course/course_query_filter.dart';
 import 'package:flutter_app/src/model/course/course_class_json.dart';
 import 'package:flutter_app/src/model/course/course_main_extra_json.dart';
 import 'package:flutter_app/src/store/cache_store.dart';
@@ -50,8 +51,7 @@ class NtustRepository {
   /// 資訊系統的功能樹。
   ///
   /// 沒有快取：這份清單很小、變動極少，加上去只是多一個會過期的副本。
-  Future<Result<List<APTreeJson>>> getSubSystemTree() =>
-      run<List<APTreeJson>>(
+  Future<Result<List<APTreeJson>>> getSubSystemTree() => run<List<APTreeJson>>(
         requires: const {SystemId.ntustSso},
         fetch: NTUSTConnector.getSubSystem,
         errorMessage: R.current.somethingError,
@@ -63,11 +63,13 @@ class NtustRepository {
   /// **`requires` 是空的。** 它打的是 `querycourse/api/courses`，一個免憑證的
   /// 公開 API。加上登入需求只會讓還沒登入的使用者一查課就被彈登入頁。
   Future<Result<List<CourseMainInfoJson>>> searchCourse(
-          SemesterJson semester, String keyword) =>
+          SemesterJson semester, CourseQueryFilter filter) =>
       run<List<CourseMainInfoJson>>(
         requires: const {},
-        fetch: () => CourseConnector.searchCourse(semester, keyword),
-        progressMessage: R.current.searching,
+        fetch: () => CourseConnector.searchCourse(semester, filter),
+        // 不開進度框：搜尋頁自己就有載入狀態，再疊一個全螢幕遮罩會變成兩個
+        // 轉圈，而且遮罩擋住輸入框時看起來像整頁卡死。
+        retry: RetryPolicy.none,
         errorMessage: R.current.getCourseError,
         debugLabel: 'searchCourse',
       );
@@ -118,6 +120,75 @@ class NtustRepository {
         errorMessage: R.current.getCourseError,
         debugLabel: 'courseTable',
       );
+
+  /// querycourse 支援的學期，由新到舊。
+  ///
+  /// 模擬排課用的是這一份而不是 `getSemesterList`：後者要有成績或選課紀錄才
+  /// 生得出學期，新學期在選課開始前根本不在裡面。免憑證，沒登入也查得到。
+  Future<List<SemesterJson>> getQueryCourseSemesters() =>
+      CourseConnector.getCourseSemesterList();
+
+  /// 掃進來的課表要補的課名與教室。
+  ///
+  /// QR 只帶課號與上課時間，格子離線就畫得出來；這一支負責把課名、教室、老師
+  /// 補上。`requires` 是空的——querycourse 免憑證，沒登入的人也要能完成匯入，
+  /// 這對「同學傳一張 QR 給還沒用過 TAT 的人」是關鍵。
+  ///
+  /// 查不到就回空清單而不是失敗：對方的課表可能有這學期查不到的課，那不該讓
+  /// 整份匯入失敗——時間格子本來就已經對了。
+  Future<List<CourseMainInfoJson>> restoreSharedCourses(
+    SemesterJson semester,
+    List<String> courseIds, {
+    void Function(int done, int total)? onProgress,
+  }) async {
+    var done = 0;
+    final lookups = await lookupSharedCourses(
+      semester,
+      courseIds,
+      onResolved: (_) => onProgress?.call(++done, courseIds.length),
+    );
+    return [for (final lookup in lookups) ...lookup.courses];
+  }
+
+  /// 逐門查課，查完一門回報一門。
+  ///
+  /// 與 [restoreSharedCourses] 是同一條路，差別只在呼叫端拿得到「這一門是查
+  /// 不到還是查不動」，而且不必等全部查完才有東西可畫。
+  Future<List<SharedCourseLookup>> lookupSharedCourses(
+    SemesterJson semester,
+    List<String> courseIds, {
+    void Function(SharedCourseLookup lookup)? onResolved,
+    bool Function()? isCancelled,
+  }) async {
+    if (courseIds.isEmpty) return [];
+    // 一門課一個請求，而且是循序的。十門課排成一列就是十次來回，所以開四條
+    // ——再多就是拿學校主機當壓測目標。
+    const concurrency = 4;
+    final result = <SharedCourseLookup>[];
+    for (var i = 0; i < courseIds.length; i += concurrency) {
+      // 呼叫端已經離開就不要再開下一批：使用者什麼都看不到，主機照樣挨打。
+      if (isCancelled?.call() ?? false) break;
+      final batch = courseIds.skip(i).take(concurrency);
+      final fetched = await Future.wait(batch.map((id) async {
+        try {
+          final value = await CourseConnector.getCourseMainInfoListByCourseId(
+              semester, [id]);
+          // null 是連不上；非 null 但空清單是這學期查無此課。
+          return value == null
+              ? SharedCourseLookup(id: id, courses: const [], failed: true)
+              : SharedCourseLookup(id: id, courses: value.json, failed: false);
+        } catch (e, stack) {
+          Log.eWithStack(e.toString(), stack);
+          return SharedCourseLookup(id: id, courses: const [], failed: true);
+        }
+      }));
+      for (final lookup in fetched) {
+        result.add(lookup);
+        onResolved?.call(lookup);
+      }
+    }
+    return result;
+  }
 
   /// 課表一律以課號向課程查詢 API 逐門查回來。
   ///
@@ -322,4 +393,27 @@ class SemesterListFetch {
   final bool hasHistory;
 
   const SemesterListFetch(this.semesters, {required this.hasHistory});
+}
+
+/// 一個課號查回來的結果。
+///
+/// 「查不到」跟「查不動」不是同一件事：前者是這學期真的沒有這門課，後者只是
+/// 這一次沒連上。混在一起的話，離線時整份課表都會被說成查無此課。
+class SharedCourseLookup {
+  const SharedCourseLookup({
+    required this.id,
+    required this.courses,
+    required this.failed,
+  });
+
+  final String id;
+
+  /// API 回的每一列。同一個課號開在不同教室會有多列。
+  final List<CourseMainInfoJson> courses;
+
+  /// 這一次請求根本沒打成功。
+  final bool failed;
+
+  /// 這學期查無此課。查不動不算。
+  bool get notFound => !failed && courses.isEmpty;
 }

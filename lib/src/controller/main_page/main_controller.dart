@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:dio/dio.dart' show CancelToken;
-import 'package:awesome_dialog/awesome_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_app/src/auth/auth_session.dart';
@@ -19,14 +18,17 @@ import 'package:flutter_app/src/util/analytics_utils.dart';
 import 'package:flutter_app/src/util/moodle_avatar_utils.dart';
 import 'package:get/get.dart';
 
-/// 五個分頁的身分。
+/// 四個分頁的身分。
 ///
 /// controller 不可以持有 Widget：那會讓 `lib/src/controller` 反向 import
 /// `lib/ui`，也就是 `tool/deps.py` 的 controller -> ui 上行邊。畫面由
 /// [MainScreen] 持有，controller 只認「第幾個分頁」。
 ///
 /// 這些名稱會直接送進 Analytics 當 screen name，改名等於改掉既有的報表維度。
-enum MainTab { courseTable, subSystem, calendar, score, other }
+/// 資訊系統搬進「更多」時是**刪掉** `subSystem` 這個值、而不是改名，其餘四個
+/// 的拼法才不會跟著位移，歷史報表也才接得起來；那一頁改由
+/// `AnalyticsUtils.observer` 以路由名記錄。
+enum MainTab { courseTable, calendar, score, other }
 
 class MainController extends GetxController {
   final pageController = PageController();
@@ -73,6 +75,10 @@ class MainController extends GetxController {
     HapticFeedback.mediumImpact();
   }
 
+  /// 用分頁身分跳頁，呼叫端因此不必知道課表排第幾個。沒有觸覺回饋：這是
+  /// 程式主動導的頁，不是使用者按的那一下。
+  void goToTab(MainTab tab) => pageController.jumpToPage(tab.index);
+
   void onPageChanged(int index) {
     currentIndex.value = index;
 
@@ -106,7 +112,7 @@ class MainController extends GetxController {
       // offCancelBtn 讓它只有一顆「確定」，回傳值沒有意義。
       await TaskUiDelegate.instance.confirmRetry(ErrorDialogParameter(
         title: R.current.error,
-        dialogType: DialogType.error,
+        kind: TatDialogKind.error,
         desc: R.current.loginMoodleError,
         okResult: false,
         btnOkText: R.current.sure,

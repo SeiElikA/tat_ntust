@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:bot_toast/bot_toast.dart';
 import 'package:dynamic_color/dynamic_color.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
@@ -115,12 +114,9 @@ class MyApp extends StatelessWidget {
         ],
         builder: (context, child) => UpdatePrompt(
           navigatorKey: Get.key,
-          child: BotToastInit()(context, child),
+          child: child ?? const SizedBox.shrink(),
         ),
-        navigatorObservers: [
-          BotToastNavigatorObserver(),
-          AnalyticsUtils.observer
-        ],
+        navigatorObservers: [AnalyticsUtils.observer],
         supportedLocales: S.delegate.supportedLocales,
         initialRoute: initialRoute,
         getPages: [

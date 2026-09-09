@@ -170,6 +170,7 @@ class CourseMainInfoJson {
     }
     return name;
   }
+
   bool get isEmpty {
     return course.isEmpty &&
         teacher.isEmpty &&

@@ -18,6 +18,7 @@ import 'package:flutter_app/src/util/moodle_assign_utils.dart';
 import 'package:flutter_app/ui/components/card/section_card.dart';
 import 'package:flutter_app/ui/components/custom_appbar.dart';
 import 'package:flutter_app/ui/components/html/moodle_html_view.dart';
+import 'package:flutter_app/ui/components/page/destructive_row.dart';
 import 'package:flutter_app/ui/components/page/inline_error_view.dart';
 import 'package:flutter_app/ui/components/page/inline_note.dart';
 import 'package:flutter_app/ui/components/page/result_view.dart';
@@ -29,6 +30,7 @@ import 'package:flutter_app/ui/service/file_download.dart';
 import 'package:get/get.dart';
 import 'package:sprintf/sprintf.dart';
 import 'package:flutter_app/ui/other/lucide_icons.dart';
+import 'package:flutter_app/ui/other/theme_context.dart';
 
 /// 一份作業的詳情。可以在 App 內交的作業會多出繳交入口，其餘一律導網頁。錯誤畫面與 WebView 開啟器
 /// 由呼叫端注入，見 docs/ARCHITECTURE.md「UI 慣例」。三段 Moodle 原文 HTML
@@ -227,7 +229,6 @@ class _CourseAssignmentDetailPageState
   /// 它們在這一頁，不在繳交頁；而「移除繳交」是全頁唯一不可逆又不是目標的
   /// 動作，跟「繳交」並排放成同等份量的鈕就是在請人把作業刪掉。
   Widget _overflowMenu(MoodleAssignment a, {required bool writing}) {
-    final scheme = Theme.of(context).colorScheme;
     final actions = _actionsOf(a);
     final items = <PopupMenuEntry<AssignAction>>[
       if (actions.contains(AssignAction.copyPrevious))
@@ -246,12 +247,10 @@ class _CourseAssignmentDetailPageState
         PopupMenuItem<AssignAction>(
           value: AssignAction.removeSubmission,
           enabled: !writing,
-          child: Row(children: [
-            Icon(LucideIcons.trash2, size: 18, color: scheme.error),
-            const SizedBox(width: 12),
-            Text(R.current.assignRemoveSubmission,
-                style: TextStyle(color: scheme.error)),
-          ]),
+          child: DestructiveRow.menuItem(
+            icon: LucideIcons.trash2,
+            label: R.current.assignRemoveSubmission,
+          ),
         ),
     ];
     if (items.isEmpty) return const SizedBox.shrink();
@@ -559,16 +558,13 @@ class _CourseAssignmentDetailPageState
   /// 只有一行字：`Stale` 一定伴隨 [ResultView] 的舊資料橫幅，重新整理的入口
   /// 在那上面，這裡再放一顆只是重複。
   Widget _needsFreshHint() {
-    final scheme = Theme.of(context).colorScheme;
+    final scheme = context.scheme;
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Text(
         R.current.assignSubmitNeedsFresh,
         textAlign: TextAlign.center,
-        style: Theme.of(context)
-            .textTheme
-            .bodySmall
-            ?.copyWith(color: scheme.onSurfaceVariant),
+        style: context.text.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
       ),
     );
   }
@@ -679,8 +675,8 @@ class _CourseAssignmentDetailPageState
   }
 
   Widget _deadlineCard(MoodleAssignment a) {
-    final scheme = Theme.of(context).colorScheme;
-    final text = Theme.of(context).textTheme;
+    final scheme = context.scheme;
+    final text = context.text;
     return Obx(() {
       final now = MoodleWebApiConnector.serverNow();
       final s = _controller.status.value?.dataOrNull;
@@ -796,8 +792,8 @@ class _CourseAssignmentDetailPageState
       fb.files.isNotEmpty;
 
   Widget _feedbackCard(MoodleAssignment a, MoodleAssignFeedback fb) {
-    final scheme = Theme.of(context).colorScheme;
-    final text = Theme.of(context).textTheme;
+    final scheme = context.scheme;
+    final text = context.text;
     final grade = fb.gradefordisplay.trim();
     return SectionCard([
       // gradefordisplay 是 connector 還原過的純文字，只能走 Text，
@@ -829,8 +825,8 @@ class _CourseAssignmentDetailPageState
 
   /// null 與空字串畫不同的東西，見 [MoodleAssignment.intro]。
   Widget _introCard(MoodleAssignment a) {
-    final scheme = Theme.of(context).colorScheme;
-    final text = Theme.of(context).textTheme;
+    final scheme = context.scheme;
+    final text = context.text;
     final intro = a.intro;
     final Widget body;
     if (intro == null) {

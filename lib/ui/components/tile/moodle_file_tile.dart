@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_app/src/config/app_tokens.dart';
+import 'package:flutter_app/src/config/app_typography.dart';
 import 'package:flutter_app/ui/components/file_type_icon.dart';
 import 'package:flutter_app/ui/other/lucide_icons.dart';
 
@@ -46,27 +48,32 @@ class MoodleFileTile extends StatelessWidget {
     return ListTile(
       dense: true,
       contentPadding: EdgeInsets.zero,
-      minLeadingWidth: 28,
-      horizontalTitleGap: 12,
+      minLeadingWidth: TatTokens.iconColumn,
+      horizontalTitleGap: 11,
       minVerticalPadding: 8,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-      leading: leading ?? FileTypeIcon(filename: filename, mimetype: mimetype),
+      shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(TatTokens.radiusButton)),
+      leading: leading ??
+          FileTypeIcon(filename: filename, mimetype: mimetype, size: 20),
       title: Text(filename,
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
-          style: text.bodyMedium?.copyWith(
+          style: text.bodyLarge?.copyWith(
               color: dimmed ? scheme.onSurfaceVariant : scheme.onSurface,
               decoration: dimmed ? TextDecoration.lineThrough : null,
               decorationColor: scheme.onSurfaceVariant,
-              height: 1.3)),
+              height: 1.4)),
       subtitle: subtitle == null
           ? null
           : Text(subtitle!,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: text.bodySmall?.copyWith(color: scheme.onSurfaceVariant)),
+              style: AppTypography.tabular((text.bodySmall ?? const TextStyle())
+                  .copyWith(color: scheme.onSurfaceVariant, height: 1.4))),
+      // 下載提示是這一列唯一的動作，用 accent 色：檔名旁邊多一個灰圖示看起來
+      // 只是裝飾。細筆畫是為了和左邊的檔案類型圖示同粗。
       trailing: trailing ??
-          Icon(LucideIcons.download, size: 18, color: scheme.onSurfaceVariant),
+          Icon(LucideIconsThin.download, size: 18, color: scheme.primary),
       onTap: onTap,
     );
   }

@@ -18,6 +18,19 @@ class PrivacyPolicyController extends GetxController {
     await load();
   }
 
+  Future<void> load() async {
+    try {
+      isLoading.value = true;
+      isError.value = false;
+      content.value = await fetchPolicy();
+    } catch (e) {
+      isError.value = true;
+      errorMsg.value = e.toString().replaceAll("Exception:", "");
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
   /// 取隱私政策內文：先問網路，失敗就退回打包進 App 的那一份。
   ///
   /// **這一頁是新使用者的第一道關卡，而且沒有退路**：同意鈕在 `BasePage` 的
@@ -25,26 +38,21 @@ class PrivacyPolicyController extends GetxController {
   /// 也沒有重試。網路慢一點就會把人永遠擋在門外。
   ///
   /// 備援讀的 `privacy-policy.md` 與 GitHub raw 服務的是同一個檔案
-  /// （見 pubspec.yaml）。兩邊都失敗才是 [isError]。
-  Future<void> load() async {
+  /// （見 pubspec.yaml）。兩邊都失敗才會 throw。登入頁與「關於」頁的唯讀入口
+  /// 也共用這一份，免得只有其中一條路有離線備援。
+  static Future<String> fetchPolicy() async {
     try {
-      isLoading.value = true;
-      isError.value = false;
-
-      var data = await Connector.getDataByGet(
+      return await Connector.getDataByGet(
           ConnectorParameter(AppLink.privacyPolicyUrl));
-      content.value = data;
     } catch (e) {
       Log.e("privacy policy 取不到，改用打包的那一份: $e");
       try {
-        content.value = await rootBundle.loadString(_bundledPolicy);
+        return await rootBundle.loadString(_bundledPolicy);
       } catch (bundleError, stack) {
         Log.eWithStack(bundleError.toString(), stack);
-        isError.value = true;
-        errorMsg.value = e.toString().replaceAll("Exception:", "");
+        // 丟回網路那一則：對使用者有意義的是「連不上」，不是 asset 找不到。
+        throw e;
       }
-    } finally {
-      isLoading.value = false;
     }
   }
 

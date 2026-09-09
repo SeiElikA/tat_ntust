@@ -1,39 +1,83 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_app/src/config/app_tokens.dart';
+import 'package:flutter_app/ui/other/theme_context.dart';
 
 /// 群組標題，刻意放在卡片外：內容載入中或失敗時標題仍在。
 class SectionHeader extends StatelessWidget {
   const SectionHeader({
     super.key,
-    required this.icon,
+    this.icon,
     required this.title,
     this.trailing,
     this.first = false,
   });
 
-  final IconData icon;
+  /// null 就只有文字。設定頁那三段照設計稿不帶圖示——一整排彼此無關的圖示
+  /// 只會讓人以為它們是同一組東西。
+  final IconData? icon;
   final String title;
   final Widget? trailing;
   final bool first;
 
+  static const double _iconSize = 18;
+
+  /// 標題第一行的行高。
+  ///
+  /// [Icon] 是圖示字型裡的一個字，Flutter 算得出它的基線，但那是圖示字型的
+  /// 基線，和標題的文字基線互不相干（lucide 的 ascender 就是字身高，所以
+  /// 18px 的圖示回報的基線剛好是 18，比標題的 ~17 低）——所以圖示改成置中在
+  /// 這個高度裡，而不是跟標題對基線。高度跟著主題字級與系統字級縮放走。
+  static double _titleLineHeight(BuildContext context, TextStyle? style) {
+    final fontSize = style?.fontSize;
+    final height = style?.height;
+    // 主題沒給字級或行高倍率就退回圖示自己的高度：算不出行高，寧可不推。
+    if (fontSize == null || height == null) return _iconSize;
+    return MediaQuery.textScalerOf(context).scale(fontSize) * height;
+  }
+
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
+    final scheme = context.scheme;
+    final titleStyle =
+        context.text.titleSmall?.copyWith(color: scheme.onSurfaceVariant);
+    final titleText = Text(
+      title,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: titleStyle,
+    );
     return Padding(
       padding: EdgeInsets.fromLTRB(8, first ? 4 : 20, 4, 8),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.baseline,
+        textBaseline: TextBaseline.alphabetic,
         children: [
-          Icon(icon, size: 18, color: scheme.onSurfaceVariant),
-          const SizedBox(width: 8),
           Expanded(
-            child: Text(
-              title,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: scheme.onSurfaceVariant,
+            child: icon == null
+                ? titleText
+                // 圖示和標題自成一列（切齊頂端），trailing 留在外層才對得到標題
+                // 的基線——內層這一列回報的基線就是標題的。
+                : Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // IgnoreBaseline：把圖示排除在基線計算外。預設字級下
+                      // 標題的基線本來就比較高、贏得過圖示，但系統字級放大時
+                      // 圖示不跟著放大（iconTheme 沒開 applyTextScaling），
+                      // 它的基線會反過來蓋過標題，trailing 就對到圖示去。
+                      IgnoreBaseline(
+                        child: SizedBox(
+                          height: _titleLineHeight(context, titleStyle),
+                          child: Center(
+                            child: Icon(icon,
+                                size: _iconSize,
+                                color: scheme.onSurfaceVariant),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(child: titleText),
+                    ],
                   ),
-            ),
           ),
           if (trailing != null) trailing!,
         ],
@@ -51,7 +95,7 @@ class SectionCard extends StatelessWidget {
   const SectionCard.compact(this.children, {super.key})
       : _padding = compactPadding;
 
-  static const double radius = 12;
+  static const double radius = TatTokens.radiusCard;
   static const EdgeInsets padding =
       EdgeInsets.symmetric(horizontal: 14, vertical: 12);
   static const EdgeInsets compactPadding =
@@ -59,8 +103,7 @@ class SectionCard extends StatelessWidget {
 
   /// 卡片底色的唯一出處。編輯面與工具列的漸層都要跟它一致，各自寫一份在
   /// 動態取色的機器上一定會對不起來。
-  static Color fill(BuildContext context) =>
-      Theme.of(context).colorScheme.surfaceContainer;
+  static Color fill(BuildContext context) => context.tokens.card;
 
   static BoxDecoration _decoration(BuildContext context) => BoxDecoration(
         color: fill(context),
@@ -109,8 +152,8 @@ class SectionField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final text = Theme.of(context).textTheme;
+    final scheme = context.scheme;
+    final text = context.text;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
@@ -148,10 +191,10 @@ class SectionSubLabel extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 8),
       child: Text(
         text,
-        style: Theme.of(context).textTheme.labelMedium?.copyWith(
-              fontWeight: FontWeight.w600,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
+        style: context.text.labelMedium?.copyWith(
+          fontWeight: FontWeight.w600,
+          color: context.scheme.onSurfaceVariant,
+        ),
       ),
     );
   }
@@ -162,9 +205,5 @@ class SectionDivider extends StatelessWidget {
   const SectionDivider({super.key});
 
   @override
-  Widget build(BuildContext context) => Divider(
-        height: 24,
-        thickness: 1,
-        color: Theme.of(context).colorScheme.outlineVariant,
-      );
+  Widget build(BuildContext context) => const Divider(height: 24);
 }

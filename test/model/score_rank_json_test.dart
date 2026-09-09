@@ -223,4 +223,58 @@ void main() {
       expect(() => ScoreRankJson.fromJson(json), throwsA(isA<TypeError>()));
     });
   });
+
+  group('二次退選不進歷年課表', () {
+    ScoreItemJson withdrawn(String courseId) => ScoreItemJson(
+          courseId: courseId,
+          name: '課程 $courseId',
+          credit: '3',
+          // 實測成績單：score 與 remark 兩欄都是這四個字。
+          score: '二次退選',
+          generalDimension: '',
+          remark: '二次退選',
+        );
+
+    test('二次退選的課不會進歷年課表', () async {
+      final scoreRank = ScoreRankJson();
+      scoreRank.addScoreBySemester(
+          semester('113', '1'), scoreItem('CS3009302'));
+      scoreRank.addScoreBySemester(
+          semester('113', '1'), withdrawn('CS1012701'));
+
+      expect(await scoreRank.getCourseIdBySemester(semester('113', '1')),
+          ['CS3009302']);
+    });
+
+    test('只有 remark 標記時也算', () async {
+      final scoreRank = ScoreRankJson();
+      scoreRank.addScoreBySemester(
+          semester('113', '1'),
+          ScoreItemJson(
+              courseId: 'CS1012701',
+              name: 'x',
+              credit: '3',
+              score: '',
+              generalDimension: '',
+              remark: '二次退選'));
+
+      expect(
+          await scoreRank.getCourseIdBySemester(semester('113', '1')), isEmpty);
+    });
+
+    test('不及格與免修照樣留著——那些課真的上過', () async {
+      final scoreRank = ScoreRankJson();
+      scoreRank.addScoreBySemester(
+          semester('113', '1'),
+          ScoreItemJson(
+              courseId: 'CS3003301',
+              name: '離散數學',
+              credit: '3',
+              score: 'E',
+              generalDimension: '',
+              remark: '不及格'));
+      expect(await scoreRank.getCourseIdBySemester(semester('113', '1')),
+          ['CS3003301']);
+    });
+  });
 }

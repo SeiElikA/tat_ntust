@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_app/ui/other/theme_context.dart';
 import 'package:flutter_app/src/R.dart';
 import 'package:flutter_app/src/model/moodle_webapi/moodle_mod_forum_get_discussion_posts.dart';
 import 'package:flutter_app/src/repository/result.dart';
@@ -14,47 +15,23 @@ import 'package:flutter_app/ui/components/custom_appbar.dart';
 import 'package:flutter_app/ui/components/page/web_view_opener.dart';
 import 'package:flutter_app/ui/components/tile/moodle_file_tile.dart';
 import 'package:flutter_app/ui/other/lucide_icons.dart';
+import 'package:flutter_app/ui/other/tat_dialog.dart';
 import 'package:get/get.dart';
 import 'package:sprintf/sprintf.dart';
 
-/// 撰寫頁：開一個新主題，或編輯自己的貼文。
+/// 撰寫頁：編輯自己的貼文。
 ///
 /// **回覆不在這裡**：它住在討論串頁底部的 `ForumComposerBar`——對話還在上面，
 /// 被回覆的那一篇就在列的正上方，不需要引用區，也不需要一頁只為了兩句話。
-/// 這一頁只服務「有標題、是一件獨立的事」的兩種動作。
+/// 這一頁只服務「有標題、是一件獨立的事」的動作。
 ///
-/// 送出、挑檔、取消一律由呼叫端注入（[onSendDiscussion] / [onSendEdit] /
-/// [onPickFiles] / [onCancelUpload]），這一頁因此不碰 repository，也不需要
+/// 送出、挑檔、取消一律由呼叫端注入（[onSendEdit] / [onPickFiles] /
+/// [onCancelUpload]），這一頁因此不碰 repository，也不需要
 /// `route_utils`（見 docs/ARCHITECTURE.md「UI 慣例」）。
 ///
 /// 成功時 `Get.back` 帶回結果，**失敗一律留在原地**：草稿不能因為送出失敗
 /// 就消失，畫面也不可以看起來像已經送出去了。
 class CourseForumComposePage extends StatefulWidget {
-  /// 在討論區開新主題。標題由使用者自己填。
-  const CourseForumComposePage.newDiscussion({
-    super.key,
-    required this.forumName,
-    required Future<Result<ForumDiscussionOutcome>> Function(
-      String subject,
-      String text,
-      List<File> files, {
-      required void Function(ForumTransferProgress progress) onProgress,
-    }) this.onSendDiscussion,
-    required this.attachPolicy,
-    required this.onPickFiles,
-    required this.onCancelUpload,
-    required this.openWebView,
-    required this.webUrl,
-    required this.webTitle,
-  })  : onSendEdit = null,
-        formattingNote = null,
-        postId = 0,
-        isTopicPost = true,
-        initialSubject = "",
-        initialText = "",
-        existingAttachments = const [],
-        onOpenAttachment = null;
-
   /// 編輯自己的貼文。內文與既有附件由呼叫端預填——原文來自按下編輯時打的那趟
   /// `mod_forum_get_discussion_post`，**不是快取**（快取裡存的是算繪好的 HTML）。
   const CourseForumComposePage.edit({
@@ -64,13 +41,7 @@ class CourseForumComposePage extends StatefulWidget {
     required this.initialSubject,
     required this.initialText,
     required this.existingAttachments,
-    required Future<Result<ForumEditOutcome>> Function(
-      String subject,
-      String text,
-      List<MoodleForumFile> keep,
-      List<File> added, {
-      required void Function(ForumTransferProgress progress) onProgress,
-    }) this.onSendEdit,
+    required this.onSendEdit,
     required this.attachPolicy,
     required this.onPickFiles,
     required this.onCancelUpload,
@@ -79,10 +50,7 @@ class CourseForumComposePage extends StatefulWidget {
     required this.webUrl,
     required this.webTitle,
     this.formattingNote,
-  })  : onSendDiscussion = null,
-        forumName = "";
-
-  final String forumName;
+  });
 
   final int postId;
 
@@ -93,20 +61,13 @@ class CourseForumComposePage extends StatefulWidget {
   final String initialText;
   final List<MoodleForumFile> existingAttachments;
 
-  final Future<Result<ForumDiscussionOutcome>> Function(
-    String subject,
-    String text,
-    List<File> files, {
-    required void Function(ForumTransferProgress progress) onProgress,
-  })? onSendDiscussion;
-
   final Future<Result<ForumEditOutcome>> Function(
     String subject,
     String text,
     List<MoodleForumFile> keep,
     List<File> added, {
     required void Function(ForumTransferProgress progress) onProgress,
-  })? onSendEdit;
+  }) onSendEdit;
 
   /// `enabled == false` 時紙夾整顆不畫、也不解釋：這一頁的「沉默看起來像
   /// App 壞了」那條信條針對的是**會消失的**入口，不是**從未出現**的入口。
@@ -115,7 +76,7 @@ class CourseForumComposePage extends StatefulWidget {
   final Future<List<File>> Function(int remaining) onPickFiles;
   final VoidCallback onCancelUpload;
 
-  /// 點開伺服器上既有的那一份確認。只有編輯模式有。
+  /// 點開伺服器上既有的那一份確認。
   final Future<void> Function(MoodleForumFile file)? onOpenAttachment;
 
   /// 底下那一行說明。null ＝ 預設的「粗體、清單、表格請在網頁版編輯」。
@@ -132,8 +93,6 @@ class CourseForumComposePage extends StatefulWidget {
   final String webUrl;
   final String webTitle;
 
-  bool get isEdit => onSendEdit != null;
-
   @override
   State<CourseForumComposePage> createState() => _CourseForumComposePageState();
 }
@@ -145,13 +104,13 @@ class _CourseForumComposePageState extends State<CourseForumComposePage> {
   late final TextEditingController _messageController;
   late final TextEditingController _subjectController;
 
-  /// 使用者決定留下的既有附件（只有編輯模式有）。
+  /// 使用者決定留下的既有附件。
   late final List<MoodleForumFile> _kept;
 
   /// 這次新挑的檔案。
   final _files = <File>[];
 
-  /// 送出中。擋住連點兩下送出兩則——兩支寫入都沒有冪等鍵。
+  /// 送出中。擋住連點兩下送出兩次——`update_discussion_post` 沒有冪等鍵。
   bool _sending = false;
 
   /// 上傳中。這一段可以取消：伺服器上什麼都還沒動。
@@ -164,8 +123,8 @@ class _CourseForumComposePageState extends State<CourseForumComposePage> {
 
   bool get _busy => _sending || _uploading;
 
-  /// 新主題永遠要標題；編輯只有第一篇要。
-  bool get _showSubject => !widget.isEdit || widget.isTopicPost;
+  /// 只有主題的第一篇才給改標題。
+  bool get _showSubject => widget.isTopicPost;
 
   int get _total => _files.length + _kept.length;
 
@@ -188,17 +147,12 @@ class _CourseForumComposePageState extends State<CourseForumComposePage> {
 
   void _onTextChanged() => setState(() {});
 
-  bool get _hasDraft {
-    if (_files.isNotEmpty) return true;
-    // 編輯模式的「草稿」是「跟帶進來的初值不一樣」，不是「非空」。
-    if (widget.isEdit) {
-      return _messageController.text != widget.initialText ||
-          _subjectController.text != widget.initialSubject ||
-          _kept.length != widget.existingAttachments.length;
-    }
-    return _messageController.text.trim().isNotEmpty ||
-        _subjectController.text.trim().isNotEmpty;
-  }
+  /// 編輯的「草稿」是「跟帶進來的初值不一樣」，不是「非空」。
+  bool get _hasDraft =>
+      _files.isNotEmpty ||
+      _messageController.text != widget.initialText ||
+      _subjectController.text != widget.initialSubject ||
+      _kept.length != widget.existingAttachments.length;
 
   bool get _canSend =>
       !_busy &&
@@ -247,9 +201,7 @@ class _CourseForumComposePageState extends State<CourseForumComposePage> {
       },
       child: Scaffold(
         appBar: baseAppbar(
-          title: widget.isEdit
-              ? R.current.forumEditPost
-              : R.current.forumNewDiscussion,
+          title: R.current.forumEditPost,
           // maybePop 才會經過上面那個 PopScope；直接 pop 會繞過放棄草稿的確認。
           onBack: () => Navigator.maybePop(context),
           action: [
@@ -258,7 +210,7 @@ class _CourseForumComposePageState extends State<CourseForumComposePage> {
               icon: const Icon(LucideIcons.externalLink, size: 18),
               // 送出中一律關掉。這一頁只在自己還在最上面時 pop，所以一趟
               // WebView 壓上來就會讓「已經送出去的那一則」留在螢幕上當草稿，
-              // 而兩支寫入都沒有冪等鍵——再按一次就是第二則。
+              // 而這一支寫入沒有冪等鍵——再按一次就是第二次更新。
               onPressed: _busy
                   ? null
                   : () => unawaited(
@@ -305,14 +257,8 @@ class _CourseForumComposePageState extends State<CourseForumComposePage> {
       padding: const EdgeInsets.fromLTRB(12, 12, 12, 16),
       children: [
         SectionHeader(
-          icon: widget.isEdit
-              ? LucideIcons.pencil
-              : LucideIcons.messageSquarePlus,
-          title: widget.isEdit
-              ? R.current.forumEditPost
-              : (widget.forumName.isNotEmpty
-                  ? widget.forumName
-                  : R.current.forumNewDiscussion),
+          icon: LucideIcons.pencil,
+          title: R.current.forumEditPost,
           first: true,
         ),
         SectionCard([
@@ -342,8 +288,7 @@ class _CourseForumComposePageState extends State<CourseForumComposePage> {
           TextField(
             controller: _messageController,
             enabled: !_busy,
-            // 編輯時先讓人讀自己寫過的，不要一進來就跳鍵盤蓋住半頁。
-            autofocus: !widget.isEdit,
+            // 不 autofocus：先讓人讀自己寫過的，不要一進來就跳鍵盤蓋住半頁。
             minLines: 8,
             maxLines: null,
             keyboardType: TextInputType.multiline,
@@ -434,7 +379,7 @@ class _CourseForumComposePageState extends State<CourseForumComposePage> {
     return SafeArea(
       top: false,
       child: Material(
-        color: scheme.surfaceContainer,
+        color: context.tokens.card,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -491,9 +436,7 @@ class _CourseForumComposePageState extends State<CourseForumComposePage> {
                         : const Icon(LucideIcons.send, size: 18),
                     label: Text(_sending
                         ? R.current.forumSending
-                        : (widget.isEdit
-                            ? R.current.forumSaveEdit
-                            : R.current.forumSend)),
+                        : R.current.forumSaveEdit),
                   ),
                 ],
               ),
@@ -562,11 +505,8 @@ class _CourseForumComposePageState extends State<CourseForumComposePage> {
     final message = _messageController.text.trim();
     final subject = _subjectController.text.trim();
     try {
-      final Result<Object> result = widget.isEdit
-          ? await widget.onSendEdit!(subject, message, _kept, _files,
-              onProgress: _onProgress)
-          : await widget.onSendDiscussion!(subject, message, _files,
-              onProgress: _onProgress);
+      final result = await widget.onSendEdit(subject, message, _kept, _files,
+          onProgress: _onProgress);
       switch (result) {
         case Ok(:final data):
           // 只 pop 自己。`Get.back` 會 pop 最上面那一個，而不是「這一頁」，
@@ -592,20 +532,22 @@ class _CourseForumComposePageState extends State<CourseForumComposePage> {
     }
   }
 
+  /// 放棄草稿是破壞性的是非題：主鈕換 error 底，問句本身就是標題。
   Future<void> _confirmDiscard() async {
-    final discard = await Get.dialog<bool>(
-      AlertDialog.adaptive(
-        content: Text(R.current.forumDiscardDraft),
-        actions: [
-          TextButton(
-            onPressed: () => Get.back<bool>(result: false),
-            child: Text(R.current.cancel),
-          ),
-          TextButton(
-            onPressed: () => Get.back<bool>(result: true),
-            child: Text(R.current.sure),
-          ),
-        ],
+    final discard = await showTatDialog<bool>(
+      dialog: TatDialog(
+        title: R.current.forumDiscardDraft,
+        body: null,
+        kind: TatDialogKind.warning,
+        destructive: true,
+        secondary: TatDialogAction(
+          label: R.current.cancel,
+          onPressed: () => Get.back<bool>(result: false),
+        ),
+        primary: TatDialogAction(
+          label: R.current.sure,
+          onPressed: () => Get.back<bool>(result: true),
+        ),
       ),
     );
     if (discard != true || !mounted) return;

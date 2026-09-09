@@ -107,8 +107,7 @@ void main() {
     CredentialsStore.instance.setPassword('a-different-password');
 
     expect(
-      AppAuthSession.credentialsFingerprint(
-          CredentialsStore.instance.account,
+      AppAuthSession.credentialsFingerprint(CredentialsStore.instance.account,
           CredentialsStore.instance.password),
       isNot(auth.rejectedCredentials),
     );
@@ -119,8 +118,7 @@ void main() {
     CredentialsStore.instance.setAccount('B10902999');
 
     expect(
-      AppAuthSession.credentialsFingerprint(
-          CredentialsStore.instance.account,
+      AppAuthSession.credentialsFingerprint(CredentialsStore.instance.account,
           CredentialsStore.instance.password),
       isNot(auth.rejectedCredentials),
     );

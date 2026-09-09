@@ -1,5 +1,6 @@
 import 'package:flutter_app/src/R.dart';
 import 'package:flutter_app/src/service/task_ui_delegate.dart';
+import 'package:flutter_app/src/model/course/course_query_filter.dart';
 import 'package:flutter_app/src/repository/ntust_repository.dart';
 import 'package:flutter_app/src/repository/result.dart';
 import 'package:flutter_app/src/model/course/course_class_json.dart';
@@ -7,7 +8,6 @@ import 'package:flutter_app/src/model/course/course_main_extra_json.dart';
 import 'package:flutter_app/src/model/course_table/course_table_json.dart';
 import 'package:flutter_app/src/store/model.dart';
 import 'package:flutter_app/src/util/my_toast.dart';
-import 'package:fluttertoast/fluttertoast.dart';
 import 'package:sprintf/sprintf.dart';
 
 /// 課表頁的資料操作。
@@ -109,9 +109,7 @@ class CourseModel {
 
     if (!semesterJson.isValid) {
       MyToast.show(
-        sprintf(R.current.selectSemesterWarning, [semesterJson.year]),
-        toastLength: Toast.LENGTH_LONG,
-      );
+          sprintf(R.current.selectSemesterWarning, [semesterJson.year]));
       SemesterJson? select =
           await TaskUiDelegate.instance.chooseSemester(allowNull: true);
       if (select == null) {
@@ -139,8 +137,8 @@ class CourseModel {
     }
     if (courseTable == null) {
       // 代表沒有暫存的需要爬蟲
-      final result =
-          await NtustRepository.instance.getCourseTable(studentId, semesterJson);
+      final result = await NtustRepository.instance
+          .getCourseTable(studentId, semesterJson);
       courseTable = result.dataOrNull;
       if (courseTable == null) {
         throw Exception();
@@ -150,9 +148,9 @@ class CourseModel {
   }
 
   Future<List<CourseMainInfoJson>> getQueryCourse(
-      SemesterJson semester, String keyword) async {
+      SemesterJson semester, CourseQueryFilter filter) async {
     final result =
-        await NtustRepository.instance.searchCourse(semester, keyword);
+        await NtustRepository.instance.searchCourse(semester, filter);
     // 失敗回空清單，呼叫端把空清單當成「查無結果」。
     return result.dataOrNull ?? [];
   }

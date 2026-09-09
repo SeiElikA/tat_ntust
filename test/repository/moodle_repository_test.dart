@@ -61,7 +61,8 @@ void main() {
 
       expect(result, isA<Stale<MoodleUserGradesEntity>>());
       expect(result.dataOrNull!.courseId, 42);
-      expect((result as Stale<MoodleUserGradesEntity>).reason, isA<UnsupportedCourse>());
+      expect((result as Stale<MoodleUserGradesEntity>).reason,
+          isA<UnsupportedCourse>());
     });
 
     test('沒有下游快取時回 Failed(UnsupportedCourse)', () async {

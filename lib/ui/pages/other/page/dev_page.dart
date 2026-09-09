@@ -6,17 +6,21 @@ import 'package:flutter_app/src/R.dart';
 import 'package:flutter_app/src/connector/core/dio_connector.dart';
 import 'package:flutter_app/src/util/cloud_messaging_utils.dart';
 import 'package:flutter_app/src/util/remote_config_utils.dart';
-import 'package:flutter_app/ui/routes/route_utils.dart';
-import 'package:flutter_app/ui/other/listview_animator.dart';
-import 'package:flutter_app/src/util/my_toast.dart';
+import 'package:flutter_app/ui/components/custom_appbar.dart';
+import 'package:flutter_app/ui/components/tile/settings_tile.dart';
+import 'package:flutter_app/ui/components/toast/tat_toast.dart';
 import 'package:flutter_app/ui/other/lucide_icons.dart';
+import 'package:flutter_app/ui/routes/route_utils.dart';
+import 'package:in_app_review/in_app_review.dart';
 
 enum DevMenuAction {
   cloudMessageToken,
   dioLog,
   appLog,
   storeEdit,
-  announcement
+  announcement,
+  notificationPreview,
+  storeReview
 }
 
 class DevPage extends StatefulWidget {
@@ -27,37 +31,35 @@ class DevPage extends StatefulWidget {
 }
 
 class _DevPageState extends State<DevPage> {
-  List<Map> listViewData = [
-    {
-      "icon": LucideIcons.keyRound,
-      "title": "Cloud Messaging Token",
-      "color": Colors.green,
-      "onPress": DevMenuAction.cloudMessageToken
-    },
-    {
-      "icon": LucideIcons.info,
-      "title": "Dio Log",
-      "color": Colors.blue,
-      "onPress": DevMenuAction.dioLog
-    },
-    {
-      "icon": LucideIcons.info,
-      "title": "App Log",
-      "color": Colors.yellow,
-      "onPress": DevMenuAction.appLog
-    },
-    {
-      "icon": LucideIcons.pencil,
-      "title": "Store Edit",
-      "color": Colors.green,
-      "onPress": DevMenuAction.storeEdit
-    },
-    {
-      "icon": LucideIcons.megaphone,
-      "title": "Announcement",
-      "color": Colors.deepPurple,
-      "onPress": DevMenuAction.announcement
-    },
+  /// 開發用的項目，字串刻意不進翻譯檔。
+  static const _rows = <({IconData icon, String title, DevMenuAction action})>[
+    (
+      icon: LucideIcons.keyRound,
+      title: 'Cloud Messaging Token',
+      action: DevMenuAction.cloudMessageToken
+    ),
+    (icon: LucideIcons.info, title: 'Dio Log', action: DevMenuAction.dioLog),
+    (icon: LucideIcons.info, title: 'App Log', action: DevMenuAction.appLog),
+    (
+      icon: LucideIcons.pencil,
+      title: 'Store Edit',
+      action: DevMenuAction.storeEdit
+    ),
+    (
+      icon: LucideIcons.megaphone,
+      title: 'Announcement',
+      action: DevMenuAction.announcement
+    ),
+    (
+      icon: LucideIcons.bell,
+      title: 'Notification Preview',
+      action: DevMenuAction.notificationPreview
+    ),
+    (
+      icon: LucideIcons.shieldCheck,
+      title: 'Store Review',
+      action: DevMenuAction.storeReview
+    ),
   ];
 
   @override
@@ -66,13 +68,11 @@ class _DevPageState extends State<DevPage> {
     RemoteConfigUtils.init(focusUpdate: true);
   }
 
-  int pressTime = 0;
-
   void _onListViewPress(DevMenuAction value) async {
     switch (value) {
       case DevMenuAction.cloudMessageToken:
         String? token = await CloudMessagingUtils.getToken();
-        MyToast.show("${token!} copy");
+        TatToast.show("${token!} copy");
         unawaited(FlutterClipboard.copy(token));
         break;
       case DevMenuAction.dioLog:
@@ -87,56 +87,38 @@ class _DevPageState extends State<DevPage> {
       case DevMenuAction.announcement:
         unawaited(RouteUtils.showAnnouncement(test: true));
         break;
+      case DevMenuAction.notificationPreview:
+        unawaited(RouteUtils.toNotificationPreviewPage());
+        break;
+      case DevMenuAction.storeReview:
+        // 直接叫系統的評分視窗，跳過那三道門檻。系統自己也會擋（Apple 一年
+        // 只給三次、debug build 多半什麼都不會出現），所以叫不出來是正常的。
+        if (await InAppReview.instance.isAvailable()) {
+          unawaited(InAppReview.instance.requestReview());
+        } else {
+          TatToast.show('in_app_review 不可用');
+        }
+        break;
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text(R.current.developerMode),
-      ),
-      body: ListView.separated(
-        itemCount: listViewData.length,
-        itemBuilder: (context, index) {
-          Widget widget;
-          widget = _buildAbout(listViewData[index]);
-          return InkWell(
-            child: WidgetAnimator(widget),
-            onTap: () {
-              _onListViewPress(listViewData[index]['onPress']);
-            },
-          );
-        },
-        separatorBuilder: (context, index) {
-          // 顯示格線
-          return Container(
-            color: Colors.black12,
-            height: 1,
-          );
-        },
-      ),
-    );
-  }
-
-  Container _buildAbout(Map data) {
-    return Container(
-      padding: const EdgeInsets.only(
-          top: 20.0, left: 20.0, right: 20.0, bottom: 20.0),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Icon(
-            data['icon'],
-            color: data['color'],
-          ),
-          const SizedBox(
-            width: 20.0,
-          ),
-          Text(
-            data['title'],
-            style: const TextStyle(fontSize: 18),
-          ),
+      appBar: baseAppbar(title: R.current.developerMode),
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+        children: [
+          for (var i = 0; i < _rows.length; i++) ...[
+            if (i > 0) const SizedBox(height: 2),
+            SettingsTile(
+              icon: _rows[i].icon,
+              title: _rows[i].title,
+              onTap: () => _onListViewPress(_rows[i].action),
+              index: i,
+              length: _rows.length,
+            ),
+          ],
         ],
       ),
     );

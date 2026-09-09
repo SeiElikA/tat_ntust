@@ -166,7 +166,7 @@ void main() {
     const sample = '''
       IconButton(
         // tooltip: '註解裡的不算',
-        icon: const Icon(Icons.add),
+        icon: const Icon(LucideIcons.plus),
         onPressed: () => show(tooltip: 'x'),
       )
     ''';
@@ -176,7 +176,7 @@ void main() {
     const withTooltip = '''
       IconButton(
         tooltip: R.current.refresh,
-        icon: const Icon(Icons.add),
+        icon: const Icon(LucideIcons.plus),
         onPressed: null,
       )
     ''';

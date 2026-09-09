@@ -47,5 +47,4 @@ void main() {
       expect(HtmlUtils.clean(HtmlUtils.clean('&amp;lt;')), '<');
     });
   });
-
 }

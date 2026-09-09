@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_app/ui/pages/password/check_password_dialog.dart';
-import 'package:flutter_app/ui/pages/password/webmail_password_dialog.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../helpers/test_l10n.dart';
 
-/// 這兩個對話框的 TextEditingController 裡放的是使用者剛打進去的明文密碼，
+/// 這個對話框的 TextEditingController 裡放的是使用者剛打進去的明文密碼，
 /// State 關閉時一定要連同 FocusNode 一起 dispose。
 ///
 /// 測試沒辦法直接摸到 private 欄位，所以改從 EditableText 拿到同一個物件，
@@ -29,16 +28,6 @@ void main() {
         reason: 'TextEditingController 仍持有明文密碼，關閉時一定要 dispose');
     expect(() => focusNode.dispose(), throwsA(isA<FlutterError>()));
   }
-
-  group('WebMailPasswordDialog', () {
-    testWidgets('關閉後 controller 與 focusNode 都已被 dispose', (tester) async {
-      await tester.pumpWidget(
-        const MaterialApp(home: Material(child: WebMailPasswordDialog())),
-      );
-
-      await expectDisposedAfterRemoval(tester);
-    });
-  });
 
   group('CheckPasswordDialog', () {
     // initState 會呼叫 local_auth。沒有 mock 的話 pigeon 之外的預設實作會走

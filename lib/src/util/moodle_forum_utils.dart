@@ -107,9 +107,10 @@ class MoodleForumUtils {
 
   /// 純文字 → HTML。escape 五個字元後把換行換成 `<br>`。
   ///
-  /// `mod_forum_add_discussion` 沒有 `messageformat` 參數，伺服器寫死
-  /// `FORMAT_HTML`，所以新主題的內文一定要在這裡自己轉；少了這一步，
-  /// 手機上打的多行文字會變成一整段，而 `a < b` 會被 HTMLPurifier 吃掉。
+  /// 兩條路用得到：顯示 FORMAT_PLAIN 的貼文（[messageToDisplayHtml]），以及
+  /// 純文字編輯器送回伺服器的內文（`MoodleForumEditUtils.plainEditPayload`）。
+  /// 少了這一步，手機上打的多行文字會變成一整段，而 `a < b` 會被
+  /// HTMLPurifier 吃掉。
   static String plainTextToHtml(String text) {
     final escaped = text
         .replaceAll('&', '&amp;')

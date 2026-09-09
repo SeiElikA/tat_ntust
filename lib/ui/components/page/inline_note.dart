@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_app/ui/components/page/note_icon.dart';
 import 'package:flutter_app/ui/other/lucide_icons.dart';
 
 /// 卡片或某一列底下的一句說明。
@@ -18,17 +19,16 @@ class InlineNote extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     final text = Theme.of(context).textTheme;
     final color = blocking ? scheme.error : scheme.onSurfaceVariant;
+    final style = text.bodySmall?.copyWith(color: color);
     return Padding(
       padding: const EdgeInsets.only(top: 8),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(blocking ? LucideIcons.circleAlert : LucideIcons.info,
-              size: 16, color: color),
+          NoteIcon(blocking ? LucideIcons.circleAlert : LucideIcons.info,
+              style: style, color: color),
           const SizedBox(width: 8),
-          Expanded(
-            child: Text(message, style: text.bodySmall?.copyWith(color: color)),
-          ),
+          Expanded(child: Text(message, style: style)),
         ],
       ),
     );

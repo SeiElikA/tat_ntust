@@ -3,7 +3,7 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter_app/src/R.dart';
 import 'package:flutter_app/src/model/moodle_webapi/moodle_profile_entity.dart';
 import 'package:flutter_app/ui/other/lucide_icons.dart';
-import 'package:get/get.dart';
+import 'package:flutter_app/ui/other/theme_context.dart';
 
 class UserProfile extends StatefulWidget {
   const UserProfile({
@@ -11,6 +11,9 @@ class UserProfile extends StatefulWidget {
     required this.data,
     this.onAvatarTap,
     this.progress,
+    this.radius = 24,
+    this.badgeBorderColor,
+    this.stacked = false,
   });
 
   final MoodleProfileEntity data;
@@ -21,13 +24,20 @@ class UserProfile extends StatefulWidget {
   /// 換頭貼的送出進度，0..1。非 null 代表正在換，這時頭貼不可點。
   final double? progress;
 
+  final double radius;
+
+  /// 相機角標外圈的顏色，預設是 surface。頭貼放在別的底色上時要傳進來，
+  /// 那圈縫才會跟背景同色。
+  final Color? badgeBorderColor;
+
+  /// 個人資訊頁把頭貼與姓名疊成一直排並置中；「更多」頁維持橫排。
+  final bool stacked;
+
   @override
   State<UserProfile> createState() => _UserProfileState();
 }
 
 class _UserProfileState extends State<UserProfile> {
-  static const double _radius = 24;
-
   /// 這張網址的圖載不出來。`CircleAvatar` 的 child 是畫在 backgroundImage
   /// **上面**的，不是它的退路，所以載得到的時候必須不給 child。
   bool _imageFailed = false;
@@ -59,6 +69,30 @@ class _UserProfileState extends State<UserProfile> {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = context.scheme;
+    final text = context.text;
+    final name = Text(
+      widget.data.firstname,
+      style: text.titleMedium?.copyWith(color: scheme.onSurface),
+    );
+    final account = Text(
+      widget.data.username.toUpperCase(),
+      style: text.bodyMedium?.copyWith(color: scheme.onSurfaceVariant),
+    );
+
+    if (widget.stacked) {
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _buildAvatar(),
+          const SizedBox(height: 12),
+          name,
+          const SizedBox(height: 4),
+          account,
+        ],
+      );
+    }
+
     return Row(
       children: [
         _buildAvatar(),
@@ -66,19 +100,9 @@ class _UserProfileState extends State<UserProfile> {
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              widget.data.firstname,
-              style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Get.theme.colorScheme.onSurface),
-            ),
+            name,
             const SizedBox(height: 4),
-            Text(
-              widget.data.username.toUpperCase(),
-              style: TextStyle(
-                  fontSize: 16, color: Get.theme.colorScheme.onSurfaceVariant),
-            ),
+            account,
           ],
         ),
       ],
@@ -86,18 +110,20 @@ class _UserProfileState extends State<UserProfile> {
   }
 
   Widget _buildAvatar() {
-    final scheme = Get.theme.colorScheme;
+    final scheme = context.scheme;
     final progress = widget.progress;
     final busy = progress != null;
     final url = widget.data.userpictureurl;
     final showPlaceholder = url.isEmpty || _imageFailed;
+    // 角標與預設圖示跟著頭貼一起放大，不然大頭貼上會掛一顆迷你鉛筆。
+    final badgeSize = widget.radius * 0.75;
     final avatar = Stack(
       clipBehavior: Clip.none,
       children: [
         Opacity(
           opacity: busy ? 0.5 : 1,
           child: CircleAvatar(
-            radius: _radius,
+            radius: widget.radius,
             backgroundColor: scheme.surfaceContainerHigh,
             // onBackgroundImageError 是必要的：少了它，404 或離線的頭貼會把
             // 例外丟進 FlutterError.onError。
@@ -109,7 +135,7 @@ class _UserProfileState extends State<UserProfile> {
                   },
             child: showPlaceholder
                 ? Icon(LucideIcons.user,
-                    size: 22, color: scheme.onSurfaceVariant)
+                    size: widget.radius * 0.92, color: scheme.onSurfaceVariant)
                 : null,
           ),
         ),
@@ -125,14 +151,18 @@ class _UserProfileState extends State<UserProfile> {
             right: 0,
             bottom: 0,
             child: Container(
-              width: 18,
-              height: 18,
+              width: badgeSize,
+              height: badgeSize,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: scheme.primaryContainer,
+                color: scheme.primary,
+                // 外框用底下那塊的底色，角標和頭貼之間才會留出一圈縫，
+                // 而不是直接黏在頭貼邊上。
+                border: Border.all(
+                    color: widget.badgeBorderColor ?? scheme.surface, width: 3),
               ),
-              child: Icon(LucideIcons.pencil,
-                  size: 11, color: scheme.onPrimaryContainer),
+              child: Icon(LucideIcons.camera,
+                  size: badgeSize * 0.5, color: scheme.onPrimary),
             ),
           ),
       ],

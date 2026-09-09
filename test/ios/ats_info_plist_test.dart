@@ -44,8 +44,7 @@ void main() {
 
     expect(outside.contains('NSAllowsArbitraryLoadsInWebContent'), isFalse,
         reason: '放在 NSAppTransportSecurity 之外等於沒寫，iOS 會忽略它');
-    expect(outside.contains('NSAllowsArbitraryLoads'), isFalse,
-        reason: '同上');
+    expect(outside.contains('NSAllowsArbitraryLoads'), isFalse, reason: '同上');
   });
 
   test('只放行 WebView 內容，不要全域放行', () {

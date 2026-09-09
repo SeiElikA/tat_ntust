@@ -6,9 +6,9 @@ import 'package:flutter_app/src/util/ui_utils.dart';
 /// 課表用的星期名稱，索引對齊 [Day] 的順序。
 ///
 /// 第八個是 Day.unKnown，收容查不到星期的課（見 course_time.dart）。
-/// 這裡不能用 `R.current.UnKnown`：那個 key 在 intl_en.arb 與 intl_zh_TW.arb
-/// 都是空字串，畫出來就是一整欄沒有標題的格子。titleOther（其它／Other）
-/// 兩個語系都有翻譯，語意也正好是「不屬於前面七天」。
+/// 兩個 ARB 都沒有「未知」這一類的 key，硬補一個等於多一組要維護的翻譯；
+/// titleOther（其它／Other）兩個語系都有翻譯，語意也正好是「不屬於前面七天」。
+/// 這是 titleOther 在 App 內唯一與「更多」無關的讀取點，換掉它之前先看這裡。
 List<String> courseDayNames() => [
       R.current.Monday,
       R.current.Tuesday,
@@ -44,6 +44,7 @@ class CourseTableControl {
   bool isHideC = false;
   bool isHideD = false;
   CourseTableJson? courseTable;
+
   /// getter 而不是欄位：這個物件是 CourseController 的欄位，而 GetX 的
   /// controller 不會被 forceAppUpdate 重建，存成欄位會凍在建立時的語言。
   List<String> get dayStringList => courseDayNames();
@@ -63,17 +64,26 @@ class CourseTableControl {
     "20:15 - 21:05",
     "21:00 - 22:00"
   ];
+
+  /// 節次代號。與 [SectionNumber]、`CourseConnector.timeEnum` 和分享碼的
+  /// `1234N56789ABCD` 逐格對位。
+  ///
+  /// 第 5 格是午休 `N` 而不是「5」：querycourse 的 `Node` 用的是「第幾格」，
+  /// 它前端那張 `1…10 A…D` 的表跟這裡逐格對應（理由與統計見
+  /// `CourseConnector.fillCourseTime`）。以前這裡照抄了 querycourse 的格號，
+  /// 於是 15:30 那一列被標成「8」——對照 [timeList] 就知道它是第 7 節，而且
+  /// 臺科根本沒有第 10 節。
   List<String> sectionStringList = [
     "1",
     "2",
     "3",
     "4",
+    "N",
     "5",
     "6",
     "7",
     "8",
     "9",
-    "10",
     "A",
     "B",
     "C",

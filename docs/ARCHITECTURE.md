@@ -201,7 +201,7 @@ nullable：**「讀不到」不等於「沒登入」**。Android 從備份還原
 | 教務處行事曆<br>`www.academic.ntust.edu.tw` | 公開頁爬 `.ics` 連結後下載成 `calendar.ics`。這台主機少送一張中介憑證，由 `twca_intermediate.dart` 補上 | `NTUSTConnector.getCalendarUrl`<br>`calendar_repository.dart` |
 | 課程查詢 API<br>`querycourse.ntust.edu.tw` | 公開 JSON API，**不需登入**：關鍵字搜尋、課程詳細、用課號反查課表 | `course_connector.dart` |
 | 成績查詢系統<br>`stuinfosys.ntust.edu.tw` | 不走 Dio。HeadlessInAppWebView 載入頁面取 HTML 再解析 | `score_connector.dart` |
-| Moodle<br>`moodle2.ntust.edu.tw` | WebView 走 `admin/tool/mobile/launch.php` 取 wstoken，之後 POST wsfunction：`core_webservice_get_site_info`、`core_enrol_get_users_courses`、`core_course_get_contents`、`core_enrol_get_enrolled_users`、`mod_forum_get_forum_discussions`、`gradereport_user_get_grade_items`、通知偏好兩支、`tool_mobile_get_autologin_key`（WebView 免登入）、`core_calendar_get_action_events_by_timesort`（行事曆頁的待辦）、`gradereport_overview_get_course_grades`（成績分頁的「Moodle 目前成績」：這學期每一門課的即時總分，只在使用者開那一頁時發——伺服器會先把所有課重算一次成績）、`mod_assign_get_assignments` 與 `mod_assign_get_submission_status`（課程頁「作業」分頁與作業詳情：截止日期、繳交狀態、成績與回饋）、`mod_assign_save_submission` 與 `mod_assign_submit_for_grading`（在 App 內交作業：檔案與線上文字；團隊／有時限／匿名評分的作業一律導網頁。這兩支回的是**裸的 warnings 陣列**，`treatWarningsAsError` 看不到）、`mod_quiz_get_quizzes_by_courses`、`mod_quiz_get_user_attempts`（Moodle 5.0 起改名 `mod_quiz_get_user_quiz_attempts`，依 site_info 的 `functions[]` 擇一）與 `mod_quiz_get_user_best_grade`（課程目錄點測驗進去的唯讀資訊頁：開放時間、作答時限與剩餘次數、最佳成績與作答紀錄；作答一律導到網頁）、`mod_forum_get_forums_by_courses`（用 `type == 'news'` 找公告區）與 `mod_forum_get_discussion_posts`（公告討論串的回覆）、討論區讀寫八支（`mod_forum_add_discussion_post` 回覆、`mod_forum_add_discussion` 開新主題、`mod_forum_can_add_discussion` 問能不能開、`mod_forum_get_forum_access_information` 問能不能附檔、`mod_forum_get_discussion_post` 拿編輯要用的原文與新鮮能力、`mod_forum_prepare_draft_area_for_post` 編輯時保住既有附件與內嵌圖片（`area` 分別送 attachment／post）、`mod_forum_update_discussion_post` 編輯、`mod_forum_delete_post` 刪除；App 內**發**的是純文字加附件；**編輯**既有貼文依原文的 messageformat 分流：純文字走文字框、FORMAT_HTML 走所見即所得編輯器（排版與內嵌圖片都留得住，但加不了新圖，官方 App 也一樣）、其他原始碼格式照原樣編輯。只有私訊回覆導到網頁）、站內通知五支（`message_popup_get_popup_notifications` 的清單、兩支未讀數與兩支標記已讀，三支的 `useridto` 不能送 0）、換頭貼與交作業共用的 `webservice/upload.php`（把檔案送進 draft 區換一個 itemid，再由 `core_user_update_picture` 套用或移除；前者不是 wsfunction，回的是 `text/plain`） | `moodle_webapi_connector.dart`<br>`moodle_login_page.dart` |
+| Moodle<br>`moodle2.ntust.edu.tw` | WebView 走 `admin/tool/mobile/launch.php` 取 wstoken，之後 POST wsfunction：`core_webservice_get_site_info`、`core_enrol_get_users_courses`、`core_course_get_contents`、`core_enrol_get_enrolled_users`、`mod_forum_get_forum_discussions`、`gradereport_user_get_grade_items`、通知偏好兩支、`tool_mobile_get_autologin_key`（WebView 免登入）、`core_calendar_get_action_events_by_timesort`（行事曆頁的待辦）、`gradereport_overview_get_course_grades`（成績分頁的「Moodle 目前成績」：這學期每一門課的即時總分，只在使用者開那一頁時發——伺服器會先把所有課重算一次成績）、`mod_assign_get_assignments` 與 `mod_assign_get_submission_status`（課程頁「作業」分頁與作業詳情：截止日期、繳交狀態、成績與回饋）、`mod_assign_save_submission` 與 `mod_assign_submit_for_grading`（在 App 內交作業：檔案與線上文字；團隊／有時限／匿名評分的作業一律導網頁。這兩支回的是**裸的 warnings 陣列**，`treatWarningsAsError` 看不到）、`mod_quiz_get_quizzes_by_courses`、`mod_quiz_get_user_attempts`（Moodle 5.0 起改名 `mod_quiz_get_user_quiz_attempts`，依 site_info 的 `functions[]` 擇一）與 `mod_quiz_get_user_best_grade`（課程目錄點測驗進去的唯讀資訊頁：開放時間、作答時限與剩餘次數、最佳成績與作答紀錄；作答一律導到網頁）、`mod_forum_get_forums_by_courses`（用 `type == 'news'` 找公告區）與 `mod_forum_get_discussion_posts`（公告討論串的回覆）、討論區讀寫六支（`mod_forum_add_discussion_post` 回覆、`mod_forum_get_forum_access_information` 問能不能附檔、`mod_forum_get_discussion_post` 拿編輯要用的原文與新鮮能力、`mod_forum_prepare_draft_area_for_post` 編輯時保住既有附件與內嵌圖片（`area` 分別送 attachment／post）、`mod_forum_update_discussion_post` 編輯、`mod_forum_delete_post` 刪除；App 內只回覆、不開新主題，**發**的是純文字加附件；**編輯**既有貼文依原文的 messageformat 分流：純文字走文字框、FORMAT_HTML 走所見即所得編輯器（排版與內嵌圖片都留得住，但加不了新圖，官方 App 也一樣）、其他原始碼格式照原樣編輯。只有私訊回覆導到網頁）、站內通知五支（`message_popup_get_popup_notifications` 的清單、兩支未讀數與兩支標記已讀，三支的 `useridto` 不能送 0）、換頭貼與交作業共用的 `webservice/upload.php`（把檔案送進 draft 區換一個 itemid，再由 `core_user_update_picture` 套用或移除；前者不是 wsfunction，回的是 `text/plain`） | `moodle_webapi_connector.dart`<br>`moodle_login_page.dart` |
 | Firebase<br>`projectId ntust-tat` | Crashlytics 接 `FlutterError` 與 `runZonedGuarded`；Analytics 掛 navigatorObservers；Remote Config 讀公告；FCM 轉本地通知 | `lib/src/util/*_utils.dart` |
 | GitHub API | 貢獻者頁，`github` 套件 | `contributors_page.dart` |
 | App Store / Google Play | 啟動時問商店有沒有新版：Android 走 Play 的 in-app update（Play 自己的下載提示），iOS 用 `upgrader` 查 App Store 後跳對話框。兩邊都可以按「稍後」，沒有強制更新 | `store_update.dart`<br>`update_prompt.dart` |
@@ -258,9 +258,26 @@ WebMail（`mail.ntust.edu.tw`）與舊版 SSO 頁（`ssoam.ntust.edu.tw/nidp/app
   （`lib/ui/components/page/`，不在環裡）：它有就地重試的鈕，`ErrorPage` 沒有。
   同一批區塊「空」的時候用 `SectionEmptyState`（同一個目錄）而不是整頁級的
   `EmptyState`：後者的插圖大一號，同一頁疊兩份會像兩個空畫面。
-  這段規則的檔案內註解只留一句指到這裡，不要再各自抄一份。
-- 主畫面五個分頁的順序必須與 `MainTab` 一致——導覽列與 Analytics 事件都靠索引對
-  應。`MainTab` 的名稱會直接送進 Analytics 當 screen name。
+  這段規則的檔案內註解只留一句指到這裡，不要再各自抄一份。資訊系統頁、個人資訊頁
+  與修課學生名單頁也是這樣接的：三者的導頁、錯誤畫面與 WebView 開啟器統一在
+  `route_utils.dart` 的 `toSubSystemPage` / `toProfilePage` / `toCourseMemberPage`
+  注入。修課學生名單的 controller 由課程詳情頁持有並負責 dispose，路由那一層只
+  轉交——那支 Moodle API 很慢，返回再進去必須直接畫上一次的結果。
+- 主畫面**四個分頁**（課表 / 行事曆 / 成績 / 更多）的順序必須與 `MainTab` 一致
+  ——導覽列與 Analytics 事件都靠索引對應。`MainTab` 的名稱會直接送進 Analytics
+  當 screen name，所以拿掉一個分頁時是**刪掉那個值**而不是改名，其餘的拼法才
+  不會跟著位移。資訊系統就是這樣從導覽列搬進「更多」的：`MainTab.subSystem`
+  被刪掉，`SubSystemPage` 改由 `AnalyticsUtils.observer` 以路由名記錄。
+- 選取／未選取的導覽列圖示顏色與尺寸一律由 `AppStyles.navigationBarTheme` 決定，
+  `NavigationDestination` 裡不要再塗一次。`items` 必須是 getter：欄位只在 State
+  建立時初始化，而語系切換只重跑 `build()`，標籤會永遠停在啟動時的語言。
+- 圖示一律用 `lib/ui/other/lucide_icons.dart` 的常數，不用 Material 的 `Icons.`。
+  三個類別是三種筆畫粗細、碼位相同只差 fontFamily：內文與清單用預設的
+  `LucideIcons`（1.5px），要更細（例如和 `FileTypeIcon` 那批 1px 的檔案類型圖示
+  並排）用 `LucideIconsThin`，要強調用 `LucideIconsThick`（2.0px）。這個檔案是
+  **產生**的：先寫呼叫點，再跑 `python3 tool/gen_lucide_icons.py`（`--check` 是
+  CI 的漂移檢查，`--list <name>` 查碼位）。不要手改，也不要在 runtime 組
+  `IconData`——那會讓 tree shaking 失效。合併衝突時取任一邊再重跑產生器。
 - 語系切換靠改 `Intl.defaultLocale`，`GetMaterialApp` 沒設 `locale`；主題以
   `Get.changeThemeMode` 加 `Get.forceAppUpdate` 生效。
 
@@ -278,7 +295,7 @@ WebMail（`mail.ntust.edu.tw`）與舊版 SSO 頁（`ssoam.ntust.edu.tw/nidp/app
 | `lib/src/model/` | json_serializable 模型。`TablesEntity` 刻意手寫 `fromJson`：Moodle 的 `tabledata` 元素有時是空陣列（代表分隔線），產生器會拋型別錯誤 |
 | `lib/src/util/` · `version/` · `file/` | 靜態工具、版本遷移（`app_version.dart`）與商店更新（`store_update.dart`）、下載目錄。`file_icon_utils.dart` 依檔名 / MIME / modicon 挑 Moodle 檔案類型 icon，查的表 `file_icon_table.dart` 由 `tool/gen_file_icon_table.py` 從官方 App 的資料產生，不要手改 |
 | `lib/ui/screen/` | MainScreen、LoginScreen、PrivacyPolicyScreen |
-| `lib/ui/pages/` | 五個分頁與其子頁、通用 WebView、log 檢視頁 |
+| `lib/ui/pages/` | 四個分頁與其子頁、資訊系統頁（`subsystem/`，從導覽列搬進「更多」）、個人資訊頁（`other/page/profile_page.dart`，唯讀，只有頭貼可改）、修課學生名單頁（`course_member/`，從課程詳情的分頁獨立出來）、通用 WebView、log 檢視頁 |
 | `lib/ui/components/` | BasePage、ErrorPage、LoadingPage、`ResultView`、`EmptyState` / `SectionEmptyState`、AppBar、tile、shimmer、`FileTypeIcon`（畫 `assets/image/files/*.svg`，那 29 個單色 SVG 來自 moodlehq/moodleapp，Apache-2.0） |
 | `lib/ui/auth/` | 兩個 WebView 登入頁與 `InteractiveLoginGateway` 實作 |
 | `lib/ui/routes/route_utils.dart` | 所有導頁集中在這裡 |

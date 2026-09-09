@@ -21,7 +21,7 @@ import 'package:flutter_app/src/util/moodle_forum_edit_utils.dart';
 import 'package:flutter_app/src/service/connectivity_probe.dart';
 import 'package:flutter_app/src/service/task_ui_delegate.dart';
 import 'package:flutter_app/src/store/cache_store.dart';
-import 'package:flutter_app/ui/components/card/section_card.dart';
+import 'package:flutter_app/ui/pages/course_data/screen/widgets/forum_post_block.dart';
 import 'package:flutter_app/ui/components/page/inline_error_view.dart';
 import 'package:flutter_app/ui/components/page/result_view.dart';
 import 'package:flutter_app/ui/components/tile/moodle_file_tile.dart';
@@ -119,7 +119,7 @@ void main() {
 
     await pump(tester);
 
-    expect(find.byType(SectionCard), findsNWidgets(4));
+    expect(find.byType(ForumPostBlock), findsNWidgets(4));
     // 王老師（根）→ 陳同學 → 王老師 → 已刪除那篇（作者是空的）。
     double y(Finder f) => tester.getTopLeft(f).dy;
     expect(y(find.text('陳同學')), lessThan(y(find.text('不明的發文者'))));
@@ -190,7 +190,7 @@ void main() {
 
     expect(find.text('附件'), findsOneWidget);
     expect(find.widgetWithText(MoodleFileTile, 'slides.pdf'), findsOneWidget);
-    expect(find.byIcon(LucideIcons.download), findsOneWidget);
+    expect(find.byIcon(LucideIconsThin.download), findsOneWidget);
   });
 
   testWidgets('抓不到回覆：仍然畫出公告本文加就地重試，不是整頁錯誤', (tester) async {
@@ -271,7 +271,10 @@ void main() {
     ]);
   }
 
-  Finder replyButton() => buttonWithText(R.current.forumReply);
+  /// 卡片裡的「回覆」是 InkWell + Row，不是 TextButton：主題給每一顆鈕
+  /// 44 的最小高度與 16 的側邊留白，塞在貼文卡片裡就是一塊很大的空白。
+  Finder replyButton() => find.ancestor(
+      of: find.text(R.current.forumReply), matching: find.byType(InkWell));
 
   Finder composerBar() => find.byType(ForumComposerBar);
 
@@ -396,6 +399,29 @@ void main() {
   });
 
   group('回覆（不換頁）', () {
+    testWidgets('鍵盤打開時回覆列被抬到鍵盤上方，不是留在畫面最底被蓋住', (tester) async {
+      await seedPosts(7701, fixturePosts());
+
+      await pump(tester);
+
+      // pump 裡把視窗設成 800×3000（dpr 1）。
+      const height = 3000.0;
+      const keyboard = 1000.0;
+      expect(tester.getRect(composerBar()).bottom, height,
+          reason: '鍵盤還沒開的時候它就貼在最底下');
+
+      tester.view.viewInsets = const FakeViewPadding(bottom: keyboard);
+      addTearDown(tester.view.resetViewInsets);
+      await tester.pumpAndSettle();
+
+      // 這一條就是 defect 7：`bottomNavigationBar` 是照整個畫面高度釘的，
+      // 放在那裡的話這個值會還是 3000（也就是整條在鍵盤底下）。
+      expect(tester.getRect(composerBar()).bottom,
+          lessThanOrEqualTo(height - keyboard));
+      expect(composerBar(), findsOneWidget);
+      expect(find.byType(TextField), findsOneWidget);
+    });
+
     testWidgets('點某一篇的回覆：目標列出現、那一篇被框起來', (tester) async {
       await seedPosts(7701, fixturePosts());
 
@@ -424,8 +450,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(repo.replyCalls, 1);
-      expect(find.byType(SectionCard), findsNWidgets(5));
-      expect(ui.toasts, isNot(contains(R.current.forumSendDone)));
+      expect(find.byType(ForumPostBlock), findsNWidgets(5));
       expect(ui.toasts, isNot(contains(R.current.forumSendDoneRefreshFailed)));
       // 送出成功要清空，鍵盤與焦點留著。
       expect(find.text('謝謝老師'), findsNothing);
@@ -445,7 +470,7 @@ void main() {
       await tester.tap(sendButton());
       await tester.pumpAndSettle();
 
-      expect(find.byType(SectionCard), findsNWidgets(5),
+      expect(find.byType(ForumPostBlock), findsNWidgets(5),
           reason: '寫入成功了，剛送出的那一則不可以消失');
       expect(find.byType(InlineErrorView), findsNothing, reason: '不是錯誤畫面');
       expect(ui.toasts, contains(R.current.forumSendDoneRefreshFailed));
@@ -465,7 +490,7 @@ void main() {
       await tester.tap(sendButton());
       await tester.pumpAndSettle();
 
-      expect(find.byType(SectionCard), findsNWidgets(5),
+      expect(find.byType(ForumPostBlock), findsNWidgets(5),
           reason: '貼文真的發出去了，不可以報成失敗');
       expect(ui.toasts.last, contains('note.txt'));
     });
@@ -483,7 +508,6 @@ void main() {
 
       expect(find.text('謝謝老師'), findsOneWidget);
       expect(ui.toasts, contains(R.current.forumErrorNoPermission));
-      expect(ui.toasts, isNot(contains(R.current.forumSendDone)));
     });
   });
 
@@ -863,7 +887,6 @@ class _FakeRepo extends MoodleRepository {
   Future<Result<ForumAttachPolicy>> getForumAttachPolicy({
     required String courseId,
     required int forumId,
-    bool? knownCanCreateAttachment,
   }) async =>
       const Ok(ForumAttachPolicy.off());
 

@@ -22,8 +22,7 @@ void main() {
         .map((l) => l.trim())
         .any((l) => l == '- $assetPath' || l == '- ./$assetPath');
 
-    expect(declared, isTrue,
-        reason: '少了這一行，rootBundle.loadString 會在執行期才失敗');
+    expect(declared, isTrue, reason: '少了這一行，rootBundle.loadString 會在執行期才失敗');
   });
 
   test('controller 讀的路徑與 pubspec 宣告的一致', () {
@@ -35,5 +34,17 @@ void main() {
     expect(controller, contains('"$assetPath"'));
     expect(controller, contains('rootBundle.loadString'),
         reason: '網路失敗時要退回打包的那一份，不能直接進錯誤狀態');
+  });
+
+  test('唯讀那一頁走的是同一份備援', () {
+    // 登入頁「隱私權條款」那一行連到的是 PrivacyPolicyPage。它以前自己打一次
+    // 網路、失敗就畫一個沒有字的驚嘆號——第一次開 App 沒網路的人會卡在那裡。
+    final page = File('lib/ui/pages/other/page/privacy_policy_page.dart')
+        .readAsStringSync();
+
+    expect(page, contains('PrivacyPolicyController.fetchPolicy'),
+        reason: '兩個入口要共用同一份離線備援，不能只有同意閘門有');
+    expect(page, isNot(contains('AppLink.privacyPolicyUrl')),
+        reason: '直接打網路等於繞過備援');
   });
 }

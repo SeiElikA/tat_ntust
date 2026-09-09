@@ -9,6 +9,7 @@ import 'package:flutter_app/src/model/setting/setting_json.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:flutter_app/src/store/course_table_store.dart';
 import 'package:flutter_app/src/store/credentials_store.dart';
+import 'package:flutter_app/src/store/extra_table_store.dart';
 import 'package:flutter_app/src/store/moodle_session_store.dart';
 import 'package:flutter_app/src/store/key_value_store.dart';
 import 'package:flutter_app/src/store/score_store.dart';
@@ -80,11 +81,6 @@ class Model {
       CredentialsStore.instance.setAccount(account);
 
   String getAccount() => CredentialsStore.instance.account;
-
-  String getWebMailPassword() => CredentialsStore.instance.webMailPassword;
-
-  void setWebMailPassword(String password) =>
-      CredentialsStore.instance.setWebMailPassword(password);
 
   void setPassword(String password) =>
       CredentialsStore.instance.setPassword(password);
@@ -302,6 +298,8 @@ class Model {
     await clearUserData();
     await clearSemesterJsonList();
     await clearCourseTableList();
+    // 草稿與掃進來的他人課表也是這位使用者的，換人登入不該看得到。
+    await ExtraTableStore.instance.clear();
     await clearCourseSetting();
     await clearScore();
     await clearMoodleToken();

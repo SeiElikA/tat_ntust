@@ -48,9 +48,9 @@ class NtustInteractiveLoginResult {
 class UninstalledInteractiveLoginGateway implements InteractiveLoginGateway {
   const UninstalledInteractiveLoginGateway();
 
-  Never _fail() => throw StateError(
-      'InteractiveLoginGateway.instance 尚未安裝。正式環境應在 main() 裡、'
-      'runApp 之前指派實作；測試請指派一個假的。');
+  Never _fail() =>
+      throw StateError('InteractiveLoginGateway.instance 尚未安裝。正式環境應在 main() 裡、'
+          'runApp 之前指派實作；測試請指派一個假的。');
 
   @override
   Future<NtustInteractiveLoginResult?> signInNtust({

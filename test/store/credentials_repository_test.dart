@@ -20,7 +20,6 @@ void main() {
       json.encode({
         'account': account,
         'password': password,
-        'webMailPassword': 'mail',
       });
 
   group('讀寫', () {
@@ -101,7 +100,7 @@ void main() {
 
     test('舊資料是空的就不算遷移', () async {
       plain.raw[CredentialsStore.legacyKey] =
-          json.encode({'account': '', 'password': '', 'webMailPassword': ''});
+          json.encode({'account': '', 'password': ''});
 
       expect(await repo.load(), CredentialsLoadResult.absent);
     });
@@ -111,7 +110,8 @@ void main() {
       // 以免舊資料被讀走卻寫不進新位置。
       plain.raw[CredentialsStore.legacyKey] = legacyJson();
 
-      expect(await repo.load(skipMigration: true), CredentialsLoadResult.absent);
+      expect(
+          await repo.load(skipMigration: true), CredentialsLoadResult.absent);
       expect(secure.data[CredentialsStore.secureKey], isNull);
       expect(plain.raw[CredentialsStore.legacyKey], isNotNull);
     });

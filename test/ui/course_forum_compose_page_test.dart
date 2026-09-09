@@ -19,8 +19,8 @@ import '../helpers/recording_ui.dart';
 import '../helpers/reset_statics.dart';
 import '../helpers/test_l10n.dart';
 
-/// 撰寫頁的規格：開新主題與編輯自己的貼文（回覆已經搬到討論串頁底部的
-/// `ForumComposerBar`）。這一頁不碰 repository：送出與挑檔都由呼叫端注入，
+/// 撰寫頁的規格：編輯自己的貼文（回覆在討論串頁底部的 `ForumComposerBar`，
+/// 開新主題已經整個移除）。這一頁不碰 repository：送出與挑檔都由呼叫端注入，
 /// 所以整組測試都不需要網路、快取或登入。
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -80,48 +80,6 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
   }
 
-  Future<void> pumpNew(
-    WidgetTester tester, {
-    required Future<Result<ForumDiscussionOutcome>> Function(
-      String subject,
-      String text,
-      List<File> files,
-    ) onSend,
-    ForumAttachPolicy policy = offPolicy,
-    List<File> picked = const [],
-    List<ForumDiscussionOutcome?>? popped,
-  }) async {
-    sizeUp(tester);
-    await tester.pumpWidget(GetMaterialApp(
-      home: Scaffold(
-        body: Builder(
-          builder: (context) => TextButton(
-            onPressed: () async {
-              final result = await Get.to<ForumDiscussionOutcome>(
-                () => CourseForumComposePage.newDiscussion(
-                  forumName: '課程討論區',
-                  onSendDiscussion: (s, t, f, {required onProgress}) =>
-                      onSend(s, t, f),
-                  attachPolicy: policy,
-                  onPickFiles: (remaining) async => picked,
-                  onCancelUpload: () {},
-                  openWebView: (title, url) async {},
-                  webUrl:
-                      'https://moodle2.ntust.edu.tw/mod/forum/view.php?id=90999',
-                  webTitle: '課程討論區',
-                ),
-              );
-              popped?.add(result);
-            },
-            child: const Text('open'),
-          ),
-        ),
-      ),
-    ));
-    await tester.tap(find.text('open'));
-    await tester.pumpAndSettle();
-  }
-
   Future<void> pumpEdit(
     WidgetTester tester, {
     required Future<Result<ForumEditOutcome>> Function(
@@ -176,9 +134,30 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  group('新主題', () {
+  /// 初值全空的編輯器：所有「還沒填完」的規則都靠它測。
+  Future<void> pumpBlank(
+    WidgetTester tester, {
+    required Future<Result<ForumEditOutcome>> Function(
+      String subject,
+      String text,
+      List<MoodleForumFile> keep,
+      List<File> added,
+    ) onSend,
+    ForumAttachPolicy policy = offPolicy,
+    List<File> picked = const [],
+  }) =>
+      pumpEdit(
+        tester,
+        onSend: onSend,
+        initialSubject: '',
+        initialText: '',
+        policy: policy,
+        picked: picked,
+      );
+
+  group('還沒填完', () {
     testWidgets('兩個欄位都空著時：送出停用，而且畫面上一句多餘的說明都沒有', (tester) async {
-      await pumpNew(tester, onSend: (s, t, f) async => const Ok(_ok));
+      await pumpBlank(tester, onSend: (s, t, k, a) async => const Ok(_edited));
 
       expect(
           tester.widget<ButtonStyleButton>(submitButton()).onPressed, isNull);
@@ -187,7 +166,7 @@ void main() {
     });
 
     testWidgets('內文有字、標題還空著 → 底列出現唯一那句阻塞原因', (tester) async {
-      await pumpNew(tester, onSend: (s, t, f) async => const Ok(_ok));
+      await pumpBlank(tester, onSend: (s, t, k, a) async => const Ok(_edited));
 
       await tester.enterText(find.byType(TextField).last, '請問這題怎麼算');
       await tester.pump();
@@ -205,7 +184,7 @@ void main() {
     });
 
     testWidgets('標題填了、內文還空著 → 底列說「請先寫點內容」，不是只把鈕變灰', (tester) async {
-      await pumpNew(tester, onSend: (s, t, f) async => const Ok(_ok));
+      await pumpBlank(tester, onSend: (s, t, k, a) async => const Ok(_edited));
 
       await tester.enterText(find.byType(TextField).first, '作業問題');
       await tester.pump();
@@ -216,8 +195,8 @@ void main() {
     });
 
     testWidgets('送出中不給「在網頁開啟」——那一趟會把已經送出去的那則留在螢幕上當草稿', (tester) async {
-      final gate = Completer<Result<ForumDiscussionOutcome>>();
-      await pumpNew(tester, onSend: (s, t, f) => gate.future);
+      final gate = Completer<Result<ForumEditOutcome>>();
+      await pumpBlank(tester, onSend: (s, t, k, a) => gate.future);
 
       await tester.enterText(find.byType(TextField).first, '作業問題');
       await tester.enterText(find.byType(TextField).last, '請問這題怎麼算');
@@ -225,7 +204,7 @@ void main() {
       await tester.tap(submitButton());
       await tester.pump();
 
-      // 這一頁只在自己還在最上面時 pop，而兩支寫入都沒有冪等鍵。
+      // 這一頁只在自己還在最上面時 pop，而這一支寫入沒有冪等鍵。
       expect(
         tester
             .widget<IconButton>(find.ancestor(
@@ -235,32 +214,16 @@ void main() {
         isNull,
       );
 
-      gate.complete(const Ok(_ok));
+      gate.complete(const Ok(_edited));
       await tester.pumpAndSettle();
-    });
-
-    testWidgets('送出成功：pop 掉的是撰寫頁自己，帶回結果', (tester) async {
-      final popped = <ForumDiscussionOutcome?>[];
-      await pumpNew(tester,
-          onSend: (s, t, f) async => const Ok(_ok), popped: popped);
-
-      await tester.enterText(find.byType(TextField).first, '作業問題');
-      await tester.enterText(find.byType(TextField).last, '請問這題怎麼算');
-      await tester.pump();
-      await tester.tap(sendButton());
-      await tester.pumpAndSettle();
-
-      expect(find.byType(CourseForumComposePage), findsNothing);
-      expect(find.text('open'), findsOneWidget, reason: '只 pop 自己這一頁');
-      expect(popped.single?.discussionId, 4321);
     });
 
     testWidgets('連點兩下送出只會送出一次——這一支沒有冪等鍵', (tester) async {
       var calls = 0;
-      await pumpNew(tester, onSend: (s, t, f) async {
+      await pumpBlank(tester, onSend: (s, t, k, a) async {
         calls++;
         await Future<void>.delayed(const Duration(milliseconds: 50));
-        return const Ok(_ok);
+        return const Ok(_edited);
       });
 
       await tester.enterText(find.byType(TextField).first, '作業問題');
@@ -278,14 +241,14 @@ void main() {
     });
 
     testWidgets('送出失敗：留在原地、打的字還在，吐對應好的訊息', (tester) async {
-      await pumpNew(tester,
-          onSend: (s, t, f) async => Failed<ForumDiscussionOutcome>(
+      await pumpBlank(tester,
+          onSend: (s, t, k, a) async => Failed<ForumEditOutcome>(
               FetchFailed(R.current.forumErrorTooManyPosts)));
 
       await tester.enterText(find.byType(TextField).first, '作業問題');
       await tester.enterText(find.byType(TextField).last, '請問這題怎麼算');
       await tester.pump();
-      await tester.tap(sendButton());
+      await tester.tap(saveButton());
       await tester.pumpAndSettle();
 
       expect(find.byType(CourseForumComposePage), findsOneWidget);
@@ -297,7 +260,7 @@ void main() {
     });
 
     testWidgets('標題撞到 255 就停住：超過會是伺服器的 dmlwriteexception', (tester) async {
-      await pumpNew(tester, onSend: (s, t, f) async => const Ok(_ok));
+      await pumpBlank(tester, onSend: (s, t, k, a) async => const Ok(_edited));
 
       final subject = find.byType(TextField).first;
       await tester.enterText(subject, '題' * 300);
@@ -309,7 +272,7 @@ void main() {
     });
 
     testWidgets('有草稿時返回會先問；按取消留在原地、文字還在', (tester) async {
-      await pumpNew(tester, onSend: (s, t, f) async => const Ok(_ok));
+      await pumpBlank(tester, onSend: (s, t, k, a) async => const Ok(_edited));
 
       await tester.enterText(find.byType(TextField).last, '還沒送出的字');
       await tester.pump();
@@ -325,7 +288,7 @@ void main() {
     });
 
     testWidgets('轉螢幕之後打的字還在（草稿活在 State 裡）', (tester) async {
-      await pumpNew(tester, onSend: (s, t, f) async => const Ok(_ok));
+      await pumpBlank(tester, onSend: (s, t, k, a) async => const Ok(_edited));
 
       await tester.enterText(find.byType(TextField).last, '轉個螢幕試試');
       await tester.pump();
@@ -337,7 +300,7 @@ void main() {
     });
 
     testWidgets('頁尾只剩一句排版說明——沒有鈕，也不再說「附件與編輯請到網頁」', (tester) async {
-      await pumpNew(tester, onSend: (s, t, f) async => const Ok(_ok));
+      await pumpBlank(tester, onSend: (s, t, k, a) async => const Ok(_edited));
 
       expect(find.text(R.current.forumFormattingInWeb), findsOneWidget);
       // 網頁入口只留 AppBar 右上那一顆 icon，不再有一段道歉文字加一顆鈕。
@@ -347,16 +310,16 @@ void main() {
 
   group('附件', () {
     testWidgets('政策說不給時紙夾整顆不畫，也不解釋', (tester) async {
-      await pumpNew(tester, onSend: (s, t, f) async => const Ok(_ok));
+      await pumpBlank(tester, onSend: (s, t, k, a) async => const Ok(_edited));
 
       expect(find.byTooltip(R.current.forumAddAttachment), findsNothing);
       expect(find.text(R.current.forumAttachmentDisabled), findsNothing);
     });
 
     testWidgets('挑了檔案就列出來，並顯示數量與上限', (tester) async {
-      await pumpNew(
+      await pumpBlank(
         tester,
-        onSend: (s, t, f) async => const Ok(_ok),
+        onSend: (s, t, k, a) async => const Ok(_edited),
         policy: onPolicy,
         picked: [pickable('a.pdf')],
       );
@@ -370,9 +333,9 @@ void main() {
     });
 
     testWidgets('超過單檔上限：吐訊息，那個檔案不會被加進來', (tester) async {
-      await pumpNew(
+      await pumpBlank(
         tester,
-        onSend: (s, t, f) async => const Ok(_ok),
+        onSend: (s, t, k, a) async => const Ok(_edited),
         policy:
             const ForumAttachPolicy(enabled: true, maxFiles: 2, maxBytes: 4),
         picked: [pickable('big.pdf', bytes: 64)],
@@ -385,9 +348,9 @@ void main() {
     });
 
     testWidgets('重名擋在本地：Moodle 只會收下第一個', (tester) async {
-      await pumpNew(
+      await pumpBlank(
         tester,
-        onSend: (s, t, f) async => const Ok(_ok),
+        onSend: (s, t, k, a) async => const Ok(_edited),
         policy: onPolicy,
         picked: [pickable('a.pdf')],
       );
@@ -400,9 +363,9 @@ void main() {
     });
 
     testWidgets('只挑了附件、標題還空著 → 底列照樣說得出為什麼送不出去', (tester) async {
-      await pumpNew(
+      await pumpBlank(
         tester,
-        onSend: (s, t, f) async => const Ok(_ok),
+        onSend: (s, t, k, a) async => const Ok(_edited),
         policy: onPolicy,
         picked: [pickable('a.pdf')],
       );
@@ -414,9 +377,9 @@ void main() {
     });
 
     testWidgets('只有附件、沒有內文時仍然送得出去（標題有填）', (tester) async {
-      await pumpNew(
+      await pumpBlank(
         tester,
-        onSend: (s, t, f) async => const Ok(_ok),
+        onSend: (s, t, k, a) async => const Ok(_edited),
         policy: onPolicy,
         picked: [pickable('a.pdf')],
       );
@@ -547,5 +510,4 @@ void main() {
   });
 }
 
-const _ok = ForumDiscussionOutcome(4321);
 const _edited = ForumEditOutcome();

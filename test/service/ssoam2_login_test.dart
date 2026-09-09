@@ -42,10 +42,13 @@ void main() {
       ..sort();
 
     // ntust_connector 持有的是根路徑常數（給 GET 探針用），與登入頁不同。
-    expect(hits, [
-      'lib/src/connector/ntust_connector.dart',
-      'lib/src/service/ssoam2_login.dart',
-    ], reason: '登入頁網址散落多處的話，學校換網址時會漏改');
+    expect(
+        hits,
+        [
+          'lib/src/connector/ntust_connector.dart',
+          'lib/src/service/ssoam2_login.dart',
+        ],
+        reason: '登入頁網址散落多處的話，學校換網址時會漏改');
   });
 
   test('validation-summary-errors 只能出現在共用腳本裡', () {
@@ -56,8 +59,7 @@ void main() {
         .toList()
       ..sort();
 
-    expect(hits, ['lib/src/service/ssoam2_login.dart'],
-        reason: '登入錯誤的判準只該有一份');
+    expect(hits, ['lib/src/service/ssoam2_login.dart'], reason: '登入錯誤的判準只該有一份');
   });
 
   test('登入錯誤判準有兩層：class 與已知句子', () {
@@ -73,7 +75,8 @@ void main() {
 
   group('isLoginPage', () {
     test('認得登入頁與它的查詢字串', () {
-      expect(Ssoam2Login.isLoginPage('https://ssoam2.ntust.edu.tw/account/login'),
+      expect(
+          Ssoam2Login.isLoginPage('https://ssoam2.ntust.edu.tw/account/login'),
           isTrue);
       expect(
           Ssoam2Login.isLoginPage(

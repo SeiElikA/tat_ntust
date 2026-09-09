@@ -100,7 +100,8 @@ void main() {
       // 登出是用 cache_ 前綴掃出所有快取來清除的，命名不符會在登出後殘留，
       // 而且這條契約沒有任何編譯期訊號。
       expect(
-        () => CacheKey<String>('moodle_support', 'a', decode: (j) => j as String),
+        () =>
+            CacheKey<String>('moodle_support', 'a', decode: (j) => j as String),
         throwsA(isA<AssertionError>()),
       );
     });

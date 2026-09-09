@@ -20,6 +20,7 @@ import 'package:flutter_app/ui/components/card/section_card.dart';
 import 'package:flutter_app/ui/components/custom_appbar.dart';
 import 'package:flutter_app/ui/components/html/moodle_html_view.dart';
 import 'package:flutter_app/ui/components/page/inline_note.dart';
+import 'package:flutter_app/ui/components/page/note_icon.dart';
 import 'package:flutter_app/ui/components/page/web_view_opener.dart';
 import 'package:flutter_app/ui/components/tile/moodle_file_tile.dart';
 import 'package:flutter_app/ui/other/lucide_icons.dart';
@@ -243,9 +244,7 @@ class _CourseAssignSubmitPageState extends State<CourseAssignSubmitPage> {
             // 「保留原內容」是一句承諾，儲存被硬擋下來時它就是假的。
             trailing: !_controller.onlineTextEditable && _onlineTextKept
                 ? StatusPill(
-                    background:
-                        Theme.of(context).colorScheme.surfaceContainerHighest,
-                    foreground: Theme.of(context).colorScheme.onSurfaceVariant,
+                    tone: StatusPillTone.pending,
                     label: R.current.assignOnlineTextKeepAsIs,
                   )
                 : null,
@@ -260,9 +259,7 @@ class _CourseAssignSubmitPageState extends State<CourseAssignSubmitPage> {
             title: R.current.assignSubmissionStatement,
             trailing: _assignment.tracksDrafts
                 ? StatusPill(
-                    background:
-                        Theme.of(context).colorScheme.surfaceContainerHighest,
-                    foreground: Theme.of(context).colorScheme.onSurfaceVariant,
+                    tone: StatusPillTone.pending,
                     label: R.current.assignStatementAtSubmit,
                   )
                 : null,
@@ -545,20 +542,14 @@ class _CourseAssignSubmitPageState extends State<CourseAssignSubmitPage> {
   Widget _barReason(String message, bool blocking) {
     final scheme = Theme.of(context).colorScheme;
     final color = blocking ? scheme.error : scheme.onSurfaceVariant;
+    final style = Theme.of(context).textTheme.bodySmall?.copyWith(color: color);
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(blocking ? LucideIcons.circleAlert : LucideIcons.info,
-            size: 16, color: color),
+        NoteIcon(blocking ? LucideIcons.circleAlert : LucideIcons.info,
+            style: style, color: color),
         const SizedBox(width: 6),
-        Expanded(
-          child: Text(message,
-              maxLines: 2,
-              style: Theme.of(context)
-                  .textTheme
-                  .bodySmall
-                  ?.copyWith(color: color)),
-        ),
+        Expanded(child: Text(message, maxLines: 2, style: style)),
       ],
     );
   }

@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_app/src/store/key_value_store.dart';
 import 'package:flutter_app/src/store/settings_store.dart';
 import 'package:flutter_app/ui/pages/other/page/setting/setting_page.dart';
@@ -10,8 +9,6 @@ import 'package:flutter_test/flutter_test.dart';
 
 import '../helpers/reset_statics.dart';
 import '../helpers/test_l10n.dart';
-
-const _toastChannel = MethodChannel('PonnamKarthik/fluttertoast');
 
 /// 讓 readString 卡在一個 Completer 上，用來模擬 FileStore.findLocalPath
 /// 停在系統儲存權限對話框的那段「長度不可控」的時間。
@@ -61,8 +58,6 @@ void main() {
 
   setUpAll(() async {
     await loadTestL10n();
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(_toastChannel, (call) async => true);
   });
 
   setUp(resetAppStatics);
@@ -119,10 +114,6 @@ void main() {
 
       expect(find.text('/tmp/tat_download_path'), findsOneWidget);
 
-      // WidgetAnimator 每個項目都會排一個 100~400ms 的 Timer 再跑 290ms 動畫。
-      // 這裡沒有像上一個測試那樣把整棵樹換掉，所以要自己把它們跑完，
-      // 否則測試結束時會留下未觸發的 Timer 與還在跑的 Ticker。
-      await tester.pump(const Duration(milliseconds: 500));
       await tester.pumpAndSettle();
     });
   });

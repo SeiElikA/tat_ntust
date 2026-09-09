@@ -1,7 +1,6 @@
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_app/src/file/file_store.dart';
 import 'package:flutter_app/src/store/key_value_store.dart';
@@ -10,12 +9,8 @@ import 'package:flutter_test/flutter_test.dart';
 
 import '../helpers/test_l10n.dart';
 
-/// fluttertoast 走 MethodChannel，測試裡沒有實作會丟 MissingPluginException，
-/// 而 MyToast.show 不接那個 Future，錯誤會浮成測試失敗。這裡假裝有實作。
-const _toastChannel = MethodChannel('PonnamKarthik/fluttertoast');
-
 /// findLocalPath / getDownloadDir 的簽章都要一個 BuildContext，但兩者都沒有
-/// 真的用到它（權限提示是走 Fluttertoast，不吃 context）。
+/// 真的用到它（權限提示走 TaskUiDelegate，不吃 context）。
 /// 用 noSuchMethod 擋掉所有成員：萬一哪天真的被用到，測試會直接炸而不是靜默通過。
 class _UnusedContext implements BuildContext {
   @override
@@ -41,8 +36,6 @@ void main() {
 
   setUpAll(() async {
     await loadTestL10n();
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(_toastChannel, (call) async => true);
   });
 
   setUp(() async {

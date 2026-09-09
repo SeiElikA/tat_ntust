@@ -18,8 +18,8 @@ import '../helpers/recording_ui.dart';
 import '../helpers/reset_statics.dart';
 import '../helpers/test_l10n.dart';
 
-/// 兩條發文寫入路徑的規格。刻意走真正的 connector，只把傳輸層（`wsPost`）
-/// 換掉：要驗的正是「送出去幾次、送了什麼、失敗怎麼講」。
+/// 回覆寫入路徑的規格。刻意走真正的 connector，只把傳輸層（`wsPost`）換掉：
+/// 要驗的正是「送出去幾次、送了什麼、失敗怎麼講」。
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -139,24 +139,6 @@ void main() {
       expect(sent, hasLength(1));
       expect(ui.confirmCalls, 0, reason: 'retry: none 連問都不該問');
     });
-  });
-
-  group('postDiscussion', () {
-    test('成功回 Ok(discussionid)，內文是 escape 過的 HTML', () async {
-      respondWith(() => loadMoodleForumFixture('add_discussion'));
-
-      final result = await MoodleRepository.instance
-          .postDiscussion(forumId: 5499, subject: '請問作業', text: 'a < b\nc');
-
-      expect(result, isA<Ok<ForumDiscussionOutcome>>());
-      expect(result.dataOrNull?.discussionId, 4321);
-      // add_discussion 沒有 messageformat，伺服器一律當 HTML 存。
-      expect(sent.single['message'], 'a &lt; b<br>c');
-      expect(sent.single['subject'], '請問作業');
-      // 剛打的標題要跟著回去：add_discussion 只回 discussionid，而剛建立的
-      // 主題還沒有出現在清單裡，呼叫端手上沒有別的來源。
-      expect(result.dataOrNull?.subject, '請問作業');
-    });
 
     test('使用者按取消 → 說「已取消上傳」，不是「送出失敗；請重新整理確認是否已送出」', () async {
       final token = CancelToken();
@@ -166,49 +148,12 @@ void main() {
             requestOptions: RequestOptions(), reason: null);
       };
 
-      final result = await MoodleRepository.instance.postDiscussion(
-          forumId: 5499, subject: 's', text: 'm', cancelToken: token);
+      final result = await MoodleRepository.instance
+          .postReply(postId: 900, subject: 's', text: 'm', cancelToken: token);
 
       // 什麼都還沒送出去，叫人去找一則不存在的貼文是錯的。
-      expect((result as Failed<ForumDiscussionOutcome>).reason.message,
+      expect((result as Failed<ForumReplyOutcome>).reason.message,
           R.current.forumSendCancelled);
-    });
-
-    test('cannotcreatediscussion → 對應的句子', () async {
-      respondWith(() => const {
-            'exception': 'moodle_exception',
-            'errorcode': 'cannotcreatediscussion',
-            'message': 'You cannot create a new discussion',
-          });
-
-      final result = await MoodleRepository.instance
-          .postDiscussion(forumId: 5499, subject: 's', text: 'm');
-
-      expect((result as Failed<ForumDiscussionOutcome>).reason.message,
-          R.current.forumErrorCannotCreateDiscussion);
-    });
-
-    test('forumblockingtoomanyposts → 節流的那一句', () async {
-      respondWith(() => const {
-            'exception': 'moodle_exception',
-            'errorcode': 'forumblockingtoomanyposts',
-            'message': 'You have exceeded the posting threshold',
-          });
-
-      final result = await MoodleRepository.instance
-          .postDiscussion(forumId: 5499, subject: 's', text: 'm');
-
-      expect((result as Failed<ForumDiscussionOutcome>).reason.message,
-          R.current.forumErrorTooManyPosts);
-    });
-
-    test('沒有 discussionid → 失敗，不可以看起來像送出去了', () async {
-      respondWith(() => loadMoodleForumFixture('add_discussion_no_id'));
-
-      final result = await MoodleRepository.instance
-          .postDiscussion(forumId: 5499, subject: 's', text: 'm');
-
-      expect(result, isA<Failed<ForumDiscussionOutcome>>());
     });
   });
 

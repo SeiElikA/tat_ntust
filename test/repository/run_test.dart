@@ -340,11 +340,10 @@ void main() {
       );
 
       expect(ui.progressShown, ['載入中']);
-      // 只能 dismiss 自己拿到的 handle：全域的 ui.hideProgress()
-      //（BotToast.cleanAll()）會把並行分頁的遮罩一起關掉。
+      // 只能 dismiss 自己拿到的 handle：關掉別人的遮罩會讓並行分頁看起來
+      // 也載完了。
       expect(ui.dismissCalls, 1,
           reason: '取代今天手動配對的 onStart/onEnd，try/finally 保證關掉');
-      expect(ui.hideProgressCalls, 0, reason: 'run() 不能再走全域的 hideProgress');
     });
 
     test('沒給 progressMessage 就完全不碰進度框', () async {
@@ -352,7 +351,6 @@ void main() {
 
       expect(ui.progressShown, isEmpty);
       expect(ui.dismissCalls, 0);
-      expect(ui.hideProgressCalls, 0);
     });
   });
 

@@ -30,6 +30,7 @@ MoodleActionEvent _$MoodleActionEventFromJson(Map<String, dynamic> json) =>
       name: json['name'] as String? ?? '',
       activityname: json['activityname'] as String?,
       modulename: json['modulename'] as String?,
+      instance: (json['instance'] as num?)?.toInt(),
       timesort: (json['timesort'] as num?)?.toInt() ?? 0,
       url: json['url'] as String? ?? '',
       course: json['course'] == null
@@ -48,6 +49,7 @@ Map<String, dynamic> _$MoodleActionEventToJson(MoodleActionEvent instance) =>
       'name': instance.name,
       'activityname': instance.activityname,
       'modulename': instance.modulename,
+      'instance': instance.instance,
       'timesort': instance.timesort,
       'url': instance.url,
       'course': instance.course?.toJson(),
@@ -59,6 +61,7 @@ MoodleActionEventCourse _$MoodleActionEventCourseFromJson(
     MoodleActionEventCourse(
       fullname: json['fullname'] as String? ?? '',
       shortname: json['shortname'] as String? ?? '',
+      idnumber: json['idnumber'] as String? ?? '',
     );
 
 Map<String, dynamic> _$MoodleActionEventCourseToJson(
@@ -66,6 +69,7 @@ Map<String, dynamic> _$MoodleActionEventCourseToJson(
     <String, dynamic>{
       'fullname': instance.fullname,
       'shortname': instance.shortname,
+      'idnumber': instance.idnumber,
     };
 
 MoodleActionEventAction _$MoodleActionEventActionFromJson(

@@ -3,6 +3,7 @@ import 'package:flutter_app/generated/l10n.dart';
 import 'package:flutter_app/src/auth/auth_session.dart';
 import 'package:flutter_app/src/controller/course_data/course_data_controller.dart';
 import 'package:flutter_app/src/controller/course_detail/course_detail_controller.dart';
+import 'package:flutter_app/src/controller/course_member/course_member_controller.dart';
 import 'package:flutter_app/src/model/course/course_class_json.dart';
 import 'package:flutter_app/src/model/course/course_main_extra_json.dart';
 import 'package:flutter_app/src/model/course_table/course_table_json.dart';
@@ -19,7 +20,7 @@ import 'package:flutter_app/ui/pages/course_data/screen/course_announcement_page
 import 'package:flutter_app/ui/pages/course_data/screen/course_directory_page.dart';
 import 'package:flutter_app/ui/pages/course_data/screen/course_score_page.dart';
 import 'package:flutter_app/ui/pages/course_detail/screen/course_info_page.dart';
-import 'package:flutter_app/ui/pages/course_detail/screen/course_member_page.dart';
+import 'package:flutter_app/ui/pages/course_member/course_member_page.dart';
 import 'package:flutter_app/ui/pages/subsystem/sub_system_page.dart';
 import 'package:flutter_app/src/repository/moodle_repository.dart';
 import 'package:flutter_app/src/repository/ntust_repository.dart';
@@ -59,11 +60,14 @@ class _CountingMoodleRepository extends MoodleRepository {
     return Ok(MoodleModForumGetForumDiscussions());
   }
 
+  /// 名單頁要畫得出列時才用得到，預設空清單。
+  List<MoodleCoreEnrolGetUsers> membersToReturn = const [];
+
   @override
   Future<Result<List<MoodleCoreEnrolGetUsers>>> getMembers(
       String courseId) async {
     calls++;
-    return const Ok(<MoodleCoreEnrolGetUsers>[]);
+    return Ok(membersToReturn);
   }
 }
 
@@ -90,6 +94,7 @@ void main() {
   // 重點是 rebuild 之後呼叫次數不能增加。
   late CourseDataController dataController;
   late CourseDetailController detailController;
+  late CourseMemberController memberController;
 
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -112,6 +117,7 @@ void main() {
     dataController = CourseDataController('AT1001');
     detailController = CourseDetailController(
         courseId: 'AT1001', semester: SemesterJson(year: '113', semester: '1'));
+    memberController = CourseMemberController(courseId: 'AT1001');
     AuthSession.instance = AppAuthSession();
     // 離線失敗會畫 ErrorPage，而 ErrorPage.loginBtn 在未登入時會取
     // Get.context!.width——沒有 GetMaterialApp 就是 null 直接爆。
@@ -158,8 +164,10 @@ void main() {
   testWidgets('SubSystemPage 在上層 setState 之後不會重打一次 API', (tester) async {
     final rebuild = await pumpUnderRebuildableParent(
       tester,
-      // ignore: prefer_const_constructors
-      () => SubSystemPage(),
+      () => SubSystemPage(
+        errorBuilder: (message) => Text(message),
+        openWebView: (title, url) async {},
+      ),
     );
     await tester.pumpAndSettle();
     expect(ntustRepo.calls, 1);
@@ -174,8 +182,10 @@ void main() {
     await detailController.loadInfo();
     final rebuild = await pumpUnderRebuildableParent(
       tester,
-      () => CourseInfoPage('AT1001', SemesterJson(year: '113', semester: '1'),
-          controller: detailController),
+      () => CourseInfoPage(
+        controller: detailController,
+        errorBuilder: (m) => Text(m),
+      ),
     );
     await tester.pumpAndSettle();
     expect(ntustRepo.calls, 1);
@@ -239,13 +249,20 @@ void main() {
   });
 
   testWidgets('CourseMemberPage 在上層 setState 之後不會重打一次 API', (tester) async {
-    await detailController.loadMembers();
+    // 這一頁自己在 initState 發請求——課程頁不再順手打那支慢的名單 API，
+    // 只有真的進到這一頁的人才付那幾秒。所以這裡不預先 load：pump 完之後
+    // 剛好一次，rebuild 之後還是一次。
     final rebuild = await pumpUnderRebuildableParent(
       tester,
-      // 這裡刻意不寫 const。const widget 在 rebuild 時會拿到同一個實例，
-      // Element.updateChild 會整段短路、根本不重跑 build()，測試就會假性通過。
-      // ignore: prefer_const_constructors
-      () => CourseMemberPage('AT1001', controller: detailController),
+      // 這個 widget 拿得到 const 也不該寫 const：const widget 在 rebuild 時會
+      // 拿到同一個實例，Element.updateChild 會整段短路、根本不重跑 build()，
+      // 測試就會假性通過。
+      () => CourseMemberPage(
+        controller: memberController,
+        courseName: '微積分（一）',
+        knownMemberCount: 3,
+        errorBuilder: (message, onRetry) => Text(message),
+      ),
     );
     await tester.pumpAndSettle();
     expect(repo.calls, 1);
@@ -256,14 +273,13 @@ void main() {
     expect(repo.calls, 1, reason: 'rebuild 之後又打了一次 API，代表請求跑回 build() 裡了');
   });
 
-  /// 清單必須每次 build 現算，不可以當成請求的 side effect 存進 State 欄位：
-  /// _buildClassmateNumber / _buildClassmateInfo 把 S.current 的字串與
-  /// Get.theme 的顏色寫死在 widget 上，只填一次的話切語言、切主題後畫面會
-  /// 停在第一次的樣子。
-  testWidgets('CourseMemberPage 切換語言後清單文字要跟著更新（清單必須每次 build 現算）',
+  /// 畫面必須每次 build 現算，不可以當成請求的 side effect 存進 State 欄位：
+  /// 提示條的訊息與搜尋框的 hint 都來自 R.current，只填一次的話切語言、切主題
+  /// 後畫面會停在第一次的樣子。
+  testWidgets('CourseMemberPage 切換語言後畫面文字要跟著更新（畫面必須每次 build 現算）',
       (tester) async {
     // 這一則要走真的 repository：驗的是「離線 + 有快取時畫面畫得出來，而且
-    // 換語言會重畫」。setUp 裝的計數假件回的是空清單，用它就測不到這件事。
+    // 換語言會重畫」。setUp 裝的計數假件回的是 Ok，用它就測不到 Stale。
     MoodleRepository.instance = MoodleRepository();
     // 離線 + 有快取時 run() 回 Stale，資料由 CacheStore 讀出來，
     // 因此整段測試不需要網路。
@@ -275,9 +291,6 @@ void main() {
             .map((e) => MoodleCoreEnrolGetUsers.fromJson(e))
             .toList(),
       ),
-      // 只放一位成員：_buildListItem 的迴圈從 index 1 開始，所以畫面上只會有
-      // 「總人數」那一列，不會生出帶 NetworkImage 的同學列——測試環境的
-      // NetworkImage 一律 400，會把圖片載入錯誤報成測試失敗。
       [MoodleCoreEnrolGetUsers(id: 1, fullName: 'B10000000 @ 王小明')],
     );
 
@@ -285,24 +298,29 @@ void main() {
     // 否則同檔案後面的測試會拿到英文語系。
     addTearDown(loadTestL10n);
 
-    await detailController.loadMembers();
     final rebuild = await pumpUnderRebuildableParent(
       tester,
-      // ignore: prefer_const_constructors
-      () => CourseMemberPage('AT1001', controller: detailController),
+      () => CourseMemberPage(
+        controller: memberController,
+        courseName: '微積分（一）',
+        knownMemberCount: 1,
+        errorBuilder: (message, onRetry) => Text(message),
+      ),
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('${S.current.totalMember} 1'), findsOneWidget);
+    // 名單畫得出來，而且上面掛著「你看到的是舊資料」的提示條。
+    expect(find.text('王小明'), findsOneWidget);
+    expect(find.text(S.current.networkError), findsOneWidget);
 
     await loadTestL10n(const Locale('en'));
     rebuild();
     await tester.pumpAndSettle();
 
     expect(
-      find.text('${S.current.totalMember} 1'),
+      find.text(S.current.networkError),
       findsOneWidget,
-      reason: '清單還是第一次建立時的那一份，語言換了畫面卻沒跟著換',
+      reason: '畫面還是第一次建立時的那一份，語言換了卻沒跟著換',
     );
   });
 }

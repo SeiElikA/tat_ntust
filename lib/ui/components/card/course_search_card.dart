@@ -1,9 +1,9 @@
 import 'package:flutter/cupertino.dart';
-import 'package:flutter/material.dart';
+import 'package:flutter_app/src/config/app_tokens.dart';
 import 'package:flutter_app/src/util/course_table_control.dart';
 import 'package:flutter_app/src/model/course/course_main_extra_json.dart';
-import 'package:get/get.dart';
 import 'package:flutter_app/ui/other/lucide_icons.dart';
+import 'package:flutter_app/ui/other/theme_context.dart';
 
 import '../../../src/R.dart';
 
@@ -15,34 +15,37 @@ class CourseSearchCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = context.scheme;
+    final text = context.text;
     return CupertinoButton(
       padding: EdgeInsets.zero,
       onPressed: () => onTap(info),
       child: DefaultTextStyle(
-        style: Get.textTheme.bodyMedium!,
+        style: text.bodyMedium!.copyWith(color: scheme.onSurface),
         child: Container(
           width: double.infinity,
+          // 沒有描邊卡片：層級只靠底色高一階。
           decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.white)),
+            color: context.tokens.card,
+            borderRadius: BorderRadius.circular(TatTokens.radiusCard),
+          ),
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 info.course.name,
-                style:
-                    const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                style: text.titleMedium?.copyWith(color: scheme.onSurface),
               ),
               const SizedBox(height: 2),
               Text(
                 info.course.id,
-                style: const TextStyle(fontSize: 14, color: Colors.grey),
+                style: text.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
               ),
               const SizedBox(height: 2),
-              teacherText(),
+              teacherText(context),
               const SizedBox(height: 2),
-              timeText(),
+              timeText(context),
               const SizedBox(height: 2),
               Text(
                   "${R.current.startClass}: ${info.getOpenClassName().isEmpty ? "--" : info.getOpenClassName()}"),
@@ -57,18 +60,16 @@ class CourseSearchCard extends StatelessWidget {
     );
   }
 
-  Widget timeText() {
-    return _iconWithText(LucideIcons.clock, courseTimeString(info.course.time));
-  }
+  Widget timeText(BuildContext context) => _iconWithText(
+      context, LucideIcons.clock, courseTimeString(info.course.time));
 
-  Widget teacherText() {
-    return _iconWithText(LucideIcons.user, info.getTeacherName());
-  }
+  Widget teacherText(BuildContext context) =>
+      _iconWithText(context, LucideIcons.user, info.getTeacherName());
 
-  Widget _iconWithText(IconData icon, String content) {
+  Widget _iconWithText(BuildContext context, IconData icon, String content) {
     return Row(
       children: [
-        Icon(icon, size: 20, color: Get.iconColor),
+        Icon(icon, size: 20, color: context.scheme.onSurfaceVariant),
         const SizedBox(width: 4),
         Text(content),
       ],

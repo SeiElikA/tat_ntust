@@ -106,9 +106,9 @@ void main() {
   /// fixture 的兩份：HW1（截止 2025-09-11，早就過了）與期末專題（沒有截止）。
   List<MoodleAssignment> twoFromFixture() => fixtureAssignments();
 
-  testWidgets('兩份作業：名稱已還原 HTML 實體、截止列與「沒有截止日期」', (tester) async {
+  testWidgets('兩份作業：名稱已還原 HTML 實體、逾期那一行與「沒有截止日期」', (tester) async {
     await seedAssignments(twoFromFixture());
-    await seedStatus(4101, fixtureStatus('status_graded'));
+    await seedStatus(4101, fixtureStatus('status_none'));
 
     await pump(tester);
 
@@ -116,9 +116,8 @@ void main() {
     expect(find.text('HW1 & Report'), findsOneWidget);
     expect(find.textContaining('&amp;'), findsNothing);
     expect(find.text('期末專題'), findsOneWidget);
-    // HW1 的截止列：日期 · 已逾期 N 天。
+    // 沒交又過期：那一行只講逾期幾天，日期讓位給它。
     expect(find.textContaining('已逾期 '), findsOneWidget);
-    expect(find.textContaining(' · '), findsOneWidget);
     expect(find.text('沒有截止日期'), findsOneWidget);
   });
 
@@ -128,10 +127,39 @@ void main() {
 
     await pump(tester);
 
+    // 快取（Stale）的成績留在籤上：籤才有「這是舊資料」的記號，
+    // 一個裸分數說不出自己是什麼時候的。
     expect(find.widgetWithText(AssignStatusChip, '已評分'), findsOneWidget);
     expect(find.byType(AssignStatusChip), findsOneWidget,
         reason: '4102 沒有快取 → Failed → 不畫籤');
     expect(find.byType(CircularProgressIndicator), findsNothing);
+  });
+
+  testWidgets('已評分：那一行是「截止日 · 已評分」，沒有逾期天數', (tester) async {
+    // fixture 的 HW1 早就過了截止，而且是遲交的。評完之後遲不遲到不再是
+    // 使用者要處理的事，掛著「已逾期 N 天」會讓一份結案的作業看起來還欠著。
+    await seedAssignments([twoFromFixture().first]);
+    await seedStatus(4101, fixtureStatus('status_graded'));
+
+    await pump(tester);
+
+    expect(find.textContaining('已逾期'), findsNothing);
+    expect(find.textContaining('截止 · 已評分'), findsOneWidget);
+  });
+
+  testWidgets('已繳交等待評分：那一行是繳交日，籤是待評分', (tester) async {
+    // status_graded 換成只有繳交、沒有成績的那一份。
+    final s = fixtureStatus('status_graded')
+      ..feedback = null
+      ..lastattempt!.gradingstatus = 'notgraded';
+    await seedAssignments([twoFromFixture().first]);
+    await seedStatus(4101, s);
+
+    await pump(tester);
+
+    expect(find.widgetWithText(AssignStatusChip, '待評分'), findsOneWidget);
+    expect(find.textContaining('已逾期'), findsNothing);
+    expect(find.textContaining('繳交'), findsOneWidget);
   });
 
   testWidgets('狀態籤：草稿過了截止是已逾期', (tester) async {
@@ -143,7 +171,22 @@ void main() {
     expect(find.widgetWithText(AssignStatusChip, '已逾期'), findsOneWidget);
   });
 
-  testWidgets('有延長期限：截止列以延長期限為準並標明，籤是未繳交而不是已逾期', (tester) async {
+  testWidgets('草稿還沒到期：文件圖示、最後編輯日、籤是草稿', (tester) async {
+    final a = twoFromFixture().first
+      ..duedate = unix(DateTime.now().add(const Duration(days: 3)));
+    await seedAssignments([a]);
+    await seedStatus(4101, fixtureStatus('status_draft'));
+
+    await pump(tester);
+
+    expect(find.widgetWithText(AssignStatusChip, '草稿'), findsOneWidget);
+    // 驚嘆號是「還沒動」，草稿已經寫了東西，用文件圖示。
+    expect(find.byIcon(LucideIcons.fileText), findsOneWidget);
+    expect(find.byIcon(LucideIcons.circleAlert), findsNothing);
+    expect(find.textContaining('最後編輯'), findsOneWidget);
+  });
+
+  testWidgets('有延長期限：那一行講延長到哪一天加剩幾天，籤是已延長', (tester) async {
     // duedate 早就過了，但延長到 5 天後。
     final a = twoFromFixture().first;
     await seedAssignments([a]);
@@ -159,12 +202,12 @@ void main() {
 
     await pump(tester);
 
-    expect(find.widgetWithText(AssignStatusChip, '未繳交'), findsOneWidget);
-    expect(find.textContaining('已逾期'), findsNothing,
-        reason: '籤說未繳交、截止列說已逾期，兩句對不起來');
-    final line = find.textContaining('天後截止');
+    // 籤說「未繳交」、旁邊那一行說「延長至……」的話，兩句話對不起來。
+    expect(find.widgetWithText(AssignStatusChip, '已延長'), findsOneWidget);
+    expect(find.textContaining('已逾期'), findsNothing);
+    final line = find.textContaining('延長至 ');
     expect(line, findsOneWidget);
-    expect(tester.widget<Text>(line).data, startsWith('延長期限 '));
+    expect(tester.widget<Text>(line).data, contains(' · 剩 '));
   });
 
   testWidgets('離線評分的作業：不需繳交，過了截止也不是已逾期', (tester) async {
@@ -178,7 +221,7 @@ void main() {
     expect(find.widgetWithText(AssignStatusChip, '已逾期'), findsNothing);
   });
 
-  testWidgets('狀態籤：沒繳交且還沒截止是未繳交', (tester) async {
+  testWidgets('狀態籤：沒繳交且還沒截止是未繳交，那一行是「剩 N 天 · 截止時間」', (tester) async {
     final a = twoFromFixture().first
       ..duedate = unix(DateTime.now().add(const Duration(days: 3)));
     await seedAssignments([a]);
@@ -187,7 +230,31 @@ void main() {
     await pump(tester);
 
     expect(find.widgetWithText(AssignStatusChip, '未繳交'), findsOneWidget);
-    expect(find.textContaining('天後截止'), findsOneWidget);
+    final line = find.textContaining('剩 ');
+    expect(line, findsOneWidget);
+    expect(tester.widget<Text>(line).data, startsWith('剩 '));
+    expect(tester.widget<Text>(line).data, contains(' · '));
+  });
+
+  testWidgets('清單頂上那一句：件數，全部評完才加「全部已評分」', (tester) async {
+    await seedAssignments(twoFromFixture());
+    // 只有一份有狀態，另一份連狀態都抓不到——這時不敢說全部評完。
+    await seedStatus(4101, fixtureStatus('status_graded'));
+
+    await pump(tester);
+
+    expect(find.text('2 件'), findsOneWidget);
+    expect(find.textContaining('全部已評分'), findsNothing);
+  });
+
+  testWidgets('每一份都評完了才會說「全部已評分」', (tester) async {
+    await seedAssignments(twoFromFixture());
+    await seedStatus(4101, fixtureStatus('status_graded'));
+    await seedStatus(4102, fixtureStatus('status_graded'));
+
+    await pump(tester);
+
+    expect(find.text('2 件 · 全部已評分'), findsOneWidget);
   });
 
   testWidgets('來自快取的籤帶時鐘小圖示', (tester) async {
@@ -291,14 +358,11 @@ void main() {
     Get.back();
     await tester.pumpAndSettle();
 
-    expect(find.widgetWithText(AssignStatusChip, '已評分'), findsOneWidget);
-    // 這一顆是剛剛從伺服器回來的，不是快取，所以不該再帶時鐘。
-    expect(
-      find.descendant(
-        of: find.byType(AssignStatusChip),
-        matching: find.byIcon(LucideIcons.history),
-      ),
-      findsNothing,
-    );
+    // 評完之後右邊那一格換成分數：狀態改由標題底下那一行的「· 已評分」講。
+    expect(find.text('85.00'), findsOneWidget);
+    expect(find.text('/100.00'), findsOneWidget);
+    expect(find.textContaining('已評分'), findsWidgets);
+    // 分數取代了籤——那一列不再有任何狀態籤（另一份沒有快取，本來就沒有）。
+    expect(find.byType(AssignStatusChip), findsNothing);
   });
 }

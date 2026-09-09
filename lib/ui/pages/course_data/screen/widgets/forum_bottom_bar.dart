@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_app/ui/other/theme_context.dart';
 import 'package:flutter_app/src/R.dart';
 
 /// 「這裡不能發文」的常駐底列：一句理由，加上還走得通的出口（如果真的有）。
@@ -34,10 +35,12 @@ class ForumNoticeBar extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     final text = Theme.of(context).textTheme;
     final hasActions = onOpenWeb != null || onRetry != null;
-    return SafeArea(
-      top: false,
-      child: Material(
-        color: scheme.surfaceContainer,
+    return Material(
+      // SafeArea 在 Material 裡面，底色才會一路鋪到螢幕最底（同
+      // `ForumComposerBar`）：包在外面的話那段 inset 是透明的。
+      color: context.tokens.card,
+      child: SafeArea(
+        top: false,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [

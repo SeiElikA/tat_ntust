@@ -45,7 +45,8 @@ void main() {
   });
 
   test('真的沒有憑證（absent）→ login', () async {
-    expect(await CredentialsStore.instance.load(), CredentialsLoadResult.absent);
+    expect(
+        await CredentialsStore.instance.load(), CredentialsLoadResult.absent);
 
     expect(await app.getInitialRoute, 'login');
   });

@@ -5,8 +5,13 @@ import 'package:flutter_app/debug/log/log.dart';
 import 'package:flutter_app/src/R.dart';
 import 'package:flutter_app/src/service/course_widget_service.dart';
 import 'package:flutter_app/src/enum/course_table_ui_state.dart';
+import 'package:flutter_app/src/service/store_review_service.dart';
+import 'package:flutter_app/src/version/app_version.dart';
 import 'package:flutter_app/src/model/course/course_class_json.dart';
 import 'package:flutter_app/src/model/course/course_main_extra_json.dart';
+import 'package:flutter_app/src/connector/course_connector.dart';
+import 'package:flutter_app/src/model/course/course_department.dart';
+import 'package:flutter_app/src/model/course/course_query_filter.dart';
 import 'package:flutter_app/src/model/course_table/course_table_json.dart';
 import 'package:flutter_app/src/util/my_toast.dart';
 import 'package:flutter_app/src/controller/course_table/course_model.dart';
@@ -123,6 +128,22 @@ class CourseController extends GetxController {
     await _loadSetting();
   }
 
+  /// 系所篩選的兩層資料。都是 querycourse 的公開端點，免憑證。
+  Future<List<CollegeJson>> loadColleges() async =>
+      await CourseConnector.getColleges() ?? [];
+
+  Future<List<DepartmentJson>> loadDepartments(String collegeNo) async =>
+      await CourseConnector.getDepartments(collegeNo) ?? [];
+
+  /// 以課號移除。搜尋頁只拿得到課號，不是格子上的那個 CourseInfoJson。
+  Future<void> removeCourseById(String courseId) async {
+    if (courseTableData != null) {
+      courseTableData!.removeCourseByCourseId(courseId);
+      await courseModel.saveCourse(courseTableData!);
+    }
+    await _loadSetting();
+  }
+
   /// 目前課表的學期。頁面導向課程詳情時要用。
   SemesterJson get currentSemester =>
       courseTableData?.courseSemester ?? SemesterJson();
@@ -152,10 +173,20 @@ class CourseController extends GetxController {
     MyToast.show(R.current.settingComplete);
   }
 
+  /// 搜尋課程並把結果**回傳**，不寫進 [courseInfoList]。
+  ///
+  /// 模擬排課的搜尋頁自己管結果：它跟「導入其他課程」是兩條路，共用同一個
+  /// observable 會讓其中一頁的搜尋結果跳到另一頁上。
+  /// 搜尋課程。學期由呼叫端指定：模擬課表綁在自己的學年度上，不一定是目前
+  /// 畫面上那一學期。
+  Future<List<CourseMainInfoJson>> searchCourse(
+          SemesterJson semester, CourseQueryFilter filter) =>
+      courseModel.getQueryCourse(semester, filter);
+
   Future<void> onCustomCourseSearchSubmit(String value) async {
     FocusManager.instance.primaryFocus?.unfocus();
     var res = await courseModel.getQueryCourse(
-        courseTableData!.courseSemester, value);
+        courseTableData!.courseSemester, CourseQueryFilter(courseNo: value));
     courseInfoList.value = res;
   }
 
@@ -174,6 +205,10 @@ class CourseController extends GetxController {
     refreshSemester();
     await Future.delayed(const Duration(milliseconds: 50));
     isLoading.value = CourseTableUIState.success;
+    // 課表載出來的這一刻是 App 最有用的時候，評分要問就問在這裡。
+    // 它自己會判斷次數與間隔，多半什麼都不做；unawaited 是因為它跟課表無關。
+    unawaited(StoreReviewService.instance
+        .recordSuccess(await APPVersion.getAppVersion()));
   }
 
   /// 把使用者在自訂課程頁選好的課加進課表。

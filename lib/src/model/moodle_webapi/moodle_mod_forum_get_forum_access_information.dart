@@ -19,9 +19,9 @@ part 'moodle_mod_forum_get_forum_access_information.g.dart';
 /// 鈕）；true 什麼都證明不了（還要 ownpost ∧ 時間窗 ∧ 非 mailnow ∧ 沒有回覆
 /// ∧ 沒有被評分）。
 ///
-/// [canstartdiscussion] 比 `mod_forum_can_add_discussion` 的 `status` 弱
-/// （不含討論串鎖定、群組模式、`forum_user_can_post_discussion`），**不要**
-/// 拿它取代現有的 `canAddDiscussion`。
+/// [canstartdiscussion] 沒有讀取點：App 不提供「發表新主題」。它也比伺服器
+/// 端的 `forum_user_can_post_discussion` 弱（不含討論串鎖定與群組模式），
+/// 就算哪天要用也不能單獨拿它當閘門。
 @JsonSerializable()
 class MoodleForumAccess {
   /// 回覆路徑的附件閘門。純 capability，**不含** `maxattachments == 0` 與

@@ -221,6 +221,9 @@ class _LogConsoleState extends State<LogConsole> {
           const SizedBox(width: 20),
           DropdownButton<Level>(
             value: _filterLevel,
+            // 預設的下拉箭頭是 Material 的 arrow_drop_down，整包 App 裡唯一
+            // 一顆非 Lucide 的圖示。
+            icon: const Icon(LucideIcons.chevronDown),
             items: const [
               DropdownMenuItem(
                 value: Level.trace,

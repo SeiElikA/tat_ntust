@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_app/src/R.dart';
 import 'package:flutter_app/ui/components/card/section_card.dart';
+import 'package:flutter_app/ui/components/page/destructive_row.dart';
 import 'package:flutter_app/ui/other/lucide_icons.dart';
 
 /// 自己的貼文可以做的兩件事。
@@ -47,7 +48,6 @@ class _ForumPostActionSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
     return SafeArea(
       // 可捲：modal sheet 的高度上限是螢幕的 9/16，字級放大就會超出去。
       child: SingleChildScrollView(
@@ -66,13 +66,12 @@ class _ForumPostActionSheet extends StatelessWidget {
                 onTap: () => Navigator.pop(context, ForumPostAction.edit),
               ),
             if (canDelete)
-              ListTile(
+              DestructiveRow(
                 enabled: !deleteBlockedByReplies,
-                leading: Icon(LucideIcons.trash2, color: scheme.error),
-                title: Text(R.current.forumDeletePost,
-                    style: TextStyle(color: scheme.error)),
+                icon: LucideIcons.trash2,
+                label: R.current.forumDeletePost,
                 subtitle: deleteBlockedByReplies
-                    ? Text(R.current.forumCannotDeleteHasReplies)
+                    ? R.current.forumCannotDeleteHasReplies
                     : null,
                 onTap: () => Navigator.pop(context, ForumPostAction.delete),
               ),

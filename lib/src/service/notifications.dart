@@ -15,6 +15,7 @@ class Notifications {
   static final Notifications instance = Notifications._();
   final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
       FlutterLocalNotificationsPlugin();
+
   /// 通知被點擊時的 payload。
   ///
   /// 單一訂閱（不是 broadcast）是刻意的：從通知點擊冷啟動時，
@@ -37,15 +38,16 @@ class Notifications {
         const AndroidInitializationSettings('app_icon');
     // 權限不在這裡要，改由 _requestIOSPermissions 事後索取。
     var initializationSettingsIOS = const DarwinInitializationSettings(
-        requestAlertPermission: false,
-        requestBadgePermission: false,
-        requestSoundPermission: false,
+      requestAlertPermission: false,
+      requestBadgePermission: false,
+      requestSoundPermission: false,
     );
     var initializationSettings = InitializationSettings(
       android: initializationSettingsAndroid,
       iOS: initializationSettingsIOS,
     );
-    await flutterLocalNotificationsPlugin.initialize(initializationSettings, onDidReceiveNotificationResponse: (NotificationResponse payload) async {
+    await flutterLocalNotificationsPlugin.initialize(initializationSettings,
+        onDidReceiveNotificationResponse: (NotificationResponse payload) async {
       if (payload.payload != null) {
         selectNotificationSubject.add(payload.payload!);
       }
@@ -99,7 +101,8 @@ class Notifications {
     });
   }
 
-  Future<void> showProgressNotification(ReceivedNotification value, int maxProgress, int nowProgress) async {
+  Future<void> showProgressNotification(
+      ReceivedNotification value, int maxProgress, int nowProgress) async {
     var androidPlatformChannelSpecifics = AndroidNotificationDetails(
         downloadChannelId, downloadChannelName,
         channelDescription: downloadChannelDescription,
@@ -121,7 +124,8 @@ class Notifications {
         payload: value.payload);
   }
 
-  Future<void> showIndeterminateProgressNotification(ReceivedNotification value) async {
+  Future<void> showIndeterminateProgressNotification(
+      ReceivedNotification value) async {
     var androidPlatformChannelSpecifics = AndroidNotificationDetails(
         downloadChannelId, downloadChannelName,
         channelDescription: downloadChannelDescription,

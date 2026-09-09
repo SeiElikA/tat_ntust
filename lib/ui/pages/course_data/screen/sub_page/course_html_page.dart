@@ -9,6 +9,7 @@ import 'package:flutter_app/src/util/web_view_url_policy.dart';
 import 'package:flutter_app/ui/components/custom_appbar.dart';
 import 'package:flutter_app/ui/components/html/no_embedded_web_view_factory.dart';
 import 'package:flutter_app/ui/components/page/error_page.dart';
+import 'package:flutter_app/ui/other/theme_context.dart';
 import 'package:flutter_app/ui/routes/route_utils.dart';
 import 'package:flutter_widget_from_html/flutter_widget_from_html.dart';
 
@@ -71,7 +72,7 @@ class _CourseHtmlPageState extends State<CourseHtmlPage> {
               html,
               baseUrl: _baseUrl,
               factoryBuilder: courseHtmlWidgetFactory,
-              textStyle: const TextStyle(height: 1.2),
+              textStyle: context.text.bodyLarge,
               renderMode: RenderMode.column,
               onTapUrl: (String url) => WebViewUrlPolicy.handleTap(
                 url,

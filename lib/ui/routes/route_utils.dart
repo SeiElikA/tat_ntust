@@ -1,24 +1,36 @@
 import 'dart:io';
 
+import 'package:flutter/widgets.dart';
+
 import 'package:flutter_app/src/connector/moodle_webapi_connector.dart';
+import 'package:flutter_app/src/controller/course_member/course_member_controller.dart';
 import 'package:flutter_app/src/util/remote_config_utils.dart';
 import 'package:flutter_app/ui/pages/announcement/announcement_center_page.dart';
+import 'package:flutter_app/ui/pages/announcement/announcement_center_preview_page.dart';
 import 'package:flutter_app/ui/pages/announcement/announcement_page.dart';
 import 'package:flutter_app/src/model/course/course_class_json.dart';
 import 'package:flutter_app/src/model/course/course_main_extra_json.dart';
 import 'package:flutter_app/src/model/course_table/course_table_json.dart';
+import 'package:flutter_app/src/model/moodle_webapi/moodle_core_calendar_action_events.dart';
+import 'package:flutter_app/src/repository/moodle_repository.dart';
+import 'package:flutter_app/src/util/upcoming_event_utils.dart';
+import 'package:flutter_app/ui/components/page/error_page.dart';
+import 'package:flutter_app/ui/components/page/inline_error_view.dart';
 import 'package:flutter_app/ui/pages/course_data/course_data_page.dart';
 import 'package:flutter_app/ui/pages/course_data/screen/sub_page/course_folder_page.dart';
 import 'package:flutter_app/ui/pages/course_data/screen/sub_page/course_info_page.dart';
 import 'package:flutter_app/ui/pages/course_detail/course_detail_page.dart';
+import 'package:flutter_app/ui/pages/course_member/course_member_page.dart';
 import 'package:flutter_app/ui/pages/log_console/log_console.dart';
 import 'package:flutter_app/ui/pages/other/page/about_page.dart';
 import 'package:flutter_app/ui/pages/other/page/privacy_policy_page.dart';
+import 'package:flutter_app/ui/pages/other/page/profile_page.dart';
 import 'package:flutter_app/ui/pages/other/page/contributors_page.dart';
 import 'package:flutter_app/ui/pages/other/page/dev_page.dart';
 import 'package:flutter_app/ui/pages/other/page/setting/setting_page.dart';
 import 'package:flutter_app/ui/pages/other/page/store_edit_page.dart';
 import 'package:flutter_app/ui/pages/score/moodle_course_grades_page.dart';
+import 'package:flutter_app/ui/pages/subsystem/sub_system_page.dart';
 import 'package:flutter_app/ui/pages/web_view/inapp_web_view_page.dart';
 import 'package:flutter_app/ui/screen/privacy_policy/privacy_policy_screen.dart';
 import 'package:flutter_app/ui/screen/login/login_screen.dart';
@@ -52,6 +64,16 @@ class RouteUtils {
 
   static Transition transition =
       (Platform.isAndroid) ? Transition.downToUp : Transition.cupertino;
+
+  /// 通知頁的假資料預覽，只掛在開發者選單——真實帳號常常一則通知都沒有，
+  /// 設計稿畫的那幾種狀態平常根本看不到。
+  static Future<void> toNotificationPreviewPage() async {
+    await Get.to(
+      () => const AnnouncementCenterPreviewPage(),
+      transition: transition,
+    );
+  }
+
   static Future toDevPage() async {
     return await Get.to(
       () => const DevPage(),
@@ -87,6 +109,35 @@ class RouteUtils {
     );
   }
 
+  /// 行事曆的待辦點下去要開的 App 內頁面。開不成回 false，呼叫端就照舊開
+  /// WebView——站台事件、認不出課號、以及沒有 App 內頁面的模組都會走那條。
+  ///
+  /// 要開哪一頁不是從事件本身判斷的，而是拿 cmid 去那門課的模組表對出真正的
+  /// `Modules` 再交給 [CourseModuleActions]：事件的 `instance` 在 NTUST 回的是
+  /// cmid（見 `UpcomingEventUtils.cmidOf`），而檔案分頁點模組走的也是
+  /// [CourseModuleActions]，共用同一份兩邊才不會走鐘。
+  ///
+  /// 課程模組表多半是快取命中；抓不到就當作開不成，不會卡在轉圈。
+  static Future<bool> tryOpenUpcomingEvent(
+      BuildContext context, MoodleActionEvent event) async {
+    final target = UpcomingEventUtils.targetOf(event);
+    if (target == null) return false;
+    final courseInfo = CourseInfoJson(
+      main: CourseMainInfoJson(
+        course: CourseMainJson(id: target.courseId, name: target.courseName),
+      ),
+    );
+    final sections =
+        (await MoodleRepository.instance.getCourseDirectory(target.courseId))
+            .dataOrNull;
+    if (sections == null) return false;
+    final module = UpcomingEventUtils.moduleOf(sections, target.cmid);
+    if (module == null) return false;
+    if (!context.mounted) return true;
+    CourseModuleActions(courseInfo).handle(context, module);
+    return true;
+  }
+
   static Future toCourseFolderPage(
       CourseInfoJson courseInfo, dynamic value) async {
     return await Get.to(
@@ -111,6 +162,25 @@ class RouteUtils {
     );
   }
 
+  /// 修課學生名單。[controller] 由課程頁持有並負責 dispose——返回再進來要能
+  /// 直接畫上一次的結果，這裡不可以順手 new 一顆。
+  static Future toCourseMemberPage(
+    CourseMemberController controller, {
+    required String courseName,
+    required int memberCount,
+  }) async {
+    return await Get.to(
+      () => CourseMemberPage(
+        controller: controller,
+        courseName: courseName,
+        knownMemberCount: memberCount,
+        errorBuilder: (message, onRetry) =>
+            InlineErrorView(message: message, onRetry: onRetry),
+      ),
+      transition: transition,
+    );
+  }
+
   static Future toPrivacyPolicyPage() async {
     return await Get.to(
       () => const PrivacyPolicyPage(),
@@ -128,6 +198,35 @@ class RouteUtils {
   static Future toAboutPage() async {
     return await Get.to(
       () => const AboutPage(),
+      transition: transition,
+    );
+  }
+
+  /// 資訊系統。錯誤畫面與 WebView 開啟器都在這裡注入，那一頁本身不
+  /// import 路由表（見 docs/ARCHITECTURE.md「UI 慣例」）。
+  /// [serviceId] 帶進來就只看那一個分類（「更多」頁的四張分類卡），
+  /// null 是全部服務。
+  static Future toSubSystemPage({String? serviceId}) async {
+    return await Get.to(
+      () => SubSystemPage(
+        serviceId: serviceId,
+        errorBuilder: (message) => ErrorPage(errorMsg: message),
+        openWebView: (title, url) => toWebViewPage(title, url),
+      ),
+      transition: transition,
+    );
+  }
+
+  /// 個人資訊。頭貼與「前往學籍資料」都是呼叫端的動作，所以整包傳進去。
+  static Future toProfilePage({
+    required Future<void> Function() onChangeAvatar,
+    required void Function() onOpenStudentRecord,
+  }) async {
+    return await Get.to(
+      () => ProfilePage(
+        onChangeAvatar: onChangeAvatar,
+        onOpenStudentRecord: onOpenStudentRecord,
+      ),
       transition: transition,
     );
   }

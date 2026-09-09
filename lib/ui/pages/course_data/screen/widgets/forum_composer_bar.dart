@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_app/src/config/app_tokens.dart';
+import 'package:flutter_app/ui/other/theme_context.dart';
 import 'package:flutter_app/src/R.dart';
 import 'package:flutter_app/src/service/task_ui_delegate.dart';
 import 'package:flutter_app/src/util/file_utils.dart';
@@ -13,9 +15,12 @@ import 'package:sprintf/sprintf.dart';
 /// 討論串頁底部那條常駐的回覆列。
 ///
 /// **回覆不換頁**：對話還在上面，被回覆的那一篇就在列的正上方，所以不需要
-/// 引用區，也不需要一頁只為了兩句話。`Scaffold` 在 `resizeToAvoidBottomInset`
-/// 下自動把它抬到鍵盤上方，body 的 `ListView` 自己讓出高度，不必手算
-/// `viewInsets`。
+/// 引用區，也不需要一頁只為了兩句話。
+///
+/// **這條列必須住在 `Scaffold.body` 裡面**（見 `CourseForumThreadPage`）。
+/// `resizeToAvoidBottomInset` 只讓 body 讓出鍵盤的高度；
+/// `bottomNavigationBar` 是釘在 Scaffold 最底下量的（`_ScaffoldLayout` 的
+/// `bottom` 是整個畫面高度，不扣 viewInsets），放在那裡鍵盤一開就整條被蓋住。
 ///
 /// 送出、挑檔、取消一律由呼叫端注入：這個元件不 import repository /
 /// connector / route_utils / error_page / base_page / dio。
@@ -129,63 +134,36 @@ class ForumComposerBarState extends State<ForumComposerBar> {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final text = Theme.of(context).textTheme;
-    return SafeArea(
-      top: false,
-      child: Material(
-        color: scheme.surfaceContainer,
+    final scheme = context.scheme;
+    final text = context.text;
+    return Material(
+      // SafeArea 一定要在 Material **裡面**：包在外面時讓出來的那段 inset 是
+      // 透明的，底色停在 home indicator 上緣，列與螢幕底之間會露出一條頁面色。
+      color: context.tokens.card,
+      child: SafeArea(
+        top: false,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             _statusSlot(scheme),
-            _replyTargetStrip(scheme, text),
             if (_files.isNotEmpty) _attachmentStrip(scheme, text),
             Padding(
-              padding: const EdgeInsets.fromLTRB(4, 6, 4, 6),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.end,
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  if (widget.canAttach)
-                    IconButton(
-                      icon: const Icon(LucideIcons.paperclip, size: 20),
-                      tooltip: R.current.forumAddAttachment,
-                      onPressed:
-                          (_busy || _files.length >= widget.maxAttachments)
-                              ? null
-                              : () => unawaited(_pick()),
-                    ),
-                  Expanded(
-                    child: TextField(
-                      controller: _messageController,
-                      focusNode: _focusNode,
-                      // **不是 `enabled: !_busy`**：TextField 把 enabled 直接
-                      // 灌進 focus node 的 canRequestFocus，而把它關掉會順手
-                      // unfocus——每送出一則回覆鍵盤就收一次，下一句話要先
-                      // 重新點一次輸入框。
-                      readOnly: _busy,
-                      minLines: 1,
-                      // 第 7 行起內部捲動：一條列不該把討論串擠出畫面。
-                      maxLines: 6,
-                      keyboardType: TextInputType.multiline,
-                      textCapitalization: TextCapitalization.sentences,
-                      style: text.bodyMedium?.copyWith(color: scheme.onSurface),
-                      decoration: InputDecoration(
-                        isDense: true,
-                        filled: true,
-                        fillColor: scheme.surfaceContainerHighest,
-                        hintText: widget.hintText,
-                        // 沒有 helperText：空欄位不必被告知自己是空的。
-                        contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 10),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(20),
-                          borderSide: BorderSide.none,
-                        ),
-                      ),
-                    ),
+                  _replyTargetStrip(scheme, text),
+                  const SizedBox(height: 9),
+                  // 設計稿的回覆列就是「欄位 + 44 見方的送出」兩格，間距 10，
+                  // 垂直置中（Row 的預設）。
+                  Row(
+                    children: [
+                      Expanded(child: _field(scheme, text)),
+                      const SizedBox(width: 10),
+                      _sendSlot(),
+                    ],
                   ),
-                  _sendSlot(scheme),
                 ],
               ),
             ),
@@ -194,6 +172,53 @@ class ForumComposerBarState extends State<ForumComposerBar> {
       ),
     );
   }
+
+  /// 設計稿的欄位：高 48、圓角 14、無描邊、15px 的字。形狀一律來自主題的
+  /// `InputDecorationTheme`，這裡不自己畫一個圓角盒子。
+  Widget _field(ColorScheme scheme, TextTheme text) {
+    // 內文預設的 1.7 會讓單行的盒子比 48 高；壓到設計稿量到的 1.4，字級才留
+    // 得住 15，盒子也還停在 48。
+    final body = text.bodyLarge?.copyWith(height: 1.4);
+    return TextField(
+      controller: _messageController,
+      focusNode: _focusNode,
+      // **不是 `enabled: !_busy`**：TextField 把 enabled 直接灌進 focus node
+      // 的 canRequestFocus，而把它關掉會順手 unfocus——每送出一則回覆鍵盤就
+      // 收一次，下一句話要先重新點一次輸入框。
+      readOnly: _busy,
+      minLines: 1,
+      // 第 7 行起內部捲動：一條列不該把討論串擠出畫面。
+      maxLines: 6,
+      keyboardType: TextInputType.multiline,
+      textCapitalization: TextCapitalization.sentences,
+      textAlignVertical: TextAlignVertical.center,
+      style: body?.copyWith(color: scheme.onSurface),
+      decoration: InputDecoration(
+        hintText: widget.hintText,
+        // 提示與打出來的字同一個字級，不然一開始打字整行會跳一階。
+        hintStyle: body?.copyWith(color: scheme.onSurfaceVariant),
+        // 填色取與底色相反的那一階：這條列是卡片色，所以欄位填頁面色。
+        fillColor: context.tokens.page,
+        // 紙夾是 App 多出來的能力，設計稿上沒有；擺進欄位裡而不是自成一欄，
+        // 那一列才還是設計稿的「欄位 + 送出」兩格。
+        prefixIcon: widget.canAttach ? _attachButton() : null,
+        prefixIconConstraints:
+            const BoxConstraints(minWidth: 42, minHeight: 24),
+        // 沒有 helperText：空欄位不必被告知自己是空的。
+      ),
+    );
+  }
+
+  Widget _attachButton() => IconButton(
+        icon: const Icon(LucideIcons.paperclip, size: 20),
+        tooltip: R.current.forumAddAttachment,
+        padding: EdgeInsets.zero,
+        constraints: const BoxConstraints.tightFor(
+            width: TatTokens.heightButton, height: TatTokens.heightButton),
+        onPressed: (_busy || _files.length >= widget.maxAttachments)
+            ? null
+            : () => unawaited(_pick()),
+      );
 
   /// 固定高度 2 的槽，三態共用——列不會在忙碌時跳高。
   ///
@@ -218,39 +243,36 @@ class ForumComposerBarState extends State<ForumComposerBar> {
   /// 憑空消失（而且列的高度不會跳）。
   Widget _replyTargetStrip(ColorScheme scheme, TextTheme text) {
     final target = widget.targetLabel;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 6, 4, 0),
-      child: Row(
-        children: [
-          Icon(LucideIcons.reply, size: 14, color: scheme.onSurfaceVariant),
-          const SizedBox(width: 6),
-          Expanded(
-            child: InkWell(
-              onTap: widget.onScrollToTarget,
-              child: Text(
-                target == null
-                    ? sprintf(
-                        R.current.forumReplyingToTopic, [widget.topicLabel])
-                    : sprintf(R.current.forumReplyingTo, [target]),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: text.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
-              ),
+    return Row(
+      children: [
+        Icon(LucideIcons.reply, size: 15, color: scheme.onSurfaceVariant),
+        const SizedBox(width: 8),
+        Expanded(
+          child: InkWell(
+            onTap: widget.onScrollToTarget,
+            child: Text(
+              target == null
+                  ? sprintf(R.current.forumReplyingToTopic, [widget.topicLabel])
+                  : sprintf(R.current.forumReplyingTo, [target]),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: text.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
             ),
           ),
-          // 已經在回第一篇了就沒有東西可以取消，那顆 x 留著只會讓人以為
-          // 自己漏看了什麼。寬度用一個等寬的空盒補上，列不會左右跳。
-          if (target == null)
-            const SizedBox(width: 40)
-          else
-            IconButton(
-              icon: const Icon(LucideIcons.x, size: 16),
-              tooltip: R.current.forumCancelReplyTarget,
-              visualDensity: VisualDensity.compact,
-              onPressed: _busy ? null : widget.onAimAtRoot,
-            ),
-        ],
-      ),
+        ),
+        // 已經在回第一篇了就沒有東西可以取消，那顆 x 留著只會讓人以為
+        // 自己漏看了什麼。寬度用一個等寬的空盒補上，列不會左右跳。
+        if (target == null)
+          const SizedBox(width: 32)
+        else
+          IconButton(
+            icon: const Icon(LucideIcons.x, size: 16),
+            tooltip: R.current.forumCancelReplyTarget,
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints.tightFor(width: 32, height: 32),
+            onPressed: _busy ? null : widget.onAimAtRoot,
+          ),
+      ],
     );
   }
 
@@ -307,42 +329,43 @@ class ForumComposerBarState extends State<ForumComposerBar> {
         ],
       );
 
-  /// 四態，寬固定 44 所以不抖。
-  Widget _sendSlot(ColorScheme scheme) {
-    if (_phase == ForumTransferPhase.upload) {
-      // 上傳階段可以取消：伺服器上什麼都還沒動。
-      return IconButton(
-        icon: const Icon(LucideIcons.x, size: 20),
-        tooltip: R.current.cancel,
-        onPressed: widget.onCancelUpload,
+  /// 三態，寬固定 44 所以不抖。
+  ///
+  /// 設計稿是一顆 44 見方、圓角 14 的實心鈕，不是 M3 的圓形 FAB。送不出去時
+  /// 只是停用，**形狀與底色不換**：空欄位上換成一顆沒有底的灰圖示，打第一個
+  /// 字時整顆鈕會憑空長出來。
+  Widget _sendSlot() => SizedBox.square(
+        dimension: TatTokens.heightButton,
+        child: switch (_phase) {
+          // 上傳階段可以取消：伺服器上什麼都還沒動。
+          ForumTransferPhase.upload => IconButton(
+              icon: const Icon(LucideIcons.x, size: 20),
+              tooltip: R.current.cancel,
+              padding: EdgeInsets.zero,
+              onPressed: widget.onCancelUpload,
+            ),
+          ForumTransferPhase.posting => const Center(
+              child: SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            ),
+          null => IconButton.filled(
+              icon: const Icon(LucideIcons.send, size: 20),
+              tooltip: R.current.forumSend,
+              style: IconButton.styleFrom(
+                shape: const RoundedRectangleBorder(
+                  borderRadius:
+                      BorderRadius.all(Radius.circular(TatTokens.radiusField)),
+                ),
+                padding: EdgeInsets.zero,
+                fixedSize: const Size.square(TatTokens.heightButton),
+              ),
+              onPressed: _canSend ? () => unawaited(_send()) : null,
+            ),
+        },
       );
-    }
-    if (_phase == ForumTransferPhase.posting) {
-      return const SizedBox(
-        width: 44,
-        height: 44,
-        child: Center(
-          child: SizedBox(
-            width: 20,
-            height: 20,
-            child: CircularProgressIndicator(strokeWidth: 2),
-          ),
-        ),
-      );
-    }
-    if (!_canSend) {
-      return IconButton(
-        icon: const Icon(LucideIcons.send, size: 20),
-        tooltip: R.current.forumSend,
-        onPressed: null,
-      );
-    }
-    return IconButton.filled(
-      icon: const Icon(LucideIcons.send, size: 20),
-      tooltip: R.current.forumSend,
-      onPressed: () => unawaited(_send()),
-    );
-  }
 
   Future<void> _pick() async {
     final remaining = widget.maxAttachments - _files.length;

@@ -54,8 +54,9 @@
 		<key>NSAllowsArbitraryLoadsInWebContent</key>
 		<true/>
 	</dict>
-	<!-- NSCameraUsageDescription 是必填：FLTImagePickerPlugin 會呼叫
-	     AVCaptureDevice requestAccessForMediaType，缺這個 key 系統直接終止程序。
+	<!-- NSCameraUsageDescription 是必填：mobile_scanner（掃課表 QR）與
+	     FLTImagePickerPlugin 都會呼叫 AVCaptureDevice
+	     requestAccessForMediaType，缺這個 key 系統直接終止程序。
 	     NSPhotoLibraryUsageDescription 是防禦性的：部署目標 >= 14，相簿走的是
 	     PHPicker、執行期不會要求授權，但 Photos API 仍然連進 binary，
 	     App Review 會抓缺少用途字串。不加 NSPhotoLibraryAddUsageDescription：
@@ -64,11 +65,11 @@
 	     `*.lproj/InfoPlist.strings`——iOS 挑的是**系統語言**，跟 App 內的
 	     語言切換無關，所以中文不能寫在這個檔案裡。 -->
 	<key>NSCameraUsageDescription</key>
-	<string>Take a photo to use as your Moodle profile picture</string>
+	<string>Scan a classmate's course-table QR code, or take a photo for your Moodle profile picture</string>
 	<key>NSFaceIDUsageDescription</key>
 	<string>Check change password</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>Choose an image for your Moodle profile picture</string>
+	<string>Pick a course-table QR image, or choose a Moodle profile picture</string>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>UIBackgroundModes</key>

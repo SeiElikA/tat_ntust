@@ -41,8 +41,6 @@ class _FakeRepo extends MoodleRepository {
   List<MoodleForumFile> refreshedAttachments = const [];
   bool refreshFails = false;
 
-  List<MoodleForumPost>? firstPostsAfterDiscussion;
-
   final uploadedNames = <String>[];
   final uploadedItemIds = <int?>[];
   final prepareCalls = <List<({String filename, String filepath})>>[];
@@ -50,9 +48,7 @@ class _FakeRepo extends MoodleRepository {
   final updateMessages = <String>[];
   final updateFormats = <int>[];
   int? replyAttachmentsId;
-  int? discussionAttachmentsId;
   int deleteCalls = 0;
-  int discussionPostsCalls = 0;
   int updateCalls = 0;
   final progress = <ForumTransferProgress>[];
 
@@ -98,17 +94,6 @@ class _FakeRepo extends MoodleRepository {
   }
 
   @override
-  Future<int> writeDiscussion({
-    required int forumId,
-    required String subject,
-    required String htmlMessage,
-    int? attachmentsId,
-  }) async {
-    discussionAttachmentsId = attachmentsId;
-    return 4321;
-  }
-
-  @override
   Future<void> writePostUpdate({
     required int postId,
     required String subject,
@@ -143,12 +128,6 @@ class _FakeRepo extends MoodleRepository {
       canEdit: true,
       attachments: [...refreshedAttachments],
     );
-  }
-
-  @override
-  Future<List<MoodleForumPost>?> fetchDiscussionPosts(int discussionId) async {
-    discussionPostsCalls++;
-    return firstPostsAfterDiscussion;
   }
 
   @override
@@ -309,64 +288,6 @@ void main() {
 
       expect(result, isA<Ok<ForumReplyOutcome>>());
       expect(repo.replyAttachmentsId, isNull);
-    });
-  });
-
-  group('postDiscussion 帶附件', () {
-    test('回應沒有 post，所以另外打一趟重讀第一篇來驗附件', () async {
-      repo.firstPostsAfterDiscussion = [
-        MoodleForumPost(id: 1, attachments: [online('a.pdf')]),
-      ];
-
-      final result = await repo.postDiscussion(
-        forumId: 5499,
-        subject: 's',
-        text: 'm',
-        attachments: [await file('a.pdf')],
-        policy: policy,
-      );
-
-      expect(result.dataOrNull?.discussionId, 4321);
-      expect(result.dataOrNull?.warning, isNull);
-      expect(repo.discussionAttachmentsId, 884411);
-      expect(repo.discussionPostsCalls, 1);
-    });
-
-    test('少了一個附件 → 帶 warning 的成功', () async {
-      repo.firstPostsAfterDiscussion = [MoodleForumPost(id: 1)];
-
-      final result = await repo.postDiscussion(
-        forumId: 5499,
-        subject: 's',
-        text: 'm',
-        attachments: [await file('a.pdf')],
-        policy: policy,
-      );
-
-      expect(result, isA<Ok<ForumDiscussionOutcome>>());
-      expect(result.dataOrNull!.warning, contains('a.pdf'));
-    });
-
-    test('驗證那一趟抓不到 → 主題仍然建立了，說一句沒有重新載入', () async {
-      repo.firstPostsAfterDiscussion = null;
-
-      final result = await repo.postDiscussion(
-        forumId: 5499,
-        subject: 's',
-        text: 'm',
-        attachments: [await file('a.pdf')],
-        policy: policy,
-      );
-
-      expect(result.dataOrNull?.discussionId, 4321);
-      expect(result.dataOrNull?.warning, R.current.forumSendDoneRefreshFailed);
-    });
-
-    test('沒有附件時不多打那一趟', () async {
-      await repo.postDiscussion(forumId: 5499, subject: 's', text: 'm');
-
-      expect(repo.discussionPostsCalls, 0);
-      expect(repo.discussionAttachmentsId, isNull);
     });
   });
 
@@ -579,7 +500,6 @@ void main() {
           await CacheStore.instance
               .read(MoodleRepository.discussionPostsKey(7701)),
           isNotNull);
-      expect(repo.discussionPostsCalls, 0);
     });
 
     test('刪主文：那一串的快取被清掉，而且**沒有**再打 get_discussion_posts', () async {
@@ -595,8 +515,6 @@ void main() {
               .read(MoodleRepository.discussionPostsKey(7701)),
           isNull,
           reason: '討論串已經不存在，留著就是一份指向空氣的舊資料');
-      expect(repo.discussionPostsCalls, 0,
-          reason: '伺服器端那一支沒有 null 檢查，會丟 PHP Error');
     });
 
     test('couldnotdeletereplies → 「有人回覆過就不能刪」，而且不提網頁', () async {
@@ -658,17 +576,6 @@ void main() {
 
       expect(result.dataOrNull!.enabled, isFalse);
     });
-
-    test('新主題那條路直接吃 can_add_discussion 的答案，不再問 access', () async {
-      final counting = _CountingAccessRepo();
-      MoodleRepository.instance = counting;
-
-      final result = await counting.getForumAttachPolicy(
-          courseId: '1234', forumId: 5499, knownCanCreateAttachment: true);
-
-      expect(result.dataOrNull!.enabled, isTrue);
-      expect(counting.accessCalls, 0);
-    });
   });
 }
 
@@ -676,14 +583,4 @@ class _QuietAccessRepo extends _FakeRepo {
   @override
   Future<MoodleForumAccess?> fetchForumAccess(int forumId) async =>
       fixtureForumAccess('get_forum_access_information_no_attachment');
-}
-
-class _CountingAccessRepo extends _FakeRepo {
-  int accessCalls = 0;
-
-  @override
-  Future<MoodleForumAccess?> fetchForumAccess(int forumId) async {
-    accessCalls++;
-    return super.fetchForumAccess(forumId);
-  }
 }

@@ -31,16 +31,34 @@ class CalendarRepository {
       return Ok(savePath);
     }
 
-    final progress = TaskUiDelegate.instance.beginProgress(R.current.downloading);
+    // 進度框只蓋在真的在等網路的那兩段，中間問使用者要哪個學期時不蓋——
+    // 不然選單已經開在上面了，底下還浮著一個「下載中」。
+    var progress =
+        TaskUiDelegate.instance.beginProgress(R.current.prepareDownload);
     try {
-      final semesters = await NTUSTConnector.getCalendarUrl();
+      final Map<String, String>? semesters;
+      try {
+        semesters = await NTUSTConnector.getCalendarUrl();
+      } finally {
+        progress.dismiss();
+      }
       if (semesters == null || semesters.isEmpty) {
         return _fallback(savePath, R.current.downloadError);
       }
 
       final chosen = await TaskUiDelegate.instance
-              .chooseOne(R.current.selectSemester, semesters) ??
-          semesters.values.first;
+          .chooseOne(R.current.selectSemester, semesters);
+      // 取消就不下載。以前這裡 fallback 成 semesters.values.first，使用者點掉
+      // 選單就會拿到一份他沒選過的行事曆。
+      //
+      // 取消不是失敗：手上已經有檔案就原封不動回去，不要吐「取得最新資料
+      // 失敗」——使用者只是改變主意，畫面上的行事曆仍然是好的。
+      if (chosen == null) {
+        if (await File(savePath).exists()) return Ok(savePath);
+        return Failed(FetchFailed(R.current.calendarNoSemesterSelected));
+      }
+
+      progress = TaskUiDelegate.instance.beginProgress(R.current.downloading);
 
       // 先寫暫存檔並驗過內容才覆蓋正式檔。dio 的 validateStatus 放行到 500，
       // 404 或登入頁的 body 會被原封不動寫成 calendar.ics，而上面的閘門只看

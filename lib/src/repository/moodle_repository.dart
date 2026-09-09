@@ -14,7 +14,6 @@ import 'package:flutter_app/src/model/moodle_webapi/moodle_gradereport_overview_
 import 'package:flutter_app/src/model/moodle_webapi/moodle_message_popup_notifications.dart';
 import 'package:flutter_app/src/model/moodle_webapi/moodle_mod_assign_get_assignments.dart';
 import 'package:flutter_app/src/model/moodle_webapi/moodle_mod_assign_get_submission_status.dart';
-import 'package:flutter_app/src/model/moodle_webapi/moodle_mod_forum_can_add_discussion.dart';
 import 'package:flutter_app/src/model/moodle_webapi/moodle_mod_forum_draft_area.dart';
 import 'package:flutter_app/src/model/moodle_webapi/moodle_mod_forum_get_discussion_posts.dart';
 import 'package:flutter_app/src/model/moodle_webapi/moodle_mod_forum_get_forum_discussions.dart';
@@ -35,8 +34,8 @@ import 'package:flutter_app/src/util/moodle_assign_utils.dart';
 import 'package:flutter_app/src/util/moodle_avatar_utils.dart';
 import 'package:flutter_app/src/util/moodle_draft_url_utils.dart';
 import 'package:flutter_app/src/util/moodle_forum_edit_utils.dart';
-import 'package:flutter_app/src/util/moodle_forum_utils.dart';
 import 'package:flutter_app/src/util/moodle_quiz_utils.dart';
+import 'package:flutter_app/src/util/html_utils.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:sprintf/sprintf.dart';
 
@@ -123,7 +122,8 @@ class MoodleRepository {
           courseId,
           decode: decodeCachedScore,
         ),
-        fetch: MoodleWebApiConnector.getScore,
+        fetch: (findId) async =>
+            normalizeScore(await MoodleWebApiConnector.getScore(findId)),
         errorMessage: R.current.getMoodleScoreError,
         debugLabel: 'moodleScore',
       );
@@ -376,32 +376,13 @@ class MoodleRepository {
         debugLabel: 'moodleForumDiscussions',
       );
 
-  /// 能不能在這個討論區開新主題。刻意不快取：過期的「你可以發文」比沒有答案
-  /// 更糟——按下去才被伺服器拒絕。[background] 固定為真，這是進頁時的預載。
-  Future<Result<MoodleCanAddDiscussion>> canAddDiscussion(int forumId) =>
-      run<MoodleCanAddDiscussion>(
-        requires: const {SystemId.moodleWebApi},
-        background: true,
-        retry: RetryPolicy.none,
-        errorMessage: R.current.forumCannotPost,
-        debugLabel: 'moodleCanAddDiscussion',
-        fetch: () => MoodleWebApiConnector.canAddDiscussion(forumId),
-      );
-
   /// 這個討論區能不能附檔、最多幾個、單檔多大。
   ///
-  /// 刻意**不快取**，理由同 [canAddDiscussion]：過期的「你可以附檔」比沒有
-  /// 答案更糟。任何一步問不到就回 `enabled: false` 的政策（**不是 null**）
-  /// ——附件上「不知道」等於「不給」。
-  ///
-  /// [knownCanCreateAttachment] 給新主題那條路用：`can_add_discussion` 的
-  /// `cancreateattachment` 已經把 capability、`maxattachments` 與 `maxbytes`
-  /// 三件事都算完了，只差 forum record 上那兩個數字，不必再打一趟
-  /// `get_forum_access_information`。
+  /// 刻意**不快取**：過期的「你可以附檔」比沒有答案更糟。任何一步問不到就回
+  /// `enabled: false` 的政策（**不是 null**）——附件上「不知道」等於「不給」。
   Future<Result<ForumAttachPolicy>> getForumAttachPolicy({
     required String courseId,
     required int forumId,
-    bool? knownCanCreateAttachment,
   }) =>
       run<ForumAttachPolicy>(
         requires: const {SystemId.moodleWebApi},
@@ -409,17 +390,12 @@ class MoodleRepository {
         retry: RetryPolicy.none,
         errorMessage: R.current.forumAttachmentDisabled,
         debugLabel: 'moodleForumAttachPolicy',
-        fetch: () => _forumAttachPolicy(
-          courseId: courseId,
-          forumId: forumId,
-          knownCanCreateAttachment: knownCanCreateAttachment,
-        ),
+        fetch: () => _forumAttachPolicy(courseId: courseId, forumId: forumId),
       );
 
   Future<ForumAttachPolicy> _forumAttachPolicy({
     required String courseId,
     required int forumId,
-    bool? knownCanCreateAttachment,
   }) async {
     final site = MoodleWebApiConnector.siteInfo;
     // upload.php 是所有附件的唯一入口，站台關掉就整條路不通（同交作業與換頭貼）。
@@ -429,10 +405,7 @@ class MoodleRepository {
     if (forumId <= 0) return const ForumAttachPolicy.off();
 
     final forumsFuture = fetchForums(courseId);
-    final accessFuture = knownCanCreateAttachment == null
-        ? fetchForumAccess(forumId)
-        : Future<MoodleForumAccess?>.value(
-            MoodleForumAccess(cancreateattachment: knownCanCreateAttachment));
+    final accessFuture = fetchForumAccess(forumId);
     final forums = await forumsFuture;
     final access = await accessFuture;
     if (forums == null || access == null) return const ForumAttachPolicy.off();
@@ -485,20 +458,6 @@ class MoodleRepository {
         attachmentsId: attachmentsId,
       );
 
-  @visibleForTesting
-  Future<int> writeDiscussion({
-    required int forumId,
-    required String subject,
-    required String htmlMessage,
-    int? attachmentsId,
-  }) =>
-      MoodleWebApiConnector.addDiscussion(
-        forumId: forumId,
-        subject: subject,
-        htmlMessage: htmlMessage,
-        attachmentsId: attachmentsId,
-      );
-
   /// [area] 是 `attachment`（附件）或 `post`（內嵌圖片）。
   ///
   /// **`post` 區只能配空的 [filesToKeep]。** 非空的名單會刪掉不在名單上的
@@ -546,10 +505,6 @@ class MoodleRepository {
   /// 失敗回 null，呼叫端只能說「更新失敗」而不是推一頁空的編輯器。
   Future<ForumPostEdit?> fetchPostForEdit(int postId) =>
       MoodleWebApiConnector.getPostForEdit(postId);
-
-  @visibleForTesting
-  Future<List<MoodleForumPost>?> fetchDiscussionPosts(int discussionId) =>
-      MoodleWebApiConnector.getDiscussionPosts(discussionId);
 
   /// 使用者按了「取消上傳」不是失敗。dio 取消時丟的是 `DioException`，
   /// `run()` 的泛用 catch 只會把它翻成 `errorMessage`——也就是「送出失敗；
@@ -615,63 +570,6 @@ class MoodleRepository {
           } on MoodleApiException catch (e) {
             throw TaskFailure(FetchFailed(forumPostFailureMessage(e)));
           }
-        }),
-      );
-
-  /// 開一個新主題，回討論串 id。[text] 是使用者打的純文字，escape 在這裡做：
-  /// `mod_forum_add_discussion` 沒有 `messageformat`，伺服器一律當 HTML 存。
-  /// `retry` 與 `background` 的理由同 [postReply]。
-  Future<Result<ForumDiscussionOutcome>> postDiscussion({
-    required int forumId,
-    required String subject,
-    required String text,
-    List<File> attachments = const [],
-    ForumAttachPolicy policy = const ForumAttachPolicy.off(),
-    void Function(ForumTransferProgress progress)? onProgress,
-    CancelToken? cancelToken,
-  }) =>
-      run<ForumDiscussionOutcome>(
-        requires: const {SystemId.moodleWebApi},
-        retry: RetryPolicy.none,
-        errorMessage: R.current.forumSendError,
-        debugLabel: 'moodleForumNewDiscussion',
-        fetch: () => _guardCancel(cancelToken, () async {
-          final int discussionId;
-          try {
-            final draftId = await _prepareNewAttachments(
-              attachments,
-              policy,
-              onProgress: onProgress,
-              cancelToken: cancelToken,
-            );
-            discussionId = await writeDiscussion(
-              forumId: forumId,
-              subject: subject,
-              htmlMessage: MoodleForumUtils.plainTextToHtml(text),
-              attachmentsId: draftId,
-            );
-          } on MoodleApiException catch (e) {
-            throw TaskFailure(FetchFailed(forumPostFailureMessage(e)));
-          }
-          if (attachments.isEmpty) {
-            return ForumDiscussionOutcome(discussionId, subject: subject);
-          }
-          // add_discussion 的回應**沒有 post**，附件的事後驗證只能另外打一趟。
-          // 成功之後本來就要重載清單，這一趟順便當成驗證。
-          final posts = await fetchDiscussionPosts(discussionId);
-          if (posts == null || posts.isEmpty) {
-            // 主題確實建立了，只是這一刻證明不了附件有沒有上去——不可以
-            // 報成失敗，也不可以裝作全部都上去了。
-            return ForumDiscussionOutcome(discussionId,
-                subject: subject,
-                warning: R.current.forumSendDoneRefreshFailed);
-          }
-          return ForumDiscussionOutcome(
-            discussionId,
-            subject: subject,
-            warning:
-                _missingAttachmentWarning(attachments, posts.first.attachments),
-          );
         }),
       );
 
@@ -972,8 +870,8 @@ class MoodleRepository {
         },
       );
 
-  /// 新增路徑（回覆／新主題）的附件前置：本地先擋三件事，再把整批送進一個
-  /// draft 區。空清單直接回 null＝不送 `attachmentsid`。
+  /// 回覆路徑的附件前置：本地先擋三件事，再把整批送進一個 draft 區。
+  /// 空清單直接回 null＝不送 `attachmentsid`。
   Future<int?> _prepareNewAttachments(
     List<File> files,
     ForumAttachPolicy policy, {
@@ -1930,7 +1828,6 @@ String avatarFailureMessage(MoodleApiException e) => switch (e.errorcode) {
 /// [R.current.forumSendError]——伺服器的英文原文不會出現在畫面上。
 String forumPostFailureMessage(MoodleApiException e) => switch (e.errorcode) {
       'nopostforum' => R.current.forumErrorNoPermission,
-      'cannotcreatediscussion' => R.current.forumErrorCannotCreateDiscussion,
       // can_edit_post 為假。時間窗、不是自己的貼文、mailnow 三種原因都會走到
       // 這裡，而客戶端分不出是哪一種（$CFG->maxeditingtime 沒有任何 web
       // service 讀得到），所以只講一句每一種情形都成立的話。真正的「時間到了」
@@ -1970,7 +1867,29 @@ MoodleUserGradesEntity decodeCachedScore(dynamic json) {
     throw const FormatException(
         'cache_moodle_score 是 gradereport_user_get_grades_table 年代的舊格式');
   }
-  return MoodleUserGradesEntity.fromJson(json);
+  // 這一版之前寫進去的 blob 還帶著 `&ndash;`，所以解快取也要過一次。
+  return normalizeScore(MoodleUserGradesEntity.fromJson(json))!;
+}
+
+/// 把 `*formatted` 那一組還原成純文字。Moodle 送的是 HTML 片段——全距是
+/// `0&ndash;100`、百分比是 `85.00&nbsp;%`——而它們的下游全是 `Text`，
+/// 不還原就會在畫面上看到 `&ndash;` 四個字。
+///
+/// 放在 repository 而不是 model：`lib/src/model` 在分層裡排在 `lib/src/util`
+/// 之下，model import HtmlUtils 會是一條上行邊（tool/deps.py 門檻是 0）。
+/// 網路與快取兩條路都經過這裡，所以修一次每個消費端都受惠。
+///
+/// `feedback` 刻意不碰：那一欄真的是 HTML，下游是 HtmlWidget，
+/// 在這裡還原等於把它先解一次再交給 HTML sink。
+MoodleUserGradesEntity? normalizeScore(MoodleUserGradesEntity? grades) {
+  if (grades == null) return null;
+  for (final item in grades.gradeItems) {
+    item.gradeFormatted = HtmlUtils.clean(item.gradeFormatted);
+    item.percentageFormatted = HtmlUtils.clean(item.percentageFormatted);
+    item.weightFormatted = HtmlUtils.clean(item.weightFormatted);
+    item.rangeFormatted = HtmlUtils.clean(item.rangeFormatted);
+  }
+  return grades;
 }
 
 /// 走 connector 的 `submissionStatusOf` 而不是 `fromJson`：`gradefordisplay`

@@ -1,7 +1,10 @@
+import 'package:flutter/foundation.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_app/debug/log/log.dart';
 import 'package:flutter_app/src/connector/core/connector.dart';
 import 'package:flutter_app/src/model/course/course_class_json.dart';
+import 'package:flutter_app/src/model/course/course_department.dart';
+import 'package:flutter_app/src/model/course/course_query_filter.dart';
 import 'package:flutter_app/src/model/course/course_main_extra_json.dart';
 import 'package:flutter_app/src/model/course/course_search_json.dart';
 import 'package:flutter_app/src/model/course/course_semester.dart';
@@ -25,6 +28,8 @@ class CourseConnector {
   static const _courseDetailUrl = "$queryHost/querycourse/api/coursedetials";
   static const _courseSearchUrl = "$queryHost/querycourse/api/courses";
   static const _courseSemestersUrl = "$queryHost/querycourse/api/semestersinfo";
+  static const _collegesUrl = "$queryHost/querycourse/api/Colleges/";
+  static const _departmentsUrl = "$queryHost/querycourse/api/departments";
 
   static List<Day> dayEnum = [
     Day.monday,
@@ -114,7 +119,9 @@ class CourseConnector {
       href: "",
       name: info.courseName,
       credits: info.creditPoint,
-      category: "",
+      // RequireOption 只有 R / E 兩個值（實測 1151 學期 1222 / 3060 門）。
+      // 這裡放原始碼、不放在地化字串：model 不 import R.dart（那是上行邊）。
+      category: info.requireOption,
       note: info.contents,
       hours: "",
       time: {},
@@ -125,10 +132,25 @@ class CourseConnector {
     fillCourseTime(courseMain, info.node);
     final courseMainInfo = CourseMainInfoJson();
     courseMainInfo.classroom
-        .add(ClassroomJson(name: info.classRoomNo, href: ''));
+        .add(ClassroomJson(name: dedupeClassroom(info.classRoomNo), href: ''));
     courseMainInfo.teacher.add(TeacherJson(name: info.courseTeacher, href: ""));
     courseMainInfo.course = courseMain;
     return courseMainInfo;
+  }
+
+  /// querycourse 的 `ClassRoomNo` **一節列一次教室**：同一間教室連上兩節就回
+  /// 「公館 Ｅ101、公館 Ｅ101」。照字串印出來會看到同一間教室重複好幾次。
+  ///
+  /// 只去重、不改順序，也不合併不同的教室——一門課真的分兩間上課時那是資訊。
+  @visibleForTesting
+  static String dedupeClassroom(String raw) {
+    final seen = <String>[];
+    for (final part in raw.split(RegExp(r'[、,]'))) {
+      final name = part.trim();
+      if (name.isEmpty || seen.contains(name)) continue;
+      seen.add(name);
+    }
+    return seen.join('、');
   }
 
   /// `/api/courses` 整包回應的轉換。同一個課程代碼若開在不同教室會有多筆，
@@ -156,6 +178,35 @@ class CourseConnector {
       semester: courseSemester[0].semester.substring(3, 4),
     );
     return [semester];
+  }
+
+  /// `/api/semestersinfo` 的完整清單，由新到舊。
+  ///
+  /// 模擬排課要用它、而不是使用者自己的學期：自己的學期是從成績與選課紀錄
+  /// 推出來的，新學期要等紀錄出現才排得進去，那時候選課早就開始了。
+  ///
+  /// 第四碼不一定是數字（暑期是 "114H"），所以只切字串、不做數字轉換；長度
+  /// 不是四碼的就跳過，避免一筆壞資料讓整份清單消失。
+  static List<SemesterJson> parseCourseSemesterList(List<dynamic> items) =>
+      items
+          .map((e) => CourseSemesterJson.fromJson(e as Map<String, dynamic>))
+          .where((e) => e.semester.length == 4)
+          .map((e) => SemesterJson(
+                year: e.semester.substring(0, 3),
+                semester: e.semester.substring(3, 4),
+              ))
+          .toList();
+
+  /// 查不到就回空清單：呼叫端自己決定退路，這一層不丟例外也不開對話框。
+  static Future<List<SemesterJson>> getCourseSemesterList() async {
+    try {
+      final result = await Connector.getDataByGetResponse(
+          ConnectorParameter(_courseSemestersUrl));
+      return parseCourseSemesterList(result.data as List);
+    } catch (e, stack) {
+      Log.eWithStack(e.toString(), stack);
+      return [];
+    }
   }
 
   /// `/api/coursedetials` 固定回一個陣列，要的資料在第一筆。
@@ -250,54 +301,66 @@ class CourseConnector {
     }
   }
 
-  static Future<List<CourseMainInfoJson>?> searchCourse(
-      SemesterJson semester, String keyword) async {
-    List<CourseMainInfoJson> courseMainInfoList = [];
-
+  /// 學院清單。系所篩選的第一層。
+  static Future<List<CollegeJson>?> getColleges() async {
     try {
-      ConnectorParameter parameter;
-      Map<String, dynamic> data = {
-        "CourseName": "",
-        "CourseNo": keyword,
-        "CourseNotes": "",
-        "CourseTeacher": "",
-        "Dimension": "",
-        "ForeignLanguage": 0,
-        "language": (LanguageUtils.getLangIndex() == LangEnum.zh) ? "zh" : "en",
-        "OnleyNTUST": 0,
-        "OnlyGeneral": 0,
-        "OnlyMaster": 0,
-        "OnlyNode": 0,
-        "OnlyUnderGraduate": 0,
-        "Semester": "${semester.year}${semester.semester}"
-      };
-      parameter = ConnectorParameter(_courseSearchUrl, data: data);
-      var json = await Connector.getDataByPostResponse(parameter);
-      if (json.data.length == 0) {
-        Map<String, dynamic> data = {
-          "CourseName": keyword,
-          "CourseNo": "",
-          "CourseNotes": "",
-          "CourseTeacher": "",
-          "Dimension": "",
-          "ForeignLanguage": 0,
-          "language":
-              (LanguageUtils.getLangIndex() == LangEnum.zh) ? "zh" : "en",
-          "OnleyNTUST": 0,
-          "OnlyGeneral": 0,
-          "OnlyMaster": 0,
-          "OnlyNode": 0,
-          "OnlyUnderGraduate": 0,
-          "Semester": "${semester.year}${semester.semester}"
-        };
-        parameter = ConnectorParameter(_courseSearchUrl, data: data);
-        json = await Connector.getDataByPostResponse(parameter);
-      }
-      courseMainInfoList.addAll(parseSearchResult(json.data));
-      return courseMainInfoList;
+      final result = await Connector.getDataByGetResponse(
+          ConnectorParameter(_collegesUrl));
+      return (result.data as List)
+          .map((e) => CollegeJson.fromJson(e as Map<String, dynamic>))
+          .toList();
     } catch (e, stack) {
       Log.eWithStack(e.toString(), stack);
       return null;
     }
   }
+
+  /// 一個學院底下的系所。`DeptNo` 就是課號前兩碼，所以拿它當 CourseNo 送出去
+  /// 就是「這個系開的課」，不需要另一個查詢參數。
+  static Future<List<DepartmentJson>?> getDepartments(String collegeNo) async {
+    try {
+      final parameter = ConnectorParameter(_departmentsUrl)
+        ..data = {"collegeNo": collegeNo};
+      final result = await Connector.getDataByGetResponse(parameter);
+      return (result.data as List)
+          .map((e) => DepartmentJson.fromJson(e as Map<String, dynamic>))
+          .toList();
+    } catch (e, stack) {
+      Log.eWithStack(e.toString(), stack);
+      return null;
+    }
+  }
+
+  /// 課程查詢。[filter] 沒填任何條件時回空清單——`/api/courses` 對空條件會回整
+  /// 個學期（實測 1151 學期 4282 門），那不是使用者要的，也不該讓它進畫面。
+  ///
+  /// 兩段式查詢：先當課號查，沒有結果再當課名查。這是為了讓使用者在同一個輸入
+  /// 框裡打「CS3」或「離散數學」都問得到，而不必先選欄位。
+  static Future<List<CourseMainInfoJson>?> searchCourse(
+      SemesterJson semester, CourseQueryFilter filter) async {
+    if (filter.isEmpty) return [];
+    try {
+      final semesterCode = "${semester.year}${semester.semester}";
+      final language =
+          (LanguageUtils.getLangIndex() == LangEnum.zh) ? "zh" : "en";
+      var json = await _postCourses(
+          filter.toRequestBody(semesterCode: semesterCode, language: language));
+      // 當課號查不到、而且使用者本來就沒有指定課名時，把關鍵字改當課名再問一次。
+      if (json.data.length == 0 &&
+          filter.courseNo.trim().isNotEmpty &&
+          filter.courseName.trim().isEmpty) {
+        json = await _postCourses(filter
+            .copyWith(courseNo: '', courseName: filter.courseNo)
+            .toRequestBody(semesterCode: semesterCode, language: language));
+      }
+      return parseSearchResult(json.data);
+    } catch (e, stack) {
+      Log.eWithStack(e.toString(), stack);
+      return null;
+    }
+  }
+
+  static Future<Response> _postCourses(Map<String, dynamic> body) =>
+      Connector.getDataByPostResponse(
+          ConnectorParameter(_courseSearchUrl, data: body));
 }

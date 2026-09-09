@@ -1,16 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_app/src/R.dart';
+import 'package:flutter_app/src/config/app_tokens.dart';
 import 'package:flutter_app/ui/components/page/loading_page.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
-import 'package:flutter_app/ui/components/tile/score_item_tile.dart';
 import 'package:flutter_app/src/util/score_utils.dart';
 import 'package:flutter_app/src/model/score/score_json.dart';
 import 'package:flutter_app/src/controller/score_page/score_page_controller.dart';
 import 'package:flutter_app/ui/components/custom_appbar.dart';
 import 'package:flutter_app/ui/components/page/error_page.dart';
+import 'package:flutter_app/ui/components/tat_tab_bar.dart';
+import 'package:flutter_app/ui/other/theme_context.dart';
+import 'package:flutter_app/ui/pages/score/widget/score_row.dart';
+import 'package:flutter_app/ui/pages/score/widget/score_summary_strip.dart';
 import 'package:flutter_app/ui/routes/route_utils.dart';
 import 'package:get/get.dart';
 import 'package:flutter_app/ui/other/lucide_icons.dart';
+import 'package:sprintf/sprintf.dart';
 
 class ScoreViewerPage extends GetView<ScorePageController> {
   const ScoreViewerPage({super.key});
@@ -21,7 +26,7 @@ class ScoreViewerPage extends GetView<ScorePageController> {
       () {
         switch (controller.state.value) {
           case ScoreUIState.success:
-            return _buildContentPage();
+            return _buildContentPage(context);
           case ScoreUIState.loading:
             return _buildLoadingPage();
           case ScoreUIState.fail:
@@ -33,21 +38,11 @@ class ScoreViewerPage extends GetView<ScorePageController> {
     );
   }
 
-  /// 「Moodle 目前成績」在四個狀態下都要在：它與學校成績是兩套資料，
-  /// 學校那邊失敗或還沒登入時照樣進得去。
   List<Widget> _appbarActions({bool refresh = false}) => [
-        IconButton(
-          icon: const Icon(LucideIcons.chartColumn),
-          splashRadius: 18,
-          iconSize: 24,
-          tooltip: R.current.moodleCourseGrades,
-          onPressed: RouteUtils.toMoodleCourseGrades,
-        ),
         if (refresh)
           IconButton(
             icon: const Icon(LucideIcons.refreshCw),
             splashRadius: 18,
-            iconSize: 24,
             onPressed: () async {
               await controller.initTask(refresh: true);
             },
@@ -55,7 +50,7 @@ class ScoreViewerPage extends GetView<ScorePageController> {
           ),
       ];
 
-  Widget _buildContentPage() {
+  Widget _buildContentPage(BuildContext context) {
     return Obx(() {
       return DefaultTabController(
         length: controller.semesterScoreList.length,
@@ -63,7 +58,7 @@ class ScoreViewerPage extends GetView<ScorePageController> {
           appBar: mainAppbar(
               title: R.current.searchScore,
               action: _appbarActions(refresh: true),
-              bottom: TabBar(
+              bottom: TatTabBar(
                 controller: controller.tabController,
                 // controller 為 null 時 TabBar 會回退到 DefaultTabController，
                 // 不會拋 LateInitializationError。
@@ -80,8 +75,9 @@ class ScoreViewerPage extends GetView<ScorePageController> {
           body: TabBarView(
             controller: controller.tabController,
             children: [
-              for (final s in controller.semesterScoreList)
-                _buildSemesterScores(s.item)
+              for (final (index, s) in controller.semesterScoreList.indexed)
+                _buildSemesterScores(context, s.item,
+                    isCurrentSemester: index == 0)
             ],
           ),
         ),
@@ -127,9 +123,11 @@ class ScoreViewerPage extends GetView<ScorePageController> {
     );
   }
 
-  Widget _buildSemesterScores(List<ScoreItemJson> courseScore) {
+  Widget _buildSemesterScores(
+      BuildContext context, List<ScoreItemJson> courseScore,
+      {required bool isCurrentSemester}) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
       child: AnimationLimiter(
         child: Column(
           children: AnimationConfiguration.toStaggeredList(
@@ -139,53 +137,97 @@ class ScoreViewerPage extends GetView<ScorePageController> {
                 child: widget,
               ),
             ),
-            children: _buildCourseScores(courseScore),
+            children: _buildCourseScores(context, courseScore,
+                isCurrentSemester: isCurrentSemester),
           ),
         ),
       ),
     );
   }
 
-  List<Widget> _buildCourseScores(List<ScoreItemJson> courseScore) {
+  List<Widget> _buildCourseScores(
+      BuildContext context, List<ScoreItemJson> courseScore,
+      {required bool isCurrentSemester}) {
+    final gpa = ScoreUtils.calculateGPA(courseScore);
     return [
-      _buildTitle(courseScore),
-      const SizedBox(height: 12),
-      for (var score in courseScore) ...{
-        ScoreItemTile(score: score),
-        const SizedBox(height: 8)
-      }
+      ScoreSummaryStrip(
+        // calculateGPA 一門有效成績都沒有時會回字面上的 "NaN"，那是它被凍結
+        // 的契約（見 score_utils_test），所以在畫面這一層擋掉。
+        gpa: gpa == 'NaN' ? null : gpa,
+        credit: ScoreUtils.passedCredit(courseScore),
+        failed: ScoreUtils.failedCount(courseScore),
+      ),
+      _buildCourseCount(context, courseScore.length),
+      for (var i = 0; i < courseScore.length; i++) ...[
+        if (i > 0) const SizedBox(height: 2),
+        ScoreRow(
+          score: courseScore[i],
+          index: i,
+          length: courseScore.length,
+          onTap: RouteUtils.toMoodleCourseGrades,
+        ),
+      ],
+      if (isCurrentSemester) ...[
+        const SizedBox(height: 16),
+        _buildMoodleEntry(context),
+      ],
     ];
   }
 
-  Widget _buildTitle(List<ScoreItemJson> courseList) {
-    final totalCredit = courseList
-        .where((x) => x.isPassScore)
-        .map((c) => int.tryParse(c.credit) ?? 0)
-        .fold(0, (a, b) => a + b);
+  Widget _buildCourseCount(BuildContext context, int count) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(4, 20, 4, 8),
+      child: Align(
+        alignment: AlignmentDirectional.centerStart,
+        child: Text(
+          sprintf(R.current.courseCount, [count]),
+          style: context.text.titleSmall
+              ?.copyWith(color: context.scheme.onSurfaceVariant),
+        ),
+      ),
+    );
+  }
 
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(
-          "GPA ${ScoreUtils.calculateGPA(courseList)}",
-          style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: Get.theme.colorScheme.onSurface),
+  Widget _buildMoodleEntry(BuildContext context) {
+    final scheme = context.scheme;
+    final borderRadius = BorderRadius.circular(TatTokens.radiusCard);
+    return InkWell(
+      borderRadius: borderRadius,
+      onTap: RouteUtils.toMoodleCourseGrades,
+      child: Container(
+        decoration: BoxDecoration(
+          color: context.tokens.card,
+          borderRadius: borderRadius,
         ),
-        Container(
-          decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(999),
-              color: Get.theme.colorScheme.secondaryContainer),
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-          child: Text(
-            "$totalCredit ${R.current.credit}",
-            style: TextStyle(
-                fontSize: 16,
-                color: Get.theme.colorScheme.onSecondaryContainer),
-          ),
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
+        child: Row(
+          children: [
+            Icon(LucideIcons.chartColumn,
+                size: 20, color: scheme.onSurfaceVariant),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    R.current.moodleCourseGrades,
+                    style: context.text.titleSmall
+                        ?.copyWith(color: scheme.onSurface),
+                  ),
+                  Text(
+                    R.current.moodleCourseGradesSubtitle,
+                    style: context.text.bodySmall
+                        ?.copyWith(color: scheme.onSurfaceVariant),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Icon(LucideIcons.chevronRight,
+                size: 18, color: scheme.onSurfaceVariant),
+          ],
         ),
-      ],
+      ),
     );
   }
 }

@@ -4,9 +4,12 @@ import 'package:flutter_app/src/model/moodle_webapi/moodle_core_calendar_action_
 import 'package:flutter_app/src/repository/result.dart';
 import 'package:flutter_app/src/service/task_ui_delegate.dart';
 import 'package:flutter_app/ui/components/page/loading_page.dart';
+import 'package:flutter_app/ui/components/page/notice_bar.dart';
 import 'package:flutter_app/ui/pages/calendar/upcoming_events_section.dart';
+import 'package:flutter_app/ui/other/lucide_icons.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
+import 'package:intl/date_symbol_data_local.dart';
 
 import '../helpers/fake_auth_session.dart';
 import '../helpers/recording_ui.dart';
@@ -26,6 +29,8 @@ void main() {
 
   setUpAll(() async {
     await loadTestL10n();
+    // 副標的日期走 zh_TW 的格式（9月8日 23:59），沒有這一行只會拿到英文。
+    await initializeDateFormatting();
   });
 
   setUp(() {
@@ -128,63 +133,62 @@ void main() {
   ColorScheme schemeOf(WidgetTester tester) =>
       Theme.of(tester.element(find.byType(UpcomingEventsSection))).colorScheme;
 
-  Color? dueColor(WidgetTester tester, int id) =>
+  Color? subtitleColor(WidgetTester tester, int id) =>
       tester.widget<Text>(find.byKey(ValueKey('due-$id'))).style?.color;
 
-  testWidgets('Ok：四組標籤、標題、副標與截止時間都畫出來', (tester) async {
+  testWidgets('Ok：每一組自己帶標題與件數，標題與副標都畫出來', (tester) async {
     await pump(tester, Rxn(Ok(fourEvents())));
 
-    expect(find.text('待辦'), findsOneWidget);
-    for (final label in ['逾期', '今天', '本週', '之後']) {
+    // 有資料時不再另外掛一個「待辦」大標，組標題自己就寫了「待辦 · ⋯」。
+    expect(find.text('待辦'), findsNothing);
+    // 「之後」那一組再按月份切開：9/14 落在本月剩下的那半個月。
+    for (final label in ['待辦 · 逾期', '待辦 · 今天', '待辦 · 本週', '待辦 · 9月下半']) {
       expect(find.text(label), findsOneWidget, reason: '缺少「$label」這一組');
     }
+    // 每一組右邊都有件數，這裡四組各一件。
+    expect(find.text('1 項'), findsNWidgets(4));
+
     for (final title in ['作業一', '小考一', '期中教學意見調查', '期末報告']) {
       expect(find.text(title), findsOneWidget);
     }
-    // 副標：課名去掉學期與課號前綴，接上現在做得到的動作。
-    expect(find.text('軟體工程 · 新增繳交'), findsOneWidget);
-    expect(find.text('軟體工程 · 嘗試測驗'), findsOneWidget);
-    // actionable 為 false 的不顯示動作。
-    expect(find.text('軟體工程'), findsOneWidget);
-    // 站台事件沒有 course，只剩動作。
-    expect(find.text('前往'), findsOneWidget);
+
+    // 副標：課名去掉學期與課號前綴，接上截止時間；近的那幾組再補剩餘時間。
+    expect(find.text('軟體工程 · 9月8日 23:59'), findsOneWidget);
+    expect(find.text('軟體工程 · 9月9日 23:59 · 剩 13 小時'), findsOneWidget);
+    // 站台事件沒有 course，只剩時間。
+    expect(find.text('9月13日 23:59 · 剩 4 天'), findsOneWidget);
+    // 遠一點的那組不寫剩餘時間，寫了也沒有幫助。
+    expect(find.text('軟體工程 · 9月14日 09:00'), findsOneWidget);
     expect(find.textContaining('軟體工程'), findsNWidgets(3),
         reason: '站台事件不該掛任何課名');
-
-    for (final due in [
-      '09/08 23:59',
-      '09/09 23:59',
-      '09/13 23:59',
-      '09/14 09:00'
-    ]) {
-      expect(find.text(due), findsOneWidget, reason: '缺少截止時間 $due');
-    }
   });
 
-  testWidgets('跨年的截止時間帶年份', (tester) async {
+  testWidgets('跨年的截止時間帶年份，組標題也帶年份', (tester) async {
     await pump(
         tester,
         Rxn(Ok([
           event(id: 9, title: '下學期報告', due: DateTime(2027, 1, 15, 23, 59)),
         ])));
 
-    expect(find.text('2027/01/15 23:59'), findsOneWidget);
+    expect(find.text('軟體工程 · 2027年1月15日 23:59'), findsOneWidget);
+    expect(find.text('待辦 · 2027年1月'), findsOneWidget);
   });
 
-  testWidgets('逾期那一筆的截止時間用 error 色，今天那一筆不用', (tester) async {
+  testWidgets('逾期那一筆的副標用 error 色，今天那一筆不用', (tester) async {
     await pump(tester, Rxn(Ok(fourEvents())));
     final scheme = schemeOf(tester);
 
-    expect(dueColor(tester, 1), scheme.error);
-    expect(dueColor(tester, 2), isNot(scheme.error));
-    expect(dueColor(tester, 2), scheme.onSurfaceVariant);
+    expect(subtitleColor(tester, 1), scheme.error);
+    expect(subtitleColor(tester, 2), isNot(scheme.error));
+    expect(subtitleColor(tester, 2), scheme.onSurfaceVariant);
   });
 
-  testWidgets('Ok 但清單是空的 → 空狀態文字，沒有任何分組標籤', (tester) async {
+  testWidgets('Ok 但清單是空的 → 空狀態文字加「待辦」標題，沒有任何分組', (tester) async {
     await pump(tester, Rxn(const Ok(<MoodleActionEvent>[])));
 
+    expect(find.text('待辦'), findsOneWidget);
     expect(find.text('目前沒有待辦事項'), findsOneWidget);
-    for (final label in ['逾期', '今天', '本週', '之後']) {
+    for (final label in ['待辦 · 逾期', '待辦 · 今天', '待辦 · 本週', '待辦 · 之後']) {
       expect(find.text(label), findsNothing);
     }
     expect(tester.takeException(), isNull);
@@ -219,11 +223,12 @@ void main() {
     expect(retried, 1, reason: '從登入設定回來要重抓一次');
   });
 
-  testWidgets('Failed(FetchFailed) 且已登入 → 訊息加「重新整理」', (tester) async {
+  testWidgets('Failed(FetchFailed) 且已登入 → 標題還在，訊息加「重新整理」', (tester) async {
     var retried = 0;
     await pump(tester, Rxn(const Failed(FetchFailed('boom'))),
         onRetry: () async => retried++);
 
+    expect(find.text('待辦'), findsOneWidget, reason: '失敗時標題要留著說明這塊是什麼');
     expect(find.text('boom'), findsOneWidget);
     expect(find.text('登入'), findsNothing);
     final refresh = buttonWithText('重新整理');
@@ -241,8 +246,32 @@ void main() {
     expect(find.text('網路發生錯誤'), findsOneWidget);
     expect(find.text('作業一'), findsOneWidget);
     expect(find.text('期末報告'), findsOneWidget);
-    expect(find.text('逾期'), findsOneWidget);
+    expect(find.text('待辦 · 逾期'), findsOneWidget);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Stale 的橫幅是共用的 NoticeBar，而不是各自畫一條', (tester) async {
+    await pump(tester, Rxn(Stale(fourEvents(), const Offline())));
+
+    final bar = tester.widget<NoticeBar>(find.byType(NoticeBar));
+    // 「你看到的是舊資料」用中性的 info，圖示蓋成 history。
+    expect(bar.kind, NoticeKind.info);
+    expect(bar.icon, LucideIcons.history);
+    expect(find.byIcon(LucideIcons.history), findsOneWidget);
+  });
+
+  testWidgets('Stale 的橫幅有重試入口，按了會重抓', (tester) async {
+    var retried = 0;
+    await pump(tester, Rxn(Stale(fourEvents(), const Offline())),
+        onRetry: () async => retried++);
+
+    final refresh = buttonWithText('重新整理');
+    expect(refresh, findsOneWidget);
+
+    await tester.tap(refresh);
+    await tester.pump();
+
+    expect(retried, 1);
   });
 
   testWidgets('還在載入（null）→ LoadingPage，放在 ListView 裡不會炸', (tester) async {

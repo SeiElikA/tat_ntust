@@ -4,60 +4,59 @@
 //  Copyright © 2020 morris13579 All rights reserved.
 //
 
-import 'package:awesome_dialog/awesome_dialog.dart';
+import 'dart:async';
+
 import 'package:flutter_app/src/R.dart';
 import 'package:flutter_app/src/service/error_dialog_parameter.dart';
+import 'package:flutter_app/ui/other/tat_dialog.dart';
 import 'package:get/get.dart';
 
 export 'package:flutter_app/src/service/error_dialog_parameter.dart';
 
+/// [ErrorDialogParameter] 的顯示端。骨架是 [TatDialog]，這裡只負責把參數翻成
+/// 它的欄位，並在這一刻才補上 `R.current` 的預設值——參數類別是在其他語言環境
+/// 建的，提早取字串會取到舊語系。
 class ErrorDialog {
   ErrorDialogParameter parameter;
 
   ErrorDialog(this.parameter);
 
   Future<bool> show() async {
-    // 預設值在這裡補，而不是在 ErrorDialogParameter 的建構子，
-    // 這樣參數類別才不需要 R.current 與 Get。
     final title = parameter.title ?? R.current.alertError;
     final btnOkText = parameter.btnOkText ?? R.current.restart;
     final btnCancelText = parameter.btnCancelText ?? R.current.cancel;
-    final animType = parameter.animType ?? AnimType.bottomSlide;
-    final dialogType = parameter.dialogType ?? DialogType.error;
-    final btnOkOnPress = parameter.offOkBtn
-        ? null
-        : (parameter.btnOkOnPress ??
-            () => Get.back<bool>(result: parameter.okResult));
-    final btnCancelOnPress = parameter.offCancelBtn
-        ? null
-        : (parameter.btnCancelOnPress ??
-            () => Get.back<bool>(result: parameter.cancelResult));
 
-    DismissType? dismissType;
-    var dialog = AwesomeDialog(
-        context: Get.key.currentState!.context,
-        dialogType: dialogType,
-        animType: animType,
+    final result = await showTatDialog<bool>(
+      dialog: TatDialog(
         title: title,
-        desc: parameter.desc,
-        btnOkText: btnOkText,
-        btnCancelText: btnCancelText,
-        useRootNavigator: false,
-        dismissOnTouchOutside: false,
-        autoDismiss: false,
-        btnCancelOnPress: btnCancelOnPress,
-        btnOkOnPress: btnOkOnPress,
-        onDismissCallback: (DismissType type) {
-          dismissType = type;
-        });
-    await dialog.show();
-    switch (dismissType) {
-      case DismissType.btnOk:
-        return parameter.okResult;
-      case DismissType.btnCancel:
-        return parameter.cancelResult;
-      default:
-        return parameter.cancelResult;
-    }
+        body: parameter.desc,
+        kind: parameter.kind ?? TatDialogKind.error,
+        destructive: parameter.destructive,
+        primary: parameter.offOkBtn
+            ? null
+            : TatDialogAction(
+                label: btnOkText,
+                onPressed: _press(parameter.btnOkOnPress, parameter.okResult),
+              ),
+        secondary: parameter.offCancelBtn
+            ? null
+            : TatDialogAction(
+                label: btnCancelText,
+                onPressed:
+                    _press(parameter.btnCancelOnPress, parameter.cancelResult),
+              ),
+      ),
+    );
+    // 不是 `?? false`：只有一顆按鈕的對話框會把 okResult 設成 false，
+    // 「沒有回傳值」該退回呼叫端指定的 cancelResult。
+    return result ?? parameter.cancelResult;
+  }
+
+  /// 呼叫端沒給按法時，預設就是關掉並回報自己那一邊的結果。
+  FutureOr<void> Function() _press(dynamic Function()? custom, bool result) {
+    final action = custom ?? () => Get.back<bool>(result: result);
+    return () {
+      action();
+    };
   }
 }

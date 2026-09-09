@@ -2,15 +2,18 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_app/src/R.dart';
+import 'package:flutter_app/src/config/app_typography.dart';
 import 'package:flutter_app/src/controller/score_page/moodle_course_grades_controller.dart';
 import 'package:flutter_app/src/model/moodle_webapi/moodle_gradereport_overview_course_grades.dart';
 import 'package:flutter_app/src/util/ui_utils.dart';
 import 'package:flutter_app/ui/components/card/section_card.dart';
 import 'package:flutter_app/ui/components/custom_appbar.dart';
 import 'package:flutter_app/ui/components/page/inline_error_view.dart';
+import 'package:flutter_app/ui/components/page/note_icon.dart';
 import 'package:flutter_app/ui/components/page/result_view.dart';
 import 'package:flutter_app/ui/components/page/section_empty_state.dart';
 import 'package:flutter_app/ui/other/lucide_icons.dart';
+import 'package:flutter_app/ui/other/theme_context.dart';
 import 'package:get/get.dart';
 
 /// 「Moodle 目前成績」：這學期每一門課在 Moodle 上的即時總分。點一列開那門課的
@@ -95,29 +98,25 @@ class _MoodleCourseGradesPageState extends State<MoodleCourseGradesPage> {
     if (semester == null || semester.isEmpty) return const SizedBox.shrink();
     return Text(
       '${semester.year}-${semester.semester}',
-      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
-          ),
+      style: context.text.bodySmall
+          ?.copyWith(color: context.scheme.onSurfaceVariant),
     );
   }
 
   /// 「這是 Moodle 的即時總分、不是正式成績」這句話要排在任何數字之前。
   Widget _hintCard(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
+    final scheme = context.scheme;
+    final style =
+        context.text.bodySmall?.copyWith(color: scheme.onSurfaceVariant);
     return SectionCard([
       Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(LucideIcons.info, size: 16, color: scheme.onSurfaceVariant),
+          NoteIcon(LucideIcons.info,
+              style: style, color: scheme.onSurfaceVariant),
           const SizedBox(width: 8),
           Expanded(
-            child: Text(
-              R.current.moodleCourseGradesHint,
-              style: Theme.of(context)
-                  .textTheme
-                  .bodySmall
-                  ?.copyWith(color: scheme.onSurfaceVariant),
-            ),
+            child: Text(R.current.moodleCourseGradesHint, style: style),
           ),
         ],
       ),
@@ -143,14 +142,14 @@ class _MoodleCourseGradesPageState extends State<MoodleCourseGradesPage> {
 
   Widget _buildRow(
       BuildContext context, MoodleCourseGradeItem item, int index, int length) {
-    final scheme = Theme.of(context).colorScheme;
+    final scheme = context.scheme;
     final borderRadius = UIUtils.getBorderRadius(index, length);
     return InkWell(
       borderRadius: borderRadius,
       onTap: () => unawaited(widget.onOpenCourse(item)),
       child: Container(
         decoration: BoxDecoration(
-          color: scheme.surfaceContainer,
+          color: context.tokens.card,
           borderRadius: borderRadius,
         ),
         padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
@@ -164,13 +163,12 @@ class _MoodleCourseGradesPageState extends State<MoodleCourseGradesPage> {
                     item.name,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(color: scheme.onSurface, fontSize: 15),
+                    style: context.text.bodyLarge
+                        ?.copyWith(color: scheme.onSurface),
                   ),
                   Text(
                     item.courseId,
-                    style: Theme.of(context)
-                        .textTheme
-                        .bodySmall
+                    style: context.text.bodySmall
                         ?.copyWith(color: scheme.onSurfaceVariant),
                   ),
                 ],
@@ -181,10 +179,9 @@ class _MoodleCourseGradesPageState extends State<MoodleCourseGradesPage> {
             // 而且量尺與等第根本不是數字。
             Text(
               item.grade,
-              style: TextStyle(
-                color: scheme.onSurface,
-                fontWeight: FontWeight.w600,
-              ),
+              style: AppTypography.tabular(
+                context.text.titleSmall ?? const TextStyle(),
+              ).copyWith(color: scheme.onSurface),
             ),
             const SizedBox(width: 4),
             Icon(LucideIcons.chevronRight,

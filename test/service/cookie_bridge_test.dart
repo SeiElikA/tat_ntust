@@ -65,7 +65,8 @@ void main() {
     );
 
     final saved = {
-      for (final c in await jar.loadForRequest(Uri.parse('https://i.ntust.edu.tw/')))
+      for (final c
+          in await jar.loadForRequest(Uri.parse('https://i.ntust.edu.tw/')))
         c.name: c
     };
     expect(saved['a']!.secure, isFalse);
@@ -104,8 +105,7 @@ void main() {
       manager: _FakeCookieManager([cookie('fresh')]),
     );
 
-    final names =
-        (await jar.loadForRequest(url)).map((c) => c.name).toSet();
+    final names = (await jar.loadForRequest(url)).map((c) => c.name).toSet();
     expect(names, contains('fresh'));
     expect(names, isNot(contains('stale')),
         reason: '同名 host-only cookie 會蓋過網域版本，整批取代最單純');

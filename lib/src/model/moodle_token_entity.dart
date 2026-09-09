@@ -7,10 +7,7 @@ class MoodleTokenEntity {
 
   factory MoodleTokenEntity.fromJson(Map<String, dynamic> json) {
     return MoodleTokenEntity(
-        json["signature"],
-        json["token"],
-        json["private_token"]
-    );
+        json["signature"], json["token"], json["private_token"]);
   }
 
   Map<String, dynamic> toJson() {

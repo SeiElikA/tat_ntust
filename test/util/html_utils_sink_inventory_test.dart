@@ -49,6 +49,11 @@ void main() {
     //   contexturlname，notificationsOf）
     // - 課程總分清單的課名與分數（fullname / shortname 與 grades[].grade，
     //   joinCourseGrades）
+    // moodle_repository 的 normalizeScore 是第三個：成績項目的四個
+    // `*formatted`（gradeformatted / percentageformatted / weightformatted /
+    // rangeformatted），網路與快取兩條路都經過它。下游是 course_score_page
+    // 的標題底下那一行與右邊的分數欄，都是 Text；同一列的 `feedback` 是
+    // HtmlWidget，但那一欄刻意沒有被 clean。
     // 另一個檔案是 moodle_notification_utils：通知摘要（smallmessage /
     // fullmessage / text）先剝標籤再 clean，輸出只進 tile 的 Text。
     // 下游全是 Text 與 AppBar / WebView 標題（upcoming_events_section 的
@@ -59,6 +64,7 @@ void main() {
     // AppBar、InAppWebViewPage 的 title）。
     const expected = {
       'lib/src/connector/moodle_webapi_connector.dart',
+      'lib/src/repository/moodle_repository.dart',
       'lib/src/util/moodle_notification_utils.dart',
     };
 
@@ -87,7 +93,9 @@ clean() 是 escape 的反向操作：它會把 `&lt;script&gt;` 還原成 `<scri
     // - moodle_html_view：共用的 Moodle 原文 HTML 算繪元件，被作業詳情頁的
     //   說明 intro / 線上文字 onlinetext / 老師回饋 comments、測驗詳情頁的
     //   測驗說明 intro 與公告討論串頁的貼文 message 餵，全是未經 clean 的原文
-    // - course_info_page：ap.description（未經 clean 的 Moodle 原文）
+    // - course_section_list：Modules.description（未經 clean 的 Moodle 原文）。
+    //   label 模組整列就是那段 HTML，其餘模組展開說明時也是它。這一份原本在
+    //   course_info_page，檔案分頁改成就地展開時整段搬過來，來源欄位沒變
     // - course_html_page：遠端 HTML 教材原文
     // - course_score_page：成績項目的老師回饋（gradeitems[].feedback，帶 <img>）
     // 沒有任何一個吃 clean() 的輸出。
@@ -95,7 +103,7 @@ clean() 是 escape 的反向操作：它會把 `&lt;script&gt;` 還原成 `<scri
       'lib/ui/components/html/moodle_html_view.dart',
       'lib/ui/pages/course_data/screen/course_score_page.dart',
       'lib/ui/pages/course_data/screen/sub_page/course_html_page.dart',
-      'lib/ui/pages/course_data/screen/sub_page/course_info_page.dart',
+      'lib/ui/pages/course_data/screen/widgets/course_section_list.dart',
     };
 
     final actual = <String>{

@@ -207,7 +207,7 @@ void main() {
     expect(find.widgetWithText(AssignStatusChip, '已逾期'), findsOneWidget);
   });
 
-  testWidgets('延長期限還沒到：截止列的相對提示跟著延長期限，籤是未繳交', (tester) async {
+  testWidgets('延長期限還沒到：截止列的相對提示跟著延長期限，籤是已延長', (tester) async {
     final status = MoodleAssignSubmissionStatus(
       lastattempt: MoodleAssignLastAttempt(
         extensionduedate: DateTime.now()
@@ -219,7 +219,8 @@ void main() {
     );
     await pump(tester, a1(), status: Ok(status));
 
-    expect(find.widgetWithText(AssignStatusChip, '未繳交'), findsOneWidget);
+    // 這一頁自己就有一列「延長期限」，籤只說「未繳交」的話兩者對不起來。
+    expect(find.widgetWithText(AssignStatusChip, '已延長'), findsOneWidget);
     // 「截止日期」那列仍顯示原本的 duedate（照 Moodle），但提示不再說已逾期。
     expect(find.textContaining('天後截止'), findsOneWidget);
     expect(find.textContaining('已逾期'), findsNothing);
@@ -229,11 +230,11 @@ void main() {
         '延長期限', CourseAssignmentDetailPage.formatUnix(status.extensionDueDate));
   });
 
-  testWidgets('團隊作業由隊友代交：自己那筆是草稿，籤仍是已繳交，檔案來自群組那筆', (tester) async {
+  testWidgets('團隊作業由隊友代交：自己那筆是草稿，籤仍是待評分，檔案來自群組那筆', (tester) async {
     final team = a2()..duedate = a1().duedate;
     await pump(tester, team, status: Ok(fixtureStatus('status_team_draft')));
 
-    expect(find.widgetWithText(AssignStatusChip, '已繳交'), findsOneWidget);
+    expect(find.widgetWithText(AssignStatusChip, '待評分'), findsOneWidget);
     expect(find.text('繳交時間'), findsOneWidget);
     expect(find.text('hw1_b10000000.pdf'), findsOneWidget);
   });
@@ -436,7 +437,7 @@ void main() {
         s.submissionFor(a)!.files.length +
         s.feedback!.files.length;
     expect(files, greaterThan(0));
-    expect(find.byIcon(LucideIcons.download), findsNWidgets(files));
+    expect(find.byIcon(LucideIconsThin.download), findsNWidgets(files));
   });
 
   testWidgets('超長中文檔名：截成兩行，不擠掉下載 icon 也不 overflow', (tester) async {
@@ -454,7 +455,7 @@ void main() {
         viewSize: const Size(360, 3000));
 
     expect(tester.takeException(), isNull);
-    expect(find.byIcon(LucideIcons.download), findsOneWidget);
+    expect(find.byIcon(LucideIconsThin.download), findsOneWidget);
     final title = tester.widget<Text>(find.textContaining('期末專題報告與附錄'));
     expect(title.maxLines, 2);
     expect(title.overflow, TextOverflow.ellipsis);

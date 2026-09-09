@@ -78,5 +78,56 @@ void main() {
     test('子字串比對會讓含 A/B/C 的中文成績被誤判為及格（現況）', () {
       expect(item('Abandon', '3').isPassScore, isTrue);
     });
+
+    test('isFailScore＝有成績但沒過；D 依現行規則算不及格', () {
+      expect(item('D', '3').isFailScore, isTrue);
+      expect(item('E', '3').isFailScore, isTrue);
+      expect(item('X', '3').isFailScore, isTrue);
+      expect(item('A', '3').isFailScore, isFalse);
+    });
+
+    test('還沒評分與不在等第表上的成績都不算不及格', () {
+      expect(item('-', '3').isFailScore, isFalse);
+      expect(item('通過', '2').isFailScore, isFalse);
+      expect(item('成績未到', '3').isFailScore, isFalse);
+    });
+  });
+
+  group('摘要用的衍生值', () {
+    test('parseCredit 去掉抵免課的括號', () {
+      expect(ScoreUtils.parseCredit('3'), 3);
+      expect(ScoreUtils.parseCredit('(3)'), 3);
+      expect(ScoreUtils.parseCredit('2.5'), 0);
+      expect(ScoreUtils.parseCredit(''), 0);
+    });
+
+    test('學分總和與 GPA 分母用同一個解析：抵免課兩邊都要算到', () {
+      // 這一條是回歸測試：畫面上的學分曾經用 int.tryParse 直接解析，
+      // 「(3)」在那裡是 0，在 GPA 分母裡卻是 3。
+      final list = [item('A', '(3)'), item('B', '2')];
+      expect(ScoreUtils.passedCredit(list), 5);
+      expect(ScoreUtils.calculateGPA(list), '3.60');
+    });
+
+    test('學分總和只算及格的課', () {
+      final list = [item('A', '3'), item('E', '3'), item('-', '3')];
+      expect(ScoreUtils.passedCredit(list), 3);
+    });
+
+    test('不及格門數只數已經有成績的課', () {
+      final list = [
+        item('A', '3'),
+        item('D', '3'),
+        item('E', '3'),
+        item('-', '3'),
+        item('通過', '0'),
+      ];
+      expect(ScoreUtils.failedCount(list), 2);
+    });
+
+    test('空清單的衍生值都是 0', () {
+      expect(ScoreUtils.passedCredit([]), 0);
+      expect(ScoreUtils.failedCount([]), 0);
+    });
   });
 }

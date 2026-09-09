@@ -12,7 +12,7 @@ import 'package:flutter_app/src/store/secure_store.dart';
 /// 清掉任何東西，也不能把使用者當成已登出而觸發資料清除。
 enum CredentialsLoadResult { loaded, absent, unavailable }
 
-/// 帳號、密碼與 WebMail 密碼的持久化。
+/// 帳號與密碼的持久化。
 ///
 /// 底層是 [SecureStore]（Android Keystore / iOS Keychain）。
 ///
@@ -60,8 +60,6 @@ class CredentialsStore {
   String get account => _data.account;
 
   String get password => _data.password;
-
-  String get webMailPassword => _data.webMailPassword;
 
   bool get hasCredentials =>
       _data.account.isNotEmpty && _data.password.isNotEmpty;
@@ -122,8 +120,6 @@ class CredentialsStore {
   void setAccount(String value) => _data.account = value;
 
   void setPassword(String value) => _data.password = value;
-
-  void setWebMailPassword(String value) => _data.webMailPassword = value;
 
   /// 一次性遷移：舊位置有資料就搬過去，讀回比對一致才算成功。
   ///

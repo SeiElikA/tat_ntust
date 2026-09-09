@@ -66,7 +66,11 @@ class MoodleSettingController extends GetxController
       }
       settingList.value = res.preferences.components;
 
-      tab.value = res.preferences.processors;
+      // 行動裝置（airnotifier）那一頁不顯示：它管的是 Moodle 官方 App 的推播，
+      // 在這個 App 裡打開也收不到，只會讓人以為設定沒生效。
+      tab.value = res.preferences.processors
+          .where((e) => e.name != 'airnotifier')
+          .toList();
       tab.sort((a, b) => a.displayname.compareTo(b.displayname));
 
       // GetSingleTickerProviderStateMixin 一輩子只發一個 ticker（dispose 之後

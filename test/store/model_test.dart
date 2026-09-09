@@ -49,7 +49,6 @@ void main() {
       await Model.instance.loadUserData();
       Model.instance.setAccount('B10902000');
       Model.instance.setPassword('p@ssw0rd');
-      Model.instance.setWebMailPassword('mail-pw');
       await Model.instance.saveUserData();
 
       // 先把記憶體狀態洗掉，確認真的是從 SharedPreferences 讀回來的
@@ -59,7 +58,6 @@ void main() {
 
       expect(Model.instance.getAccount(), 'B10902000');
       expect(Model.instance.getPassword(), 'p@ssw0rd');
-      expect(Model.instance.getWebMailPassword(), 'mail-pw');
     });
 
     test('帳密存在 secure storage，不再出現在 SharedPreferences', () async {

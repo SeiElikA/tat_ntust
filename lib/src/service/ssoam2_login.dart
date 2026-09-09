@@ -26,7 +26,8 @@ class Ssoam2Login {
   static const String loginPageUrl = "$host/account/login";
 
   /// 使用者名稱欄位存在，代表登入表單已經渲染完成。
-  static const String _formReady = 'document.getElementById("Username") != null';
+  static const String _formReady =
+      'document.getElementById("Username") != null';
 
   /// Turnstile 已經完成：欄位存在**而且**有值。
   ///
@@ -169,7 +170,8 @@ class Ssoam2Login {
   static Future<String?> credentialError(
       InAppWebViewController controller) async {
     try {
-      final raw = await controller.evaluateJavascript(source: _credentialErrorJs);
+      final raw =
+          await controller.evaluateJavascript(source: _credentialErrorJs);
       if (raw == null) return null;
       final decoded = jsonDecode(raw.toString());
       if (decoded is! Map) return null;

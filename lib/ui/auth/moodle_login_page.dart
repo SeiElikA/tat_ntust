@@ -6,10 +6,9 @@ import 'package:flutter_app/src/R.dart';
 import 'package:flutter_app/src/service/ssoam2_login.dart';
 import 'package:flutter_app/src/connector/moodle_webapi_connector.dart';
 import 'package:flutter_app/src/model/moodle_token_entity.dart';
-import 'package:flutter_app/ui/other/my_progress_dialog.dart';
-import 'package:flutter_app/src/util/my_toast.dart';
+import 'package:flutter_app/ui/components/page/loading_page.dart';
+import 'package:flutter_app/ui/components/toast/tat_toast.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
-import 'package:fluttertoast/fluttertoast.dart';
 import 'package:get/get.dart';
 
 class LoginMoodlePage extends StatefulWidget {
@@ -31,7 +30,8 @@ class _LoginMoodlePageState extends State<LoginMoodlePage> {
   late final WebUri moodleLoginUri = WebUri(_launch.url);
   bool showDialog = true;
   // getter：欄位初始化式只跑一次，會把進度框的文字凍在 State 建立時的語言。
-  Widget get dialog => MyProgressDialog.dialog(R.current.loginMoodle);
+  Widget get dialog =>
+      LoadingPage(isLoading: true, message: R.current.loginMoodle);
 
   /// 這個頁面只能結束一次：同一次登入可能觸發兩次回呼，第二個 `Get.back`
   /// pop 掉的會是這一頁底下那一頁。
@@ -79,15 +79,15 @@ class _LoginMoodlePageState extends State<LoginMoodlePage> {
                   // 拿同一組錯帳密無限重送。
                   final error = await Ssoam2Login.credentialError(controller);
                   if (error != null) {
-                    MyToast.show(error, toastLength: Toast.LENGTH_LONG);
+                    TatToast.show(error, kind: TatToastKind.info);
                     _finish(null);
                     return;
                   }
                   // 認不出錯誤時的第二道保險：最多送出兩次。
                   if (_submits >= _maxSubmits) {
                     if (mounted) setState(() => showDialog = false);
-                    MyToast.show(R.current.needValidateCaptcha,
-                        toastLength: Toast.LENGTH_LONG);
+                    TatToast.show(R.current.needValidateCaptcha,
+                        kind: TatToastKind.info);
                     return;
                   }
                   _submits++;
@@ -103,8 +103,8 @@ class _LoginMoodlePageState extends State<LoginMoodlePage> {
                     setState(() {
                       showDialog = false;
                     });
-                    MyToast.show(R.current.needValidateCaptcha,
-                        toastLength: Toast.LENGTH_LONG);
+                    TatToast.show(R.current.needValidateCaptcha,
+                        kind: TatToastKind.info);
                   }
                 }
               },

@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_app/src/R.dart';
-import 'package:flutter_app/ui/components/card/section_card.dart';
+import 'package:flutter_app/ui/components/sheet/tat_bottom_sheet.dart';
 import 'package:flutter_app/ui/other/lucide_icons.dart';
 
 /// 頭貼可以做的三件事。
 enum AvatarAction { gallery, camera, remove }
 
-/// 頭貼的動作選單。回 null 代表使用者取消（點外面、按返回、按取消都算）。
+/// 頭貼的動作選單。回 null 代表使用者沒選（下滑、點遮罩、按返回都算）。
+///
+/// 沒有標題也沒有「取消」那一列：開它的按鈕就叫「更換頭貼」，再寫一次是重複，
+/// 而下滑與點遮罩都能關（dialog-spec §06-A）。
 ///
 /// [canRemove] 為 false 時不顯示「移除」：使用者用的是主題預設圖，
 /// core_user::update_picture 會因為 picture 沒有變而回 success:false，
@@ -15,62 +18,26 @@ Future<AvatarAction?> showAvatarActionSheet(
   BuildContext context, {
   required bool canRemove,
 }) {
-  return showModalBottomSheet<AvatarAction>(
+  return showTatActionSheet<AvatarAction>(
     context: context,
-    showDragHandle: true,
-    useSafeArea: true,
-    builder: (context) => _AvatarActionSheet(canRemove: canRemove),
-  );
-}
-
-class _AvatarActionSheet extends StatelessWidget {
-  const _AvatarActionSheet({required this.canRemove});
-
-  final bool canRemove;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return SafeArea(
-      // 可捲：modal sheet 的高度上限是螢幕的 9/16，字級放大或小螢幕上
-      // 四列加標題就會超出去。
-      child: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: SectionSubLabel(R.current.avatarChange),
-            ),
-            ListTile(
-              leading: const Icon(LucideIcons.images),
-              title: Text(R.current.avatarFromGallery),
-              onTap: () => Navigator.pop(context, AvatarAction.gallery),
-            ),
-            ListTile(
-              leading: const Icon(LucideIcons.camera),
-              title: Text(R.current.avatarTakePhoto),
-              onTap: () => Navigator.pop(context, AvatarAction.camera),
-            ),
-            if (canRemove) ...[
-              const SectionDivider(),
-              ListTile(
-                leading: Icon(LucideIcons.trash2, color: scheme.error),
-                title: Text(R.current.avatarRemove,
-                    style: TextStyle(color: scheme.error)),
-                onTap: () => Navigator.pop(context, AvatarAction.remove),
-              ),
-            ],
-            const SectionDivider(),
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text(R.current.cancel),
-            ),
-            const SizedBox(height: 8),
-          ],
-        ),
+    items: [
+      TatSheetItem(
+        icon: LucideIcons.camera,
+        label: R.current.avatarTakePhoto,
+        value: AvatarAction.camera,
       ),
-    );
-  }
+      TatSheetItem(
+        icon: LucideIcons.images,
+        label: R.current.avatarFromGallery,
+        value: AvatarAction.gallery,
+      ),
+      if (canRemove)
+        TatSheetItem(
+          icon: LucideIcons.trash2,
+          label: R.current.avatarRemove,
+          value: AvatarAction.remove,
+          destructive: true,
+        ),
+    ],
+  );
 }

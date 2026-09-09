@@ -1,13 +1,22 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_app/ui/other/lucide_icons.dart';
 import 'package:flutter_app/src/R.dart';
+import 'package:flutter_app/src/config/app_typography.dart';
 import 'package:flutter_app/src/model/moodle_webapi/moodle_message_popup_notifications.dart';
 import 'package:flutter_app/src/util/moodle_notification_utils.dart';
+import 'package:flutter_app/src/util/ui_utils.dart';
 import 'package:flutter_app/ui/components/html/moodle_html_view.dart';
 import 'package:flutter_app/ui/components/page/web_view_opener.dart';
+import 'package:flutter_app/ui/other/lucide_icons.dart';
+import 'package:flutter_app/ui/other/theme_context.dart';
+import 'package:flutter_app/ui/pages/announcement/components/notification_groups.dart';
 
-/// 站內通知的一列。有 contexturl 的點了會開網頁（右側 open_in_new），沒有的
-/// 就地展開內文（右側 chevron）——兩種行為在點下去之前就分得出來。
+/// 站內通知的一列：類型圖示、標題、「來源 · 時間」，右側一個 chevron。
+///
+/// 一組列不是一張帶分隔線的卡片，而是每一列自己一塊、彼此差 2px
+/// （[UIUtils.getBorderRadius]），與 App 其他清單同一套。
+///
+/// 有 contexturl 的點了會開網頁（chevron_right），沒有的就地展開內文
+/// （chevron_down / up）——兩種行為在點下去之前就分得出來。
 class NotificationTile extends StatelessWidget {
   const NotificationTile({
     super.key,
@@ -17,6 +26,8 @@ class NotificationTile extends StatelessWidget {
     required this.expanded,
     required this.onTap,
     required this.openWebView,
+    required this.index,
+    required this.length,
   });
 
   final MoodleNotification notification;
@@ -31,9 +42,16 @@ class NotificationTile extends StatelessWidget {
   final VoidCallback onTap;
   final WebViewOpener openWebView;
 
+  /// 這一列在所屬分組裡的位置，決定四個角的圓角。
+  final int index;
+  final int length;
+
   /// 伺服器的 `iconurl` 刻意不用：那是站台主題圖，每一列要多一次網路請求，
   /// 深色模式也不會反相。
-  static IconData iconFor(String? component) {
+  static IconData iconFor(String? component, {String? eventtype}) {
+    // 成績通知在 Moodle 是 core 的 `moodle` 元件加上 grade 開頭的 eventtype，
+    // 光看 component 會落到大聲公。設計稿把成績另外畫成學士帽。
+    if (_isGrade(component, eventtype)) return LucideIcons.graduationCap;
     final name = component ?? '';
     return switch (name) {
       'mod_assign' => LucideIcons.clipboardList,
@@ -45,113 +63,103 @@ class NotificationTile extends StatelessWidget {
     };
   }
 
+  static bool _isGrade(String? component, String? eventtype) =>
+      (eventtype ?? '').toLowerCase().contains('grade') ||
+      (component ?? '').startsWith('gradereport_');
+
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final text = Theme.of(context).textTheme;
+    final scheme = context.scheme;
+    final text = context.text;
     final unread = !notification.read;
-    final summary = MoodleNotificationUtils.plainSummaryOf(notification);
     final body =
         expanded ? MoodleNotificationUtils.bodyHtmlOf(notification) : '';
+    final borderRadius = UIUtils.getBorderRadius(index, length);
 
-    return InkWell(
-      onTap: onTap,
-      child: Container(
-        // 未讀有三個訊號：底色、粗體標題與圓點，不只靠顏色。
-        color: unread ? scheme.primary.withValues(alpha: 0.05) : null,
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _IconChip(component: notification.component, unread: unread),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(
-                            child: Text(
-                              notification.subject,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: text.bodyMedium?.copyWith(
-                                color: scheme.onSurface,
-                                height: 1.3,
-                                fontWeight:
-                                    unread ? FontWeight.w600 : FontWeight.w400,
-                              ),
-                            ),
-                          ),
-                          if (unread) ...[
-                            const SizedBox(width: 8),
-                            Semantics(
-                              label: R.current.notificationUnread,
-                              child: Container(
-                                key: ValueKey('unread-${notification.id}'),
-                                margin: const EdgeInsets.only(top: 5),
-                                width: 8,
-                                height: 8,
-                                decoration: BoxDecoration(
-                                  color: scheme.primary,
-                                  shape: BoxShape.circle,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                      // 展開時內文就在下面，而摘要多半是同一句話：
-                      // fullmessagehtml 缺席時 bodyHtmlOf 退回的正是
-                      // plainSummaryOf 挑到的那個欄位。
-                      if (summary.isNotEmpty && body.isEmpty) ...[
-                        const SizedBox(height: 4),
+    return Material(
+      color: context.tokens.card,
+      borderRadius: borderRadius,
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(
+                    iconFor(notification.component,
+                        eventtype: notification.eventtype),
+                    size: 20,
+                    color: scheme.onSurfaceVariant,
+                  ),
+                  const SizedBox(width: 13),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
                         Text(
-                          summary,
+                          notification.subject,
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
-                          style: text.bodySmall
-                              ?.copyWith(color: scheme.onSurfaceVariant),
+                          style: text.bodyLarge?.copyWith(
+                            color: scheme.onSurface,
+                            height: 1.5,
+                            // 未讀只差一個字重，是設計稿自己的訊號；圓點是
+                            // 第二個，因為單靠字重在小字上幾乎看不出來。
+                            fontWeight:
+                                unread ? FontWeight.w500 : FontWeight.w400,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        _MetaLine(
+                          source: _sourceLabel(),
+                          time: NotificationGroups.formatCreatedTime(
+                              notification.createdTime, now),
                         ),
                       ],
-                      const SizedBox(height: 6),
-                      _MetaLine(
-                        source: _sourceLabel(),
-                        time: MoodleNotificationUtils.formatCreatedTime(
-                            notification.createdTime, now),
-                        style: text.labelSmall
-                            ?.copyWith(color: scheme.onSurfaceVariant),
-                      ),
-                    ],
+                    ),
                   ),
-                ),
-                const SizedBox(width: 8),
-                Icon(
-                  openable
-                      ? LucideIcons.externalLink
-                      : (expanded
-                          ? LucideIcons.chevronUp
-                          : LucideIcons.chevronDown),
-                  size: openable ? 14 : 18,
-                  color: scheme.onSurfaceVariant,
+                  if (unread) ...[
+                    const SizedBox(width: 10),
+                    Semantics(
+                      label: R.current.notificationUnread,
+                      child: Container(
+                        key: ValueKey('unread-${notification.id}'),
+                        width: 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          color: scheme.primary,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                    ),
+                  ],
+                  const SizedBox(width: 10),
+                  Icon(
+                    openable
+                        ? LucideIcons.chevronRight
+                        : (expanded
+                            ? LucideIcons.chevronUp
+                            : LucideIcons.chevronDown),
+                    size: 17,
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ],
+              ),
+              if (expanded) ...[
+                const SizedBox(height: 12),
+                MoodleHtmlView(
+                  html: body,
+                  title: notification.subject,
+                  dirName: 'notification',
+                  openWebView: openWebView,
                 ),
               ],
-            ),
-            if (expanded) ...[
-              const SizedBox(height: 12),
-              MoodleHtmlView(
-                html: body,
-                title: notification.subject,
-                dirName: 'notification',
-                openWebView: openWebView,
-              ),
             ],
-          ],
+          ),
         ),
       ),
     );
@@ -170,14 +178,15 @@ class NotificationTile extends StatelessWidget {
 /// 長度沒有上限，包在同一串裡被 ellipsis 吃掉的一定是後面的時間——而時間是
 /// 這一列唯一的新舊訊號。
 class _MetaLine extends StatelessWidget {
-  const _MetaLine({required this.source, required this.time, this.style});
+  const _MetaLine({required this.source, required this.time});
 
   final String source;
   final String time;
-  final TextStyle? style;
 
   @override
   Widget build(BuildContext context) {
+    final style = (context.text.bodySmall ?? const TextStyle())
+        .copyWith(color: context.scheme.onSurfaceVariant, height: 1.45);
     return Semantics(
       label: '$source · $time',
       child: Row(
@@ -190,34 +199,8 @@ class _MetaLine extends StatelessWidget {
               style: style,
             ),
           ),
-          Text(' · $time', maxLines: 1, style: style),
+          Text(' · $time', maxLines: 1, style: AppTypography.tabular(style)),
         ],
-      ),
-    );
-  }
-}
-
-class _IconChip extends StatelessWidget {
-  const _IconChip({required this.component, required this.unread});
-
-  final String? component;
-  final bool unread;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Container(
-      width: 36,
-      height: 36,
-      decoration: BoxDecoration(
-        color:
-            unread ? scheme.primaryContainer : scheme.surfaceContainerHighest,
-        shape: BoxShape.circle,
-      ),
-      child: Icon(
-        NotificationTile.iconFor(component),
-        size: 20,
-        color: unread ? scheme.onPrimaryContainer : scheme.onSurfaceVariant,
       ),
     );
   }

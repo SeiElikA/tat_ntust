@@ -135,21 +135,22 @@ void main() {
   });
 
   group('快取路徑', () {
-    test('toJson 只有畫面讀的 key：instance / eventtype / timestart / overdue 不進快取',
-        () {
+    test('toJson 只有畫面讀的 key：eventtype / timestart / overdue 不進快取', () {
       final e = MoodleCoreCalendarActionEvents.fromJson(fixture).events[0];
 
+      // instance 與 course.idnumber 要進快取：待辦點下去要靠它們決定開哪一頁。
       expect(e.toJson().keys, {
         'id',
         'name',
         'activityname',
         'modulename',
+        'instance',
         'timesort',
         'url',
         'course',
         'action',
       });
-      expect(e.course!.toJson().keys, {'fullname', 'shortname'});
+      expect(e.course!.toJson().keys, {'fullname', 'shortname', 'idnumber'});
       expect(e.action!.toJson().keys, {'name', 'url', 'actionable'});
     });
 

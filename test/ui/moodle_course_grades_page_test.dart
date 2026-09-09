@@ -168,6 +168,15 @@ void main() {
     expect(find.text('微積分'), findsOneWidget, reason: '沒有第二個畫面被推上來');
   });
 
+  testWidgets('分數欄是等寬數字：課名長短不一時分數仍上下對齊', (tester) async {
+    repo.next = twoCourses();
+
+    await pump(tester);
+
+    final style = tester.widget<Text>(find.text('85.55')).style!;
+    expect(style.fontFeatures, contains(const FontFeature.tabularFigures()));
+  });
+
   testWidgets('語系切成英文時標題與說明都跟著走 R.current', (tester) async {
     await loadTestL10n(const Locale('en'));
     repo.next = twoCourses();

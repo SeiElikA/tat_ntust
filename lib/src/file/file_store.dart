@@ -8,7 +8,6 @@ import 'package:flutter_app/src/util/my_toast.dart';
 import 'package:path_provider/path_provider.dart';
 
 class FileStore {
-
   static Future<String> findLocalPath(BuildContext context) async {
     bool checkPermission = await PermissionsUtils.isStoragePermission();
     if (!checkPermission) {

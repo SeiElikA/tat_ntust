@@ -16,8 +16,6 @@ class RecordingUi implements TaskUiDelegate {
   /// handle 被 dismiss 的次數。
   int dismissCalls = 0;
 
-  /// 全域 hideProgress 被呼叫的次數。run() 不該碰它。
-  int hideProgressCalls = 0;
   int confirmCalls = 0;
 
   /// 最後一次 confirmRetry 收到的參數。
@@ -31,12 +29,6 @@ class RecordingUi implements TaskUiDelegate {
     progressShown.add(message);
     return _RecordingProgressHandle(this);
   }
-
-  @override
-  void showProgress(String message) => progressShown.add(message);
-
-  @override
-  void hideProgress() => hideProgressCalls++;
 
   @override
   Future<RetryDecision> confirmRetry(ErrorDialogParameter parameter) async {

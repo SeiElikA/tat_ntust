@@ -1,6 +1,5 @@
 import 'dart:convert';
 
-
 import 'package:flutter/material.dart';
 import 'package:flutter_app/src/R.dart';
 import 'package:flutter_app/src/service/cookie_bridge.dart';
@@ -8,8 +7,8 @@ import 'package:flutter_app/src/service/ssoam2_login.dart';
 import 'package:flutter_app/src/enum/ntust_login_status.dart';
 import 'package:flutter_app/src/connector/core/dio_connector.dart';
 import 'package:flutter_app/src/connector/ntust_connector.dart';
-import 'package:flutter_app/ui/other/my_progress_dialog.dart';
-import 'package:flutter_app/src/util/my_toast.dart';
+import 'package:flutter_app/ui/components/page/loading_page.dart';
+import 'package:flutter_app/ui/components/toast/tat_toast.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:get/get.dart';
 
@@ -34,7 +33,8 @@ class _LoginNTUSTPageState extends State<LoginNTUSTPage> {
   late InAppWebViewController webView;
   bool showDialog = true;
   // getter：欄位初始化式只跑一次，會把進度框的文字凍在 State 建立時的語言。
-  Widget get dialog => MyProgressDialog.dialog(R.current.loginNTUST);
+  Widget get dialog =>
+      LoadingPage(isLoading: true, message: R.current.loginNTUST);
 
   /// 這個頁面只能結束一次。
   ///
@@ -86,7 +86,8 @@ class _LoginNTUSTPageState extends State<LoginNTUSTPage> {
                   if (_submits >= _maxSubmits) {
                     if (mounted) {
                       setState(() => showDialog = false);
-                      MyToast.show(R.current.needValidateCaptcha);
+                      TatToast.show(R.current.needValidateCaptcha,
+                          kind: TatToastKind.info);
                     }
                     return;
                   }
@@ -110,7 +111,8 @@ class _LoginNTUSTPageState extends State<LoginNTUSTPage> {
                     setState(() {
                       showDialog = false;
                     });
-                    MyToast.show(R.current.needValidateCaptcha);
+                    TatToast.show(R.current.needValidateCaptcha,
+                        kind: TatToastKind.info);
                   }
                 } else {
                   // 這裡不可以先清 Dio jar：清空由 CookieBridge 在寫入前做，

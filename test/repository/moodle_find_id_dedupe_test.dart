@@ -47,7 +47,8 @@ void main() {
   test('失敗也要從表上移掉，不然一次失敗會把這個課號永久釘成那個例外', () async {
     final repo = _CountingFindIdRepository(fail: true);
 
-    await expectLater(repo.findIdForTesting('AT1001'), throwsA(isA<TaskFailure>()));
+    await expectLater(
+        repo.findIdForTesting('AT1001'), throwsA(isA<TaskFailure>()));
 
     expect(MoodleRepository.findIdInFlight, isEmpty);
   });

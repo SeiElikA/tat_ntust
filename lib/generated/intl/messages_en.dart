@@ -34,6 +34,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "Wednesday": MessageLookupByLibrary.simpleMessage("WED"),
     "about": MessageLookupByLibrary.simpleMessage("About"),
     "account": MessageLookupByLibrary.simpleMessage("Account"),
+    "accountHint": MessageLookupByLibrary.simpleMessage("B11234567"),
     "accountNull": MessageLookupByLibrary.simpleMessage(
       "Please enter your account",
     ),
@@ -41,11 +42,14 @@ class MessageLookup extends MessageLookupByLibrary {
       "Account password error",
     ),
     "activities": MessageLookupByLibrary.simpleMessage("Activities"),
+    "activitiesDescription": MessageLookupByLibrary.simpleMessage(
+      "Exchange student enrollment",
+    ),
     "addCustomCourseError": MessageLookupByLibrary.simpleMessage(
       "Can\'t join the class",
     ),
-    "agree": MessageLookupByLibrary.simpleMessage("Agree"),
     "alertError": MessageLookupByLibrary.simpleMessage("An error occurred"),
+    "allServices": MessageLookupByLibrary.simpleMessage("All services"),
     "announcement": MessageLookupByLibrary.simpleMessage("Announcements"),
     "announcementCenter": MessageLookupByLibrary.simpleMessage(
       "Announcements & notifications",
@@ -53,17 +57,18 @@ class MessageLookup extends MessageLookupByLibrary {
     "announcementEmpty": MessageLookupByLibrary.simpleMessage(
       "No Announcement",
     ),
+    "announcementNext": MessageLookupByLibrary.simpleMessage("Next"),
     "announcementNoForum": MessageLookupByLibrary.simpleMessage(
       "This course has no announcements forum",
     ),
     "announcementPublishedAt": MessageLookupByLibrary.simpleMessage(
       "Published",
     ),
+    "announcementReadFull": MessageLookupByLibrary.simpleMessage(
+      "Read the full announcement",
+    ),
     "appAnnouncement": MessageLookupByLibrary.simpleMessage(
       "TAT announcements",
-    ),
-    "appAnnouncementEmpty": MessageLookupByLibrary.simpleMessage(
-      "No TAT announcements right now",
     ),
     "assignAcceptStatement": MessageLookupByLibrary.simpleMessage(
       "I have read and accept the statement above",
@@ -72,6 +77,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "assignAddSubmission": MessageLookupByLibrary.simpleMessage(
       "Add submission",
     ),
+    "assignAllGraded": MessageLookupByLibrary.simpleMessage("All graded"),
     "assignAllowSubmissionsFrom": MessageLookupByLibrary.simpleMessage("Opens"),
     "assignAttachmentSection": MessageLookupByLibrary.simpleMessage(
       "Files to submit",
@@ -123,6 +129,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "assignCopyPreviousWebOnly": MessageLookupByLibrary.simpleMessage(
       "This site does not allow copying in the app; do it on the web",
     ),
+    "assignCountItems": MessageLookupByLibrary.simpleMessage("%s item(s)"),
     "assignCurrentAttempt": MessageLookupByLibrary.simpleMessage(
       "Current attempt",
     ),
@@ -130,12 +137,16 @@ class MessageLookup extends MessageLookupByLibrary {
     "assignDiscardChanges": MessageLookupByLibrary.simpleMessage(
       "Discard your unsaved changes?",
     ),
+    "assignDraftEditedAt": MessageLookupByLibrary.simpleMessage(
+      "Last edited %s",
+    ),
     "assignDraftSaved": MessageLookupByLibrary.simpleMessage("Draft saved"),
     "assignDueDate": MessageLookupByLibrary.simpleMessage("Due date"),
     "assignDueInDays": MessageLookupByLibrary.simpleMessage("Due in %s day(s)"),
     "assignDueInHours": MessageLookupByLibrary.simpleMessage(
       "Due in %s hour(s)",
     ),
+    "assignDueOn": MessageLookupByLibrary.simpleMessage("Due %s"),
     "assignDueSoon": MessageLookupByLibrary.simpleMessage("Due within an hour"),
     "assignEditOnlineTextInWeb": MessageLookupByLibrary.simpleMessage(
       "Edit text on the web",
@@ -143,6 +154,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "assignEditSubmission": MessageLookupByLibrary.simpleMessage(
       "Edit submission",
     ),
+    "assignExtendedTo": MessageLookupByLibrary.simpleMessage("Extended to %s"),
     "assignExtensionDueDate": MessageLookupByLibrary.simpleMessage(
       "Extension due date",
     ),
@@ -241,6 +253,13 @@ class MessageLookup extends MessageLookupByLibrary {
     "assignPreviousAttempts": MessageLookupByLibrary.simpleMessage(
       "Previous attempts",
     ),
+    "assignRemainDays": MessageLookupByLibrary.simpleMessage("%s day(s) left"),
+    "assignRemainHours": MessageLookupByLibrary.simpleMessage(
+      "%s hour(s) left",
+    ),
+    "assignRemainSoon": MessageLookupByLibrary.simpleMessage(
+      "Less than an hour left",
+    ),
     "assignRemoveConfirm": MessageLookupByLibrary.simpleMessage(
       "This deletes every file and all the text in this submission, and cannot be undone",
     ),
@@ -292,7 +311,11 @@ class MessageLookup extends MessageLookupByLibrary {
     "assignStatementAtSubmit": MessageLookupByLibrary.simpleMessage(
       "Confirmed at submit time",
     ),
+    "assignStatusAwaitingGrade": MessageLookupByLibrary.simpleMessage(
+      "Awaiting grade",
+    ),
     "assignStatusDraft": MessageLookupByLibrary.simpleMessage("Draft"),
+    "assignStatusExtended": MessageLookupByLibrary.simpleMessage("Extended"),
     "assignStatusGraded": MessageLookupByLibrary.simpleMessage("Graded"),
     "assignStatusNoSubmissionRequired": MessageLookupByLibrary.simpleMessage(
       "No submission required",
@@ -305,7 +328,6 @@ class MessageLookup extends MessageLookupByLibrary {
       "Sent, but the latest status could not be loaded; refresh to confirm",
     ),
     "assignStatusReopened": MessageLookupByLibrary.simpleMessage("Reopened"),
-    "assignStatusSubmitted": MessageLookupByLibrary.simpleMessage("Submitted"),
     "assignSubmissionStatement": MessageLookupByLibrary.simpleMessage(
       "Submission statement",
     ),
@@ -353,6 +375,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "assignSubmittedFiles": MessageLookupByLibrary.simpleMessage(
       "Submitted files",
     ),
+    "assignSubmittedOn": MessageLookupByLibrary.simpleMessage("Submitted %s"),
     "assignSubmittedToast": MessageLookupByLibrary.simpleMessage(
       "Assignment submitted",
     ),
@@ -443,9 +466,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "avatarProfileLocked": MessageLookupByLibrary.simpleMessage(
       "Your Moodle profile is managed by the school account system and can\'t be edited in the app",
     ),
-    "avatarRemove": MessageLookupByLibrary.simpleMessage(
-      "Remove current picture",
-    ),
+    "avatarRemove": MessageLookupByLibrary.simpleMessage("Remove picture"),
     "avatarRemoveConfirm": MessageLookupByLibrary.simpleMessage(
       "Remove your current profile picture? Moodle will fall back to the default icon and the original image cannot be recovered.",
     ),
@@ -468,37 +489,86 @@ class MessageLookup extends MessageLookupByLibrary {
     "avatarUploadDisabled": MessageLookupByLibrary.simpleMessage(
       "File upload is turned off on this Moodle site",
     ),
+    "browserAutoLoginNotice": MessageLookupByLibrary.simpleMessage(
+      "TAT is signing you in — no need to type your password",
+    ),
+    "browserAutologinExpired": MessageLookupByLibrary.simpleMessage(
+      "The one-tap sign-in link expired, so the original page was opened instead",
+    ),
+    "browserCaptchaNotice": MessageLookupByLibrary.simpleMessage(
+      "The school wants a captcha this time; you have to enter it yourself",
+    ),
+    "browserCopyUrl": MessageLookupByLibrary.simpleMessage("Copy address"),
+    "browserDownloadSaved": MessageLookupByLibrary.simpleMessage(
+      "%s saved to Downloads",
+    ),
+    "browserExternalSite": MessageLookupByLibrary.simpleMessage(
+      "This is an external site, not a school system",
+    ),
+    "browserOpenExternalNote": MessageLookupByLibrary.simpleMessage(
+      "An external browser does not have your sign-in",
+    ),
+    "browserRelogin": MessageLookupByLibrary.simpleMessage("Sign in again"),
+    "browserShare": MessageLookupByLibrary.simpleMessage("Share"),
+    "browserUrlCopied": MessageLookupByLibrary.simpleMessage("Address copied"),
     "calendar": MessageLookupByLibrary.simpleMessage("Calendar"),
+    "calendarNoSemesterSelected": MessageLookupByLibrary.simpleMessage(
+      "No semester selected, the calendar was not updated",
+    ),
+    "calendarSourceDeadline": MessageLookupByLibrary.simpleMessage(
+      "Assignment due",
+    ),
+    "calendarSourceSchool": MessageLookupByLibrary.simpleMessage(
+      "School calendar",
+    ),
+    "campusEmail": MessageLookupByLibrary.simpleMessage("Campus email"),
+    "campusLifeDescription": MessageLookupByLibrary.simpleMessage(
+      "Dormitory, room booking, counselling",
+    ),
     "campus_life": MessageLookupByLibrary.simpleMessage("Campus Life"),
     "cancel": MessageLookupByLibrary.simpleMessage("Cancel"),
     "categoryTotal": MessageLookupByLibrary.simpleMessage("Category total"),
-    "changePassword": MessageLookupByLibrary.simpleMessage(
-      "Change the password",
-    ),
     "checkIdentity": MessageLookupByLibrary.simpleMessage("Check identity"),
     "checkVersion": MessageLookupByLibrary.simpleMessage("Check version"),
     "checkingVersion": MessageLookupByLibrary.simpleMessage(
       "Checking version...",
     ),
-    "choosePeople": MessageLookupByLibrary.simpleMessage(
-      "Total enrolled (NTUST / system universities)",
-    ),
-    "choosePeopleString": MessageLookupByLibrary.simpleMessage(
-      "NTUST first-round limit (returning students only): %s\nNTUST add/drop limit / new students first-semester first-round limit: %s\nUniversity system cross-enrollment limit: %s",
-    ),
-    "chooseUpBoundary": MessageLookupByLibrary.simpleMessage(
-      "Enrollment limit",
-    ),
     "classRoomNo": MessageLookupByLibrary.simpleMessage("Classroom no"),
     "classroom": MessageLookupByLibrary.simpleMessage("Classroom"),
-    "copy": MessageLookupByLibrary.simpleMessage("Copied!"),
-    "copy_course_id": MessageLookupByLibrary.simpleMessage(
-      "Course code copied",
+    "collapse": MessageLookupByLibrary.simpleMessage("Collapse"),
+    "contactInfo": MessageLookupByLibrary.simpleMessage("Contact"),
+    "continueMeansAgree": MessageLookupByLibrary.simpleMessage(
+      "By continuing you agree to the",
     ),
+    "copy": MessageLookupByLibrary.simpleMessage("Copied"),
+    "copyAction": MessageLookupByLibrary.simpleMessage("Copy"),
     "coreAbility": MessageLookupByLibrary.simpleMessage("Core ability"),
     "course": MessageLookupByLibrary.simpleMessage("Course"),
+    "courseAndPracticalTimes": MessageLookupByLibrary.simpleMessage(
+      "Class / lab",
+    ),
     "courseContent": MessageLookupByLibrary.simpleMessage("Course content"),
+    "courseCount": MessageLookupByLibrary.simpleMessage("%s courses"),
     "courseData": MessageLookupByLibrary.simpleMessage("Moodle"),
+    "courseDimensionA": MessageLookupByLibrary.simpleMessage(
+      "Humanities and Thinking",
+    ),
+    "courseDimensionB": MessageLookupByLibrary.simpleMessage(
+      "Contemporary Civilization",
+    ),
+    "courseDimensionC": MessageLookupByLibrary.simpleMessage(
+      "Aesthetics and Life Wisdom",
+    ),
+    "courseDimensionD": MessageLookupByLibrary.simpleMessage(
+      "Social Cultures and History",
+    ),
+    "courseDimensionE": MessageLookupByLibrary.simpleMessage(
+      "Community and Relationships",
+    ),
+    "courseDimensionF": MessageLookupByLibrary.simpleMessage(
+      "Nature and Life Science",
+    ),
+    "courseElective": MessageLookupByLibrary.simpleMessage("Elective"),
     "courseGrading": MessageLookupByLibrary.simpleMessage("Course grading"),
     "courseId": MessageLookupByLibrary.simpleMessage("Course number"),
     "courseName": MessageLookupByLibrary.simpleMessage("Course Title"),
@@ -506,20 +576,89 @@ class MessageLookup extends MessageLookupByLibrary {
     "courseObject": MessageLookupByLibrary.simpleMessage("Course object"),
     "courseRefbook": MessageLookupByLibrary.simpleMessage("Course Refbook"),
     "courseRemark": MessageLookupByLibrary.simpleMessage("Course remark"),
-    "courseSearchHint": MessageLookupByLibrary.simpleMessage(
-      "Enter text above to search for courses",
+    "courseRequired": MessageLookupByLibrary.simpleMessage("Required"),
+    "courseSearchAdd": MessageLookupByLibrary.simpleMessage("Add to draft"),
+    "courseSearchCollege": MessageLookupByLibrary.simpleMessage("College"),
+    "courseSearchConflictSummary": MessageLookupByLibrary.simpleMessage(
+      "%s clash with your table",
+    ),
+    "courseSearchConflictWith": MessageLookupByLibrary.simpleMessage(
+      "Clashes with %s (%s)",
+    ),
+    "courseSearchDepartment": MessageLookupByLibrary.simpleMessage(
+      "Department",
+    ),
+    "courseSearchDepartmentAny": MessageLookupByLibrary.simpleMessage(
+      "Any department",
+    ),
+    "courseSearchDimension": MessageLookupByLibrary.simpleMessage(
+      "GE dimension",
+    ),
+    "courseSearchDimensionAny": MessageLookupByLibrary.simpleMessage(
+      "Any dimension",
+    ),
+    "courseSearchFilter": MessageLookupByLibrary.simpleMessage("Filter"),
+    "courseSearchFilterApply": MessageLookupByLibrary.simpleMessage("Apply"),
+    "courseSearchFilterTitle": MessageLookupByLibrary.simpleMessage("Filters"),
+    "courseSearchForeignLanguage": MessageLookupByLibrary.simpleMessage(
+      "Taught in English",
+    ),
+    "courseSearchGeneral": MessageLookupByLibrary.simpleMessage(
+      "General education",
+    ),
+    "courseSearchHideConflict": MessageLookupByLibrary.simpleMessage(
+      "Hide clashes",
+    ),
+    "courseSearchIntensive": MessageLookupByLibrary.simpleMessage("Intensive"),
+    "courseSearchLevel": MessageLookupByLibrary.simpleMessage("Program"),
+    "courseSearchLevelAny": MessageLookupByLibrary.simpleMessage("Any program"),
+    "courseSearchLevelMaster": MessageLookupByLibrary.simpleMessage("Graduate"),
+    "courseSearchLevelUnder": MessageLookupByLibrary.simpleMessage(
+      "Undergraduate",
     ),
     "courseSearchNotFound": MessageLookupByLibrary.simpleMessage(
       "No relevant courses found",
     ),
+    "courseSearchNtustOnly": MessageLookupByLibrary.simpleMessage(
+      "Exclude NTU system",
+    ),
+    "courseSearchOptions": MessageLookupByLibrary.simpleMessage("Options"),
+    "courseSearchReset": MessageLookupByLibrary.simpleMessage("Clear filters"),
+    "courseSearchResultSummary": MessageLookupByLibrary.simpleMessage(
+      "%s courses",
+    ),
+    "courseSearchTitle": MessageLookupByLibrary.simpleMessage("Search courses"),
+    "courseTableOptions": MessageLookupByLibrary.simpleMessage(
+      "Timetable options",
+    ),
+    "courseTableSummary": MessageLookupByLibrary.simpleMessage(
+      "%s courses · %s credits",
+    ),
     "courseTextbook": MessageLookupByLibrary.simpleMessage("Course textbook"),
+    "courseTextbookAndRefbook": MessageLookupByLibrary.simpleMessage(
+      "Textbooks and references",
+    ),
     "courseTimes": MessageLookupByLibrary.simpleMessage("Course times"),
     "courseTotal": MessageLookupByLibrary.simpleMessage("Course total"),
     "courseURL": MessageLookupByLibrary.simpleMessage("course URL"),
+    "credentialRejectedDesc": MessageLookupByLibrary.simpleMessage(
+      "The NTUST system rejected the saved account and password. If you changed it recently, update it and try again.",
+    ),
     "credit": MessageLookupByLibrary.simpleMessage("Credit"),
+    "creditCount": MessageLookupByLibrary.simpleMessage("%s credits"),
     "curriculum": MessageLookupByLibrary.simpleMessage("Curriculum"),
+    "curriculumDescription": MessageLookupByLibrary.simpleMessage(
+      "Enrollment, course search, evaluation",
+    ),
     "deadlineLater": MessageLookupByLibrary.simpleMessage("Later"),
     "deadlineOverdue": MessageLookupByLibrary.simpleMessage("Overdue"),
+    "deadlineRemainingDays": MessageLookupByLibrary.simpleMessage(
+      "%s days left",
+    ),
+    "deadlineRemainingHours": MessageLookupByLibrary.simpleMessage(
+      "%s hours left",
+    ),
+    "deadlineRestOfMonth": MessageLookupByLibrary.simpleMessage("Late %s"),
     "deadlineThisWeek": MessageLookupByLibrary.simpleMessage("This week"),
     "deadlineToday": MessageLookupByLibrary.simpleMessage("Today"),
     "delete": MessageLookupByLibrary.simpleMessage("Delete"),
@@ -529,16 +668,38 @@ class MessageLookup extends MessageLookupByLibrary {
     "downloadComplete": MessageLookupByLibrary.simpleMessage(
       "Download complete",
     ),
-    "downloadError": MessageLookupByLibrary.simpleMessage(" Download error"),
+    "downloadError": MessageLookupByLibrary.simpleMessage("Download error"),
     "downloadPath": MessageLookupByLibrary.simpleMessage("Download path"),
     "downloadWillStart": MessageLookupByLibrary.simpleMessage(
       "Download ready to start",
     ),
     "downloading": MessageLookupByLibrary.simpleMessage("Download..."),
     "edit": MessageLookupByLibrary.simpleMessage("Edit"),
+    "enrolledCount": MessageLookupByLibrary.simpleMessage("Enrolled"),
+    "enrolledCountValue": MessageLookupByLibrary.simpleMessage("%s (%s / %s)"),
+    "enrolledStudents": MessageLookupByLibrary.simpleMessage(
+      "Enrolled students",
+    ),
+    "enrollmentLimitSummary": MessageLookupByLibrary.simpleMessage(
+      "Limit %s · NTUST %s · Cross-campus %s",
+    ),
     "error": MessageLookupByLibrary.simpleMessage("Error"),
+    "exportImage": MessageLookupByLibrary.simpleMessage("Export image"),
+    "exportImageHint": MessageLookupByLibrary.simpleMessage("PNG, whole week"),
     "feedback": MessageLookupByLibrary.simpleMessage("Feedback"),
     "file": MessageLookupByLibrary.simpleMessage("Files"),
+    "fileSearchNoResult": MessageLookupByLibrary.simpleMessage(
+      "No files match that name",
+    ),
+    "fileStatsTopic": MessageLookupByLibrary.simpleMessage(
+      "%s file(s) · %s topic(s)",
+    ),
+    "fileStatsWeekly": MessageLookupByLibrary.simpleMessage(
+      "%s file(s) · %s week(s) with content",
+    ),
+    "financialSupportDescription": MessageLookupByLibrary.simpleMessage(
+      "Scholarships, fee waivers, work-study",
+    ),
     "financial_support": MessageLookupByLibrary.simpleMessage(
       "Financial Support",
     ),
@@ -584,9 +745,6 @@ class MessageLookup extends MessageLookupByLibrary {
     "forumCancelReplyTarget": MessageLookupByLibrary.simpleMessage(
       "Reply to the first post instead",
     ),
-    "forumCannotCheckPosting": MessageLookupByLibrary.simpleMessage(
-      "Couldn\'t check whether you can post here",
-    ),
     "forumCannotDeleteHasReplies": MessageLookupByLibrary.simpleMessage(
       "This post has replies and cannot be deleted",
     ),
@@ -598,9 +756,6 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "forumCannotPost": MessageLookupByLibrary.simpleMessage(
       "You can\'t post in this forum from the app",
-    ),
-    "forumCannotPostHere": MessageLookupByLibrary.simpleMessage(
-      "This forum is not open for new discussions",
     ),
     "forumDeleteDone": MessageLookupByLibrary.simpleMessage("Deleted"),
     "forumDeleteError": MessageLookupByLibrary.simpleMessage(
@@ -662,9 +817,6 @@ class MessageLookup extends MessageLookupByLibrary {
     "forumEmpty": MessageLookupByLibrary.simpleMessage(
       "This forum has no discussions yet",
     ),
-    "forumErrorCannotCreateDiscussion": MessageLookupByLibrary.simpleMessage(
-      "This forum won\'t accept a new discussion",
-    ),
     "forumErrorNoEditPermission": MessageLookupByLibrary.simpleMessage(
       "You cannot edit this post",
     ),
@@ -677,6 +829,13 @@ class MessageLookup extends MessageLookupByLibrary {
     "forumErrorTooManyPosts": MessageLookupByLibrary.simpleMessage(
       "You\'ve hit this forum\'s posting limit",
     ),
+    "forumFilterAll": MessageLookupByLibrary.simpleMessage("All"),
+    "forumFilterAnnouncements": MessageLookupByLibrary.simpleMessage(
+      "Announcements %s",
+    ),
+    "forumFilterDiscussions": MessageLookupByLibrary.simpleMessage(
+      "Discussions %s",
+    ),
     "forumFormattingInWeb": MessageLookupByLibrary.simpleMessage(
       "Bold, lists and tables need the website editor.",
     ),
@@ -688,9 +847,6 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "forumMessageRequired": MessageLookupByLibrary.simpleMessage(
       "Write something first",
-    ),
-    "forumNewDiscussion": MessageLookupByLibrary.simpleMessage(
-      "New discussion",
     ),
     "forumOpenInWeb": MessageLookupByLibrary.simpleMessage(
       "Open forum in browser",
@@ -717,7 +873,6 @@ class MessageLookup extends MessageLookupByLibrary {
     "forumSendCancelled": MessageLookupByLibrary.simpleMessage(
       "Upload cancelled",
     ),
-    "forumSendDone": MessageLookupByLibrary.simpleMessage("Posted"),
     "forumSendDoneRefreshFailed": MessageLookupByLibrary.simpleMessage(
       "Posted, but the thread could not be reloaded",
     ),
@@ -735,6 +890,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "forumThreadLocked": MessageLookupByLibrary.simpleMessage(
       "This thread is not open for replies",
     ),
+    "forumTopicStarter": MessageLookupByLibrary.simpleMessage("Started"),
     "forumUnknownAuthor": MessageLookupByLibrary.simpleMessage(
       "Unknown author",
     ),
@@ -794,26 +950,55 @@ class MessageLookup extends MessageLookupByLibrary {
       "Failed to load Moodle to-do items",
     ),
     "github": MessageLookupByLibrary.simpleMessage("Github"),
-    "hidePassword": MessageLookupByLibrary.simpleMessage("Hide password"),
-    "importCourse": MessageLookupByLibrary.simpleMessage("Import course"),
-    "importCourseWarning": MessageLookupByLibrary.simpleMessage(
-      "Note! After importing, it will not really join the course selection, just to facilitate viewing the time and place",
+    "goToStudentRecord": MessageLookupByLibrary.simpleMessage(
+      "Open student record",
     ),
-    "informationSystem": MessageLookupByLibrary.simpleMessage("Info"),
+    "gpaLabel": MessageLookupByLibrary.simpleMessage("GPA"),
+    "gradeFeedbackTag": MessageLookupByLibrary.simpleMessage("Feedback"),
+    "groupAboutTat": MessageLookupByLibrary.simpleMessage("About TAT"),
+    "hideEmptyWeeks": MessageLookupByLibrary.simpleMessage(
+      "Hide the empty weeks",
+    ),
+    "hidePassword": MessageLookupByLibrary.simpleMessage("Hide password"),
+    "hoursValue": MessageLookupByLibrary.simpleMessage("%s / %s hr"),
+    "importConfirmOpen": MessageLookupByLibrary.simpleMessage(
+      "Import and open",
+    ),
+    "importConfirmTitle": MessageLookupByLibrary.simpleMessage(
+      "Import this table?",
+    ),
+    "importCourse": MessageLookupByLibrary.simpleMessage("Import course"),
+    "importCourseHint": MessageLookupByLibrary.simpleMessage(
+      "Add a course by its code or name",
+    ),
+    "importDone": MessageLookupByLibrary.simpleMessage("Imported %s\'s table"),
+    "importMoreCourses": MessageLookupByLibrary.simpleMessage("and %s more"),
+    "importRestoring": MessageLookupByLibrary.simpleMessage(
+      "Restoring course names (%s/%s)",
+    ),
+    "importedOn": MessageLookupByLibrary.simpleMessage("Imported %s"),
+    "informationSystem": MessageLookupByLibrary.simpleMessage(
+      "Information system",
+    ),
     "instructor": MessageLookupByLibrary.simpleMessage("Instructor"),
     "isNewVersion": MessageLookupByLibrary.simpleMessage(
       "Already the latest version",
     ),
+    "itemCount": MessageLookupByLibrary.simpleMessage("%s items"),
+    "languageEn": MessageLookupByLibrary.simpleMessage("English"),
+    "languageSetting": MessageLookupByLibrary.simpleMessage("Language"),
     "languageSwitch": MessageLookupByLibrary.simpleMessage(
       "Use English interface",
     ),
+    "languageZhTW": MessageLookupByLibrary.simpleMessage("Traditional Chinese"),
     "loadFavorite": MessageLookupByLibrary.simpleMessage("Load favorite"),
     "loading": MessageLookupByLibrary.simpleMessage("Loading..."),
-    "loadingCache": MessageLookupByLibrary.simpleMessage("load cache"),
-    "location": MessageLookupByLibrary.simpleMessage("Location"),
+    "loadingCache": MessageLookupByLibrary.simpleMessage(
+      "Could not fetch the latest data; showing the last successful result.",
+    ),
     "login": MessageLookupByLibrary.simpleMessage("Login"),
     "loginDescription": MessageLookupByLibrary.simpleMessage(
-      "A school affairs app specially designed for students of National Taiwan University of Science and Technology\nMoodle, semester schedule, score inquiry, school certificate, etc.\nAll kinds of services are available in one app",
+      "A campus app designed for students of National Taiwan University of Science and Technology. Moodle, semester timetable, grades, enrollment certificates and more, all in one app.",
     ),
     "loginMoodle": MessageLookupByLibrary.simpleMessage("Login Moodle..."),
     "loginMoodleError": MessageLookupByLibrary.simpleMessage(
@@ -828,13 +1013,34 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "loginTitle": MessageLookupByLibrary.simpleMessage("NTUST TAT"),
     "login_hint": MessageLookupByLibrary.simpleMessage(
-      "\"Your login information will be stored only on this device and will not be uploaded to any server.",
+      "Your login information will be stored only on this device and will not be uploaded to any server.",
     ),
     "logout": MessageLookupByLibrary.simpleMessage("Sign out"),
-    "logoutWarning": MessageLookupByLibrary.simpleMessage(
-      "Are you sure you want to log out? \nAll data will be cleared",
+    "logoutConfirmDesc": MessageLookupByLibrary.simpleMessage(
+      "This clears all data, including the account and password saved on this device and the cached timetable.",
     ),
-    "member": MessageLookupByLibrary.simpleMessage("member"),
+    "logoutConfirmTitle": MessageLookupByLibrary.simpleMessage("Log out?"),
+    "manageTablesCurrent": MessageLookupByLibrary.simpleMessage("Current"),
+    "manageTablesDrafts": MessageLookupByLibrary.simpleMessage(
+      "Simulations · your drafts",
+    ),
+    "manageTablesDraftsHint": MessageLookupByLibrary.simpleMessage(
+      "Simulations are just for planning; they never touch your real timetable.",
+    ),
+    "manageTablesMine": MessageLookupByLibrary.simpleMessage(
+      "My tables, downloaded",
+    ),
+    "manageTablesMineHint": MessageLookupByLibrary.simpleMessage(
+      "Each semester you open is saved here automatically.",
+    ),
+    "manageTablesShared": MessageLookupByLibrary.simpleMessage(
+      "Scanned from someone else",
+    ),
+    "manageTablesSharedHint": MessageLookupByLibrary.simpleMessage(
+      "A scanned table is a snapshot; later add-drops by that person will not sync.",
+    ),
+    "manageTablesTitle": MessageLookupByLibrary.simpleMessage("Manage tables"),
+    "member": MessageLookupByLibrary.simpleMessage("Member"),
     "moodleCourseGrades": MessageLookupByLibrary.simpleMessage(
       "Moodle running totals",
     ),
@@ -844,11 +1050,11 @@ class MessageLookup extends MessageLookupByLibrary {
     "moodleCourseGradesHint": MessageLookupByLibrary.simpleMessage(
       "These are running totals calculated from grading on Moodle, not your official NTUST grades. A course shows \"-\" when it has no total yet — the teacher may not have graded it, or may have hidden the total.",
     ),
+    "moodleCourseGradesSubtitle": MessageLookupByLibrary.simpleMessage(
+      "Assignment and exam scores during the term",
+    ),
     "moodleNotSignedIn": MessageLookupByLibrary.simpleMessage(
       "Not signed in to Moodle",
-    ),
-    "moodleNotification": MessageLookupByLibrary.simpleMessage(
-      "Moodle notifications",
     ),
     "moodle_setting": MessageLookupByLibrary.simpleMessage("Moodle setting"),
     "moodle_setting_description": MessageLookupByLibrary.simpleMessage(
@@ -858,7 +1064,6 @@ class MessageLookup extends MessageLookupByLibrary {
       "Need validate captcha",
     ),
     "networkError": MessageLookupByLibrary.simpleMessage("Network error"),
-    "noAnyFavorite": MessageLookupByLibrary.simpleMessage("No any favorite"),
     "noFunction": MessageLookupByLibrary.simpleMessage("No function"),
     "noPermission": MessageLookupByLibrary.simpleMessage("Permission denied"),
     "noSupport": MessageLookupByLibrary.simpleMessage(" not support"),
@@ -866,12 +1071,19 @@ class MessageLookup extends MessageLookupByLibrary {
     "nothingHere": MessageLookupByLibrary.simpleMessage(
       "There\'s nothing here",
     ),
+    "notificationCenterTitle": MessageLookupByLibrary.simpleMessage(
+      "Notifications",
+    ),
     "notificationDisabledOnMoodle": MessageLookupByLibrary.simpleMessage(
       "Site notifications are turned off in your Moodle preferences. Turn them back on in the notification preferences on the Moodle website.",
     ),
     "notificationEmpty": MessageLookupByLibrary.simpleMessage(
       "No notifications",
     ),
+    "notificationEmptyHint": MessageLookupByLibrary.simpleMessage(
+      "Course announcements, assignment deadlines and released grades show up here.",
+    ),
+    "notificationGroupEarlier": MessageLookupByLibrary.simpleMessage("Earlier"),
     "notificationMarkAllRead": MessageLookupByLibrary.simpleMessage(
       "Mark all as read",
     ),
@@ -896,6 +1108,10 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "openInBrowser": MessageLookupByLibrary.simpleMessage("Open in browser"),
     "originPassword": MessageLookupByLibrary.simpleMessage("Origin password"),
+    "otherFields": MessageLookupByLibrary.simpleMessage("More fields"),
+    "otherWeeksWithFiles": MessageLookupByLibrary.simpleMessage(
+      "Other weeks with content",
+    ),
     "password": MessageLookupByLibrary.simpleMessage("Password"),
     "passwordNotSame": MessageLookupByLibrary.simpleMessage(
       "Different from the original password",
@@ -903,13 +1119,13 @@ class MessageLookup extends MessageLookupByLibrary {
     "passwordNull": MessageLookupByLibrary.simpleMessage(
       "Please enter the password",
     ),
-    "percentage": MessageLookupByLibrary.simpleMessage("percentage"),
+    "peopleCount": MessageLookupByLibrary.simpleMessage("%s people"),
+    "personInfoDescription": MessageLookupByLibrary.simpleMessage(
+      "Student record, conduct, leaving procedures",
+    ),
     "person_info": MessageLookupByLibrary.simpleMessage("Person Information"),
     "pleaseConnectToNetwork": MessageLookupByLibrary.simpleMessage(
       "Please connect to network",
-    ),
-    "pleaseEnterWebMailPassword": MessageLookupByLibrary.simpleMessage(
-      "Please Enter WebMail Password",
     ),
     "pleaseLogin": MessageLookupByLibrary.simpleMessage("Please Login"),
     "pleaseLoginWarning": MessageLookupByLibrary.simpleMessage(
@@ -918,6 +1134,44 @@ class MessageLookup extends MessageLookupByLibrary {
     "practicalTimes": MessageLookupByLibrary.simpleMessage("Practical times"),
     "prepareDownload": MessageLookupByLibrary.simpleMessage(
       "Prepare download...",
+    ),
+    "privacyAgreeContinue": MessageLookupByLibrary.simpleMessage(
+      "Agree and continue",
+    ),
+    "privacyAgreeRequired": MessageLookupByLibrary.simpleMessage(
+      "TAT can\'t be used without agreeing",
+    ),
+    "privacyBodyTitle": MessageLookupByLibrary.simpleMessage("Policy text"),
+    "privacyHistoryLink": MessageLookupByLibrary.simpleMessage(
+      "See this policy\'s history on GitHub",
+    ),
+    "privacySectionCount": MessageLookupByLibrary.simpleMessage("%s sections"),
+    "privacySummaryAnalyticsBody": MessageLookupByLibrary.simpleMessage(
+      "Which screens get opened is reported to Firebase Analytics so we know what to fix. No student ID, no grades.",
+    ),
+    "privacySummaryAnalyticsTitle": MessageLookupByLibrary.simpleMessage(
+      "Anonymous usage stats",
+    ),
+    "privacySummaryCrashBody": MessageLookupByLibrary.simpleMessage(
+      "When the app crashes, the stack trace goes to Firebase Crashlytics.",
+    ),
+    "privacySummaryCrashTitle": MessageLookupByLibrary.simpleMessage(
+      "Crash reports",
+    ),
+    "privacySummaryDataBody": MessageLookupByLibrary.simpleMessage(
+      "Every piece of course data is fetched by your own phone from the school\'s systems. We never see it and never store it.",
+    ),
+    "privacySummaryDataTitle": MessageLookupByLibrary.simpleMessage(
+      "Your grades and timetable don\'t pass through us",
+    ),
+    "privacySummaryLocalBody": MessageLookupByLibrary.simpleMessage(
+      "Sign-in details live in the device\'s secure storage. They are never sent to a TAT server — there isn\'t one. The app talks to NTUST and Moodle directly.",
+    ),
+    "privacySummaryLocalTitle": MessageLookupByLibrary.simpleMessage(
+      "Your password never leaves this phone",
+    ),
+    "profileReadOnlyNote": MessageLookupByLibrary.simpleMessage(
+      "This information comes from the university\'s systems. To correct it, go through campus services.",
     ),
     "projectLink": MessageLookupByLibrary.simpleMessage("Project link"),
     "quizAlwaysOpen": MessageLookupByLibrary.simpleMessage("Always available"),
@@ -1019,13 +1273,40 @@ class MessageLookup extends MessageLookupByLibrary {
     "remove": MessageLookupByLibrary.simpleMessage("Remove"),
     "requireOption": MessageLookupByLibrary.simpleMessage("Require option"),
     "resources": MessageLookupByLibrary.simpleMessage("Resources"),
+    "resourcesDescription": MessageLookupByLibrary.simpleMessage(
+      "Licensed software, campus documents",
+    ),
     "restart": MessageLookupByLibrary.simpleMessage("Restart"),
     "save": MessageLookupByLibrary.simpleMessage("Save"),
+    "scanTableGallery": MessageLookupByLibrary.simpleMessage("From photos"),
+    "scanTableHint": MessageLookupByLibrary.simpleMessage(
+      "Line up their QR inside the frame",
+    ),
+    "scanTableInvalid": MessageLookupByLibrary.simpleMessage(
+      "That is not a TAT table code",
+    ),
+    "scanTableNote": MessageLookupByLibrary.simpleMessage(
+      "You will get to confirm whose table it is before it is imported.",
+    ),
+    "scanTablePaste": MessageLookupByLibrary.simpleMessage("Paste code"),
+    "scanTablePasteHint": MessageLookupByLibrary.simpleMessage(
+      "Paste the code they sent you",
+    ),
+    "scanTablePermission": MessageLookupByLibrary.simpleMessage(
+      "No camera access. Use From photos or Paste code instead.",
+    ),
+    "scanTableTitle": MessageLookupByLibrary.simpleMessage("Scan a table"),
+    "scanTableTorch": MessageLookupByLibrary.simpleMessage("Torch"),
     "score": MessageLookupByLibrary.simpleMessage("Score"),
+    "scoreFailed": MessageLookupByLibrary.simpleMessage("Failed"),
+    "scorePassed": MessageLookupByLibrary.simpleMessage("Passed"),
     "search": MessageLookupByLibrary.simpleMessage("Search"),
-    "searchCredit": MessageLookupByLibrary.simpleMessage("Search credit"),
+    "searchFileName": MessageLookupByLibrary.simpleMessage("Search file name"),
     "searchScore": MessageLookupByLibrary.simpleMessage("Search score"),
-    "searching": MessageLookupByLibrary.simpleMessage("Searching..."),
+    "searchService": MessageLookupByLibrary.simpleMessage("Search services"),
+    "searchStudent": MessageLookupByLibrary.simpleMessage(
+      "Search by name or class",
+    ),
     "selectDirectoryFail": MessageLookupByLibrary.simpleMessage(
       "Cannot set this path as download path",
     ),
@@ -1042,13 +1323,73 @@ class MessageLookup extends MessageLookupByLibrary {
     "settingCompleteWithError": MessageLookupByLibrary.simpleMessage(
       "Setup is complete, please add the weight again",
     ),
+    "shareTableCodeCopied": MessageLookupByLibrary.simpleMessage("Code copied"),
+    "shareTableCopyCode": MessageLookupByLibrary.simpleMessage("Copy code"),
+    "shareTableHint": MessageLookupByLibrary.simpleMessage(
+      "Have them use Scan a table",
+    ),
+    "shareTableNote": MessageLookupByLibrary.simpleMessage(
+      "The QR carries only the student ID, semester and course codes. Nothing is uploaded, and it contains no grades or assignments. Their app fills in course names and rooms itself.",
+    ),
+    "shareTableSaveImage": MessageLookupByLibrary.simpleMessage(
+      "Save as image",
+    ),
+    "shareTableTitle": MessageLookupByLibrary.simpleMessage("Share table"),
+    "sharedTableBadge": MessageLookupByLibrary.simpleMessage("Shared"),
+    "showEmptyWeeks": MessageLookupByLibrary.simpleMessage(
+      "Show the %s empty week(s)",
+    ),
     "showPassword": MessageLookupByLibrary.simpleMessage("Show password"),
+    "showRemainingFiles": MessageLookupByLibrary.simpleMessage(
+      "Show %s more item(s)",
+    ),
+    "simulationConflictBanner": MessageLookupByLibrary.simpleMessage(
+      "%s clashes: %s",
+    ),
+    "simulationConflictCount": MessageLookupByLibrary.simpleMessage(
+      "%s clashes",
+    ),
+    "simulationDraftLabel": MessageLookupByLibrary.simpleMessage(
+      "%s add-drop draft",
+    ),
+    "simulationDraftSummary": MessageLookupByLibrary.simpleMessage(
+      "Draft: %s courses, %s credits",
+    ),
+    "simulationEmptyHint": MessageLookupByLibrary.simpleMessage(
+      "No courses yet. Tap Search courses below to start planning.",
+    ),
+    "simulationNew": MessageLookupByLibrary.simpleMessage("New draft table"),
+    "simulationNoConflict": MessageLookupByLibrary.simpleMessage("No clashes"),
+    "simulationRemoveCourse": MessageLookupByLibrary.simpleMessage(
+      "Remove from draft",
+    ),
+    "simulationSubtitle": MessageLookupByLibrary.simpleMessage(
+      "Draft only, your real table is untouched",
+    ),
+    "simulationTotalSummary": MessageLookupByLibrary.simpleMessage(
+      "%s credits including your real table",
+    ),
     "somethingError": MessageLookupByLibrary.simpleMessage(
       "Opps something Error",
     ),
     "startClass": MessageLookupByLibrary.simpleMessage("Start class"),
-    "success": MessageLookupByLibrary.simpleMessage("success"),
+    "subSystemSearchEmpty": MessageLookupByLibrary.simpleMessage(
+      "No services found",
+    ),
+    "success": MessageLookupByLibrary.simpleMessage("Success"),
     "sure": MessageLookupByLibrary.simpleMessage("Sure"),
+    "switchTable": MessageLookupByLibrary.simpleMessage("Switch table"),
+    "switchTableHint": MessageLookupByLibrary.simpleMessage(
+      "Mine, shared, drafts",
+    ),
+    "tableSwitcherDrafts": MessageLookupByLibrary.simpleMessage("Draft tables"),
+    "tableSwitcherMine": MessageLookupByLibrary.simpleMessage("My tables"),
+    "tableSwitcherShared": MessageLookupByLibrary.simpleMessage(
+      "Shared with me",
+    ),
+    "tableSwitcherTitle": MessageLookupByLibrary.simpleMessage(
+      "Choose a table",
+    ),
     "theme_dark": MessageLookupByLibrary.simpleMessage("Dark"),
     "theme_light": MessageLookupByLibrary.simpleMessage("Light"),
     "theme_setting": MessageLookupByLibrary.simpleMessage("Theme setting"),
@@ -1056,11 +1397,13 @@ class MessageLookup extends MessageLookupByLibrary {
       "Change TAT Theme Style",
     ),
     "theme_system": MessageLookupByLibrary.simpleMessage("System"),
+    "thisWeek": MessageLookupByLibrary.simpleMessage("This week"),
     "time": MessageLookupByLibrary.simpleMessage("Time"),
     "titleCourse": MessageLookupByLibrary.simpleMessage("Course"),
+    "titleMore": MessageLookupByLibrary.simpleMessage("More"),
     "titleOther": MessageLookupByLibrary.simpleMessage("Other"),
     "titleScore": MessageLookupByLibrary.simpleMessage("Score"),
-    "totalMember": MessageLookupByLibrary.simpleMessage("Total member: "),
+    "topic": MessageLookupByLibrary.simpleMessage("Topics"),
     "unknownError": MessageLookupByLibrary.simpleMessage(
       "An unknown error occurred",
     ),
@@ -1082,7 +1425,9 @@ class MessageLookup extends MessageLookupByLibrary {
     "versionInfo": MessageLookupByLibrary.simpleMessage("Version info"),
     "wait": MessageLookupByLibrary.simpleMessage("Wait"),
     "warning": MessageLookupByLibrary.simpleMessage("Warning"),
-    "webMail": MessageLookupByLibrary.simpleMessage("WebMail"),
+    "weeksWithFiles": MessageLookupByLibrary.simpleMessage(
+      "Weeks with content",
+    ),
     "weight": MessageLookupByLibrary.simpleMessage("weight"),
     "willRestart": MessageLookupByLibrary.simpleMessage(
       "Will restart automatically",

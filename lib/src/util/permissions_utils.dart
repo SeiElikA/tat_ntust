@@ -1,4 +1,3 @@
-
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -10,25 +9,24 @@ class PermissionsUtils {
       var deviceInfo = DeviceInfoPlugin();
       AndroidDeviceInfo androidInfo = await deviceInfo.androidInfo;
       var apiVersion = androidInfo.version.sdkInt;
-      if(apiVersion >= 33) {
+      if (apiVersion >= 33) {
         return true;
       }
 
       Permission permission = Permission.storage;
       var status = await permission.status;
 
-      if(status == PermissionStatus.granted) {
+      if (status == PermissionStatus.granted) {
         return true;
       }
 
-      Map<Permission, PermissionStatus> permissions = await [
-        permission
-      ].request();
+      Map<Permission, PermissionStatus> permissions =
+          await [permission].request();
 
       if (permissions[permission] == PermissionStatus.granted) {
         return true;
       }
-    } else if(Get.theme.platform == TargetPlatform.iOS) {
+    } else if (Get.theme.platform == TargetPlatform.iOS) {
       return true;
     }
 
@@ -40,18 +38,17 @@ class PermissionsUtils {
       Permission permission = Permission.notification;
       var status = await permission.status;
 
-      if(status == PermissionStatus.granted) {
+      if (status == PermissionStatus.granted) {
         return true;
       }
 
-      Map<Permission, PermissionStatus> permissions = await [
-        permission
-      ].request();
+      Map<Permission, PermissionStatus> permissions =
+          await [permission].request();
 
       if (permissions[permission] == PermissionStatus.granted) {
         return true;
       }
-    } else if(Get.theme.platform == TargetPlatform.iOS) {
+    } else if (Get.theme.platform == TargetPlatform.iOS) {
       return true;
     }
 

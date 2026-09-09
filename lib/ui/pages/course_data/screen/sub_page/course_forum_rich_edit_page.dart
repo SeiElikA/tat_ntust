@@ -3,6 +3,8 @@ import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_app/ui/components/tat_progress.dart';
+import 'package:flutter_app/ui/other/theme_context.dart';
 import 'package:flutter_app/src/R.dart';
 import 'package:flutter_app/src/model/moodle_webapi/moodle_mod_forum_get_discussion_posts.dart';
 import 'package:flutter_app/src/repository/result.dart';
@@ -550,7 +552,7 @@ class _CourseForumRichEditPageState extends State<CourseForumRichEditPage> {
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const CircularProgressIndicator(),
+                          const TatProgress(),
                           const SizedBox(height: 12),
                           Text(R.current.forumEditorLoading,
                               textAlign: TextAlign.center),
@@ -626,7 +628,7 @@ class _CourseForumRichEditPageState extends State<CourseForumRichEditPage> {
     return SafeArea(
       top: false,
       child: Material(
-        color: scheme.surfaceContainer,
+        color: context.tokens.card,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [

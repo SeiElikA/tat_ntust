@@ -39,6 +39,10 @@ class HtmlUtils {
   /// 後者除了印在撰寫頁的引用卡，還會原樣送回 `mod_forum_add_discussion_post`
   /// 的 `subject`（PARAM_TEXT，伺服器自己會剝標籤），兩者都不是 HTML sink。
   ///
+  /// 成績項目的四個 `*formatted` 走 `MoodleRepository.normalizeScore`：Moodle
+  /// 把全距送成 `0&ndash;100`，而那四欄的下游只有 Text。同一列的 `feedback`
+  /// 是 HTML、下游是 HtmlWidget，刻意不經過這裡。
+  ///
   /// `test/util/html_utils_sink_inventory_test.dart` 把現有的 sink 盤點寫成
   /// 可執行的清單：新增 `clean()` 的呼叫端、在 lib 底下新增 `HtmlWidget`，
   /// 或把 `Modules.name` 餵進 `HtmlWidget`，那個測試就會變紅並要求重跑盤點。

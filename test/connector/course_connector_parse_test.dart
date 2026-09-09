@@ -102,12 +102,13 @@ void main() {
     test('教師、學分、備註直接照抄回應欄位', () {
       final result = CourseConnector.parseSearchResult(raw);
       final course = result[6]; // 3N1154701 基礎微積分
-      expect(course.teacher.single.name, '森元俊成');
+      expect(course.teacher.single.name, '丁老師');
       expect(course.course.credits, '3');
       expect(course.course.note, '師大課程／限外系 生科一、學科一；限修學制：大、碩、博');
-      // category 與 hours 在這條路徑上一律留空——課程查詢 API 沒有這兩欄，
-      // 只有選課系統的課表 HTML 才有。
-      expect(course.course.category, '');
+      // category 放 RequireOption 的原始碼：實測值域只有 R（必修）與 E（選修）。
+      // 在地化字串在畫面那一層才組——model 不 import R.dart。
+      expect(course.course.category, 'E');
+      // hours 才是真的沒有：課程查詢 API 沒有這一欄，只有選課系統的課表 HTML 有。
       expect(course.course.hours, '');
     });
 
@@ -155,7 +156,7 @@ void main() {
       final info = CourseConnector.parseCourseExtraInfo(raw);
       expect(info.courseNo, '3N1154701');
       expect(info.courseName, '基礎微積分');
-      expect(info.courseTeacher, '森元俊成');
+      expect(info.courseTeacher, '丁老師');
       expect(info.creditPoint, '3');
       expect(info.requireOption, '選修');
       expect(info.allYear, '半學年');

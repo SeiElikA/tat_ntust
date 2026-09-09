@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_app/src/controller/setting/moodle_setting_controller.dart';
 import 'package:flutter_app/src/model/moodle_webapi/moodle_setting_entity.dart';
 import 'package:flutter_app/ui/pages/other/page/setting/moodle_setting_page.dart';
+import 'package:flutter_app/ui/components/tat_switch.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
 
@@ -109,7 +110,7 @@ void main() {
 
     final gate = Completer<void>();
     controller.gate = gate;
-    await tester.tap(find.byType(Switch).hitTestable().first);
+    await tester.tap(find.byType(TatSwitch).hitTestable().first);
     await tester.pump();
 
     // 寫入進行中。這個瞬間不能把列表換成 LoadingPage：列表不在畫面上時
@@ -134,13 +135,15 @@ void main() {
     final gate = Completer<void>();
     controller.gate = gate;
 
-    await tester.tap(find.byType(Switch).hitTestable().first);
+    await tester.tap(find.byType(TatSwitch).hitTestable().first);
     await tester.pump();
 
     // 停用不只是忙碌提示：toggleSetting 是「讀目前 enabled 清單 → 送整份
     // 清單 → 重抓」，兩個請求交錯的話後送的那份會蓋掉前一個的結果。
     expect(
-      tester.widget<Switch>(find.byType(Switch).hitTestable().first).onChanged,
+      tester
+          .widget<TatSwitch>(find.byType(TatSwitch).hitTestable().first)
+          .onChanged,
       isNull,
     );
 
@@ -148,7 +151,9 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(
-      tester.widget<Switch>(find.byType(Switch).hitTestable().first).onChanged,
+      tester
+          .widget<TatSwitch>(find.byType(TatSwitch).hitTestable().first)
+          .onChanged,
       isNotNull,
     );
   });

@@ -2,11 +2,11 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_app/src/R.dart';
-import 'package:flutter_app/ui/pages/subsystem/sub_system_page.dart';
 import 'package:flutter_app/ui/pages/score/score_page.dart';
 import 'package:flutter_app/ui/pages/other/other_page.dart';
 import 'package:flutter_app/ui/pages/course_table/course_table_page.dart';
 import 'package:flutter_app/ui/pages/calendar/calendar_page.dart';
+import 'package:flutter_app/ui/routes/route_utils.dart';
 import 'package:flutter_app/src/controller/announcement/notification_badge_controller.dart';
 import 'package:flutter_app/src/controller/main_page/main_controller.dart';
 import 'package:flutter_app/src/util/analytics_utils.dart';
@@ -24,14 +24,14 @@ class _MainScreenState extends State<MainScreen>
     with RouteAware, WidgetsBindingObserver {
   // 註冊在 AppBindings（lazyPut + fenix），這裡只取用。
   final controller = Get.find<MainController>();
+
   /// 一定要是 getter：欄位只在 State 建立時初始化，而 forceAppUpdate 只重跑
   /// build()、不重建 State，導覽列標籤會永遠停在啟動時的語言。
   List<Map<String, dynamic>> get items => [
-        {"icon": LucideIcons.clock, "name": R.current.titleCourse},
-        {"icon": LucideIcons.info, "name": R.current.informationSystem},
-        {"icon": LucideIcons.calendar, "name": R.current.calendar},
-        {"icon": LucideIcons.bookOpen, "name": R.current.titleScore},
-        {"icon": LucideIcons.menu, "name": R.current.titleOther}
+        {"icon": LucideIcons.table, "name": R.current.titleCourse},
+        {"icon": LucideIcons.calendarDays, "name": R.current.calendar},
+        {"icon": LucideIcons.graduationCap, "name": R.current.titleScore},
+        {"icon": LucideIcons.menu, "name": R.current.titleMore}
       ];
 
   @override
@@ -71,12 +71,14 @@ class _MainScreenState extends State<MainScreen>
     );
   }
 
-  /// 五個分頁。**順序必須與 [MainTab] 一致**——底下的導覽列與 controller 的
+  /// 四個分頁。**順序必須與 [MainTab] 一致**——底下的導覽列與 controller 的
   /// 分析事件都是靠索引對應的。清單放在這裡，controller 才不必 import 頁面。
+  ///
+  /// 資訊系統不在這裡：它是用系統的名字命名的入口，擺在導覽列反而容易被
+  /// 整個忽略，現在從「更多」的最上面進去。
   static const _pages = [
     CourseTablePage(),
-    SubSystemPage(),
-    CalendarPage(),
+    CalendarPage(openInApp: RouteUtils.tryOpenUpcomingEvent),
     ScoreViewerPage(),
     OtherPage(),
   ];
@@ -95,20 +97,17 @@ class _MainScreenState extends State<MainScreen>
       var currentIndex = controller.currentIndex.value;
 
       return NavigationBar(
+        // 選取狀態只由這個索引表達。**不要**改成拿 item 去 items.indexOf：
+        // items 是 getter，每次讀都是新的 Map，而 Map 沒有覆寫 ==，跨兩次
+        // 讀取的 indexOf 一律回 -1。
         selectedIndex: currentIndex,
         onDestinationSelected: controller.onBottomNavigationTap,
-        // 索引用 indexed：items 是 getter，每次讀都是新的 Map，而 Map 沒有
-        // 覆寫 ==，跨兩次讀取的 indexOf 一律回 -1。
         destinations: [
-          for (final (index, item) in items.indexed)
+          for (final item in items)
             NavigationDestination(
-              icon: Icon(
-                item["icon"] as IconData,
-                size: 24,
-                color: currentIndex == index
-                    ? Get.theme.colorScheme.onSecondaryContainer
-                    : Get.theme.colorScheme.onSurfaceVariant,
-              ),
+              // 圖示的顏色與尺寸一律交給 NavigationBarThemeData，在這裡再塗
+              // 一次會蓋掉主題。
+              icon: Icon(item["icon"] as IconData),
               label: item["name"] as String,
             ),
         ],

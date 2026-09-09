@@ -14,6 +14,20 @@ String assignFormatUnix(int unix) => DateFormat.yMd()
     .add_jm()
     .format(DateTime.fromMillisecondsSinceEpoch(unix * 1000));
 
+/// 同一個 [DueHint]，但講的是「還剩多久」而不是「什麼時候截止」。
+///
+/// 清單那一列右邊已經有籤或分數，左下那一行的空間只夠講一件事，所以講剩餘
+/// 時間；詳情頁的欄位標題就是「截止日期」，那裡才需要 [dueHintText] 的說法。
+/// 已逾期的幾種共用同一組字：過期之後「剩多久」沒有意義。
+String dueRemainText(DueHint hint) => switch (hint.kind) {
+      DueHintKind.dueInDays =>
+        sprintf(R.current.assignRemainDays, [hint.count]),
+      DueHintKind.dueInHours =>
+        sprintf(R.current.assignRemainHours, [hint.count]),
+      DueHintKind.dueSoon => R.current.assignRemainSoon,
+      _ => dueHintText(hint),
+    };
+
 /// [DueHint] 對映成畫面文字。住在 UI 層是因為要 R.current；
 /// 作業分頁與詳情頁共用。
 String dueHintText(DueHint hint) => switch (hint.kind) {
@@ -32,12 +46,18 @@ String dueHintText(DueHint hint) => switch (hint.kind) {
 /// 作業的狀態籤，作業分頁與詳情頁共用；外觀走共用的 [StatusPill]，
 /// 刻意不 import 任何頁面。
 class AssignStatusChip extends StatelessWidget {
-  const AssignStatusChip(this.status, {super.key, this.stale = false});
+  const AssignStatusChip(this.status,
+      {super.key, this.stale = false, this.extended = false});
 
   final AssignDisplayStatus status;
 
   /// 資料來自快取（[Stale]）時多畫一個時鐘小圖示。
   final bool stale;
+
+  /// 老師給了這位學生延長期限，而作業還沒交出去、也還沒到延長後的期限。
+  /// 狀態本身仍然是「未繳交」，但籤要說「已延長」：旁邊那一行說的是延長到
+  /// 哪一天，籤卻只說未繳交的話，兩句話對不起來。
+  final bool extended;
 
   /// null 還在抓畫轉圈；[Failed] 不知道狀態就什麼都不畫（背景抓的，不彈框）。
   static Widget fromResult(
@@ -54,16 +74,30 @@ class AssignStatusChip extends StatelessWidget {
     }
     final data = r.dataOrNull;
     if (data == null) return const SizedBox.shrink();
+    final status = MoodleAssignUtils.resolveStatus(a, data, now: now);
     return AssignStatusChip(
-      MoodleAssignUtils.resolveStatus(a, data, now: now),
+      status,
       stale: r is Stale,
+      extended: isExtended(status, data),
     );
   }
 
-  static String labelOf(AssignDisplayStatus status) => switch (status) {
-        AssignDisplayStatus.notSubmitted => R.current.assignStatusNotSubmitted,
+  /// 延長期限只有在還沒交、也還沒逾期的時候才是這一列的重點：交出去之後
+  /// 期限是多久已經不重要，過了延長後的期限就變成逾期。
+  static bool isExtended(
+          AssignDisplayStatus status, MoodleAssignSubmissionStatus? data) =>
+      status == AssignDisplayStatus.notSubmitted &&
+      (data?.extensionDueDate ?? 0) > 0;
+
+  static String labelOf(AssignDisplayStatus status, {bool extended = false}) =>
+      switch (status) {
+        AssignDisplayStatus.notSubmitted => extended
+            ? R.current.assignStatusExtended
+            : R.current.assignStatusNotSubmitted,
         AssignDisplayStatus.draft => R.current.assignStatusDraft,
-        AssignDisplayStatus.submitted => R.current.assignStatusSubmitted,
+        // 「已繳交」講的是學生做完的事，這一顆籤要講的是接下來會發生什麼：
+        // 交出去之後在等老師評分。
+        AssignDisplayStatus.submitted => R.current.assignStatusAwaitingGrade,
         AssignDisplayStatus.graded => R.current.assignStatusGraded,
         AssignDisplayStatus.overdue => R.current.assignStatusOverdue,
         AssignDisplayStatus.reopened => R.current.assignStatusReopened,
@@ -73,34 +107,24 @@ class AssignStatusChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final (bg, fg) = switch (status) {
+    final tone = switch (status) {
+      // 未繳交、已延長、草稿、重新開放是同一件事的四種說法：還沒交出去，
+      // 而時間在走。設計稿上它們共用同一組提醒色。
       AssignDisplayStatus.notSubmitted ||
+      AssignDisplayStatus.draft ||
+      AssignDisplayStatus.reopened =>
+        StatusPillTone.attention,
+      // 交出去了、或本來就不用交：球不在學生手上，中性色。
+      AssignDisplayStatus.submitted ||
       AssignDisplayStatus.noSubmissionRequired =>
-        (scheme.surfaceContainerHighest, scheme.onSurfaceVariant),
-      // 重新開放跟草稿同一組顏色：兩者都是「還沒交出去，但已經動起來了」。
-      AssignDisplayStatus.draft || AssignDisplayStatus.reopened => (
-          scheme.tertiaryContainer,
-          scheme.onTertiaryContainer
-        ),
-      AssignDisplayStatus.submitted => (
-          scheme.primaryContainer,
-          scheme.onPrimaryContainer
-        ),
-      AssignDisplayStatus.graded => (
-          scheme.secondaryContainer,
-          scheme.onSecondaryContainer
-        ),
-      AssignDisplayStatus.overdue => (
-          scheme.errorContainer,
-          scheme.onErrorContainer
-        ),
+        StatusPillTone.pending,
+      AssignDisplayStatus.graded => StatusPillTone.graded,
+      AssignDisplayStatus.overdue => StatusPillTone.overdue,
     };
     return StatusPill(
-      background: bg,
-      foreground: fg,
+      tone: tone,
       stale: stale,
-      label: labelOf(status),
+      label: labelOf(status, extended: extended),
     );
   }
 }

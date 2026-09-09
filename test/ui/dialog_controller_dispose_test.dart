@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_app/src/R.dart';
 import 'package:flutter_app/src/model/course/course_class_json.dart';
 import 'package:flutter_app/src/model/course/course_main_extra_json.dart';
 import 'package:flutter_app/src/model/course_table/course_table_json.dart';
-import 'package:flutter_app/ui/pages/course_table/modal/course_detail_dialog.dart';
+import 'package:flutter_app/ui/pages/course_table/modal/course_cell_sheet.dart';
+import 'package:flutter_app/ui/pages/course_table/modal/favorite_dialog.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
 import 'package:intl/date_symbol_data_local.dart';
@@ -12,7 +15,7 @@ import '../helpers/reset_statics.dart';
 import '../helpers/test_l10n.dart';
 
 /// 對話框裡的 TextEditingController 必須由 StatefulWidget 的 State 持有並釋放。
-/// 在方法裡 new 一個區域變數再塞進 Get.dialog 的 widget 樹，沒有人 dispose，
+/// 在方法裡 new 一個區域變數再塞進對話框的 widget 樹，沒有人 dispose，
 /// 每開一次就漏一個。
 ///
 /// 測試摸不到 private 欄位，所以從畫面上的 EditableText 拿到同一個物件，
@@ -39,7 +42,23 @@ void main() {
     );
   }
 
-  group('CourseDetailDialog 的課程代碼編輯框', () {
+  /// 這些對話框都是從別的浮層關掉之後才開，測試裡用一顆按鈕代表那個觸發點。
+  Future<void> pumpOpener(WidgetTester tester, VoidCallback onPressed) async {
+    await tester.pumpWidget(
+      GetMaterialApp(
+        home: Scaffold(
+          body: Center(
+            child: TextButton(onPressed: onPressed, child: const Text('open')),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('open'));
+    await tester.pumpAndSettle();
+  }
+
+  group('課程代碼的編輯框', () {
     setUp(resetAppStatics);
 
     testWidgets('關閉後 controller 已被 dispose', (tester) async {
@@ -49,23 +68,7 @@ void main() {
         ),
       );
 
-      await tester.pumpWidget(
-        GetMaterialApp(
-          home: Material(
-            child: CourseDetailDialog(
-              courseInfo: courseInfo,
-              time: '一_1 2',
-              onDetailTap: () {},
-              onRemoveTap: () {},
-              onMoodleTap: () {},
-            ),
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      await tester.longPress(find.text('${R.current.courseId} : AT1234'));
-      await tester.pumpAndSettle();
+      await pumpOpener(tester, () => unawaited(editCourseCellId(courseInfo)));
 
       final controller = currentController(tester);
       expect(controller.text, 'AT1234');
@@ -74,6 +77,41 @@ void main() {
       await tester.pumpAndSettle();
 
       expectAlreadyDisposed(controller);
+      // 取消不會動到課號。
+      expect(courseInfo.main.course.id, 'AT1234');
+    });
+  });
+
+  group('刪除收藏的確認框', () {
+    setUp(resetAppStatics);
+
+    /// 舊版的「確定」只呼叫 onDelete，從來沒有人 pop，對話框會留在畫面上。
+    testWidgets('按下刪除會關掉對話框並回報 true', (tester) async {
+      bool? result;
+      await pumpOpener(tester, () async {
+        result = await showFavoriteDeleteDialog('B11234567 114-1');
+      });
+
+      expect(find.text('B11234567 114-1'), findsOneWidget);
+
+      await tester.tap(find.text(R.current.delete));
+      await tester.pumpAndSettle();
+
+      expect(result, isTrue);
+      expect(find.text('B11234567 114-1'), findsNothing);
+    });
+
+    testWidgets('取消會關掉對話框並回報 false', (tester) async {
+      bool? result;
+      await pumpOpener(tester, () async {
+        result = await showFavoriteDeleteDialog('B11234567 114-1');
+      });
+
+      await tester.tap(find.text(R.current.cancel));
+      await tester.pumpAndSettle();
+
+      expect(result, isFalse);
+      expect(find.text('B11234567 114-1'), findsNothing);
     });
   });
 }

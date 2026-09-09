@@ -1,4 +1,8 @@
-import 'package:awesome_dialog/awesome_dialog.dart';
+/// 對話框的種類。只影響標題前那顆圓點的顏色，沒有插圖、也沒有不同版面。
+///
+/// 這個 enum 刻意住在 `lib/src`：`main_controller.dart` 會傳它，而 controller
+/// 不能 import `lib/ui`（tool/deps.py 的上行邊門檻是 0）。
+enum TatDialogKind { error, warning, info, success }
 
 /// 錯誤對話框的參數，純資料類。
 ///
@@ -12,8 +16,11 @@ class ErrorDialogParameter {
   String? title;
   String? btnOkText;
   String? btnCancelText;
-  DialogType? dialogType;
-  AnimType? animType;
+  TatDialogKind? kind;
+
+  /// 主鈕換成 error 底。取代以前「用 warning 種類暗示這個動作很危險」的做法。
+  bool destructive;
+
   dynamic Function()? btnOkOnPress;
   dynamic Function()? btnCancelOnPress;
   bool offOkBtn;
@@ -36,13 +43,13 @@ class ErrorDialogParameter {
     this.title,
     this.btnOkText,
     this.btnCancelText,
-    this.animType,
-    this.dialogType,
+    this.kind,
+    this.destructive = false,
     this.btnCancelOnPress,
     this.btnOkOnPress,
     this.okResult = true,
     this.cancelResult = false,
     this.offOkBtn = false,
     this.offCancelBtn = false,
-  });
+  }) : assert(!(offOkBtn && offCancelBtn), '兩顆按鈕都關掉會鎖死畫面：對話框點外面不關，使用者沒有出口');
 }

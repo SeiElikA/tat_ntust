@@ -91,8 +91,12 @@ void main() {
         MoodleProfileEntity(username: 'b11234567', userpictureurl: pictureUrl);
   }
 
+  /// 換頭貼的入口移到「個人資訊」頁了（「更多」頁上的頭貼只是進去的入口，
+  /// 沒有相機角標），所以這裡先從「更多」點進個人資訊再測。
   Future<void> pumpPage(WidgetTester tester) async {
     await tester.pumpWidget(const GetMaterialApp(home: OtherPage()));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byType(CircleAvatar));
     await tester.pumpAndSettle();
   }
 
@@ -124,7 +128,7 @@ void main() {
             hasFocusAction: true,
           ),
         );
-        expect(find.byIcon(LucideIcons.pencil), findsOneWidget);
+        expect(find.byIcon(LucideIcons.camera), findsOneWidget);
         // 圖載到了就不該再蓋一個預設圖示上去。
         expect(find.byIcon(LucideIcons.user), findsNothing);
       });
@@ -141,7 +145,7 @@ void main() {
         await tester.pumpAndSettle();
 
         expect(find.byType(InkWell), findsNothing);
-        expect(find.byIcon(LucideIcons.pencil), findsNothing);
+        expect(find.byIcon(LucideIcons.camera), findsNothing);
       });
     });
 
@@ -212,7 +216,9 @@ void main() {
         expect(find.text(R.current.avatarFromGallery), findsOneWidget);
         expect(find.text(R.current.avatarTakePhoto), findsOneWidget);
         expect(find.text(R.current.avatarRemove), findsOneWidget);
-        expect(find.text(R.current.cancel), findsOneWidget);
+        // dialog-spec §06-A 把「取消」那一列拿掉了：下滑與點遮罩都能關，
+        // 再放一列取消是重複。
+        expect(find.text(R.current.cancel), findsNothing);
       });
     });
 
@@ -227,14 +233,16 @@ void main() {
       });
     });
 
-    testWidgets('按取消什麼都不做', (tester) async {
+    testWidgets('點遮罩關掉選單什麼都不做', (tester) async {
       givenProfile(_customUrl);
       await withFakeImageHttp(() async {
         await pumpPage(tester);
         await tapAvatar(tester);
-        await tester.tap(find.text(R.current.cancel));
+        // 選單沒有「取消」列，所以從遮罩關——回傳 null 代表沒選。
+        await tester.tapAt(const Offset(10, 10));
         await tester.pumpAndSettle();
 
+        expect(find.text(R.current.avatarFromGallery), findsNothing);
         expect(controller.calls, 0);
         expect(picker.calls, isEmpty);
         expect(ui.toasts, isEmpty);

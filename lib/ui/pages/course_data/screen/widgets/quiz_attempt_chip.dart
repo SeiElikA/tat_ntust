@@ -63,32 +63,18 @@ class QuizAttemptStateChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final (bg, fg) = switch (state) {
-      QuizAttemptState.finished => (
-          scheme.secondaryContainer,
-          scheme.onSecondaryContainer
-        ),
-      QuizAttemptState.submitted => (
-          scheme.primaryContainer,
-          scheme.onPrimaryContainer
-        ),
-      QuizAttemptState.inProgress => (
-          scheme.tertiaryContainer,
-          scheme.onTertiaryContainer
-        ),
-      QuizAttemptState.overdue => (
-          scheme.errorContainer,
-          scheme.onErrorContainer
-        ),
+    final tone = switch (state) {
+      QuizAttemptState.finished => StatusPillTone.graded,
+      QuizAttemptState.submitted => StatusPillTone.submitted,
+      QuizAttemptState.inProgress => StatusPillTone.draft,
+      QuizAttemptState.overdue => StatusPillTone.overdue,
       QuizAttemptState.abandoned ||
       QuizAttemptState.notStarted ||
       QuizAttemptState.unknown =>
-        (scheme.surfaceContainerHighest, scheme.onSurfaceVariant),
+        StatusPillTone.pending,
     };
     return StatusPill(
-      background: bg,
-      foreground: fg,
+      tone: tone,
       label: quizAttemptStateText(state),
     );
   }
@@ -130,14 +116,9 @@ class QuizAttemptsChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
     final exhausted = !quiz.isUnlimitedAttempts && used >= quiz.attempts;
-    final (bg, fg) = exhausted
-        ? (scheme.errorContainer, scheme.onErrorContainer)
-        : (scheme.surfaceContainerHighest, scheme.onSurfaceVariant);
     return StatusPill(
-      background: bg,
-      foreground: fg,
+      tone: exhausted ? StatusPillTone.overdue : StatusPillTone.pending,
       stale: stale,
       label: quiz.isUnlimitedAttempts
           ? R.current.quizAttemptsUnlimited

@@ -9,8 +9,11 @@ import 'package:flutter_test/flutter_test.dart';
 /// 多一份要翻的垃圾。這道守衛不驗翻譯品質（那是 arb_translation_test 的事），
 /// 只驗「有沒有人讀」。刻意保留但暫時沒用的 key 請寫進 [allowUnused] 並附理由。
 void main() {
-  /// 允許暫時沒有讀取點的 key。目前是空的——有需要時連同理由一起加進來。
-  const Set<String> allowUnused = {};
+  /// 允許暫時沒有讀取點的 key，加進來時要一起寫明理由。
+  ///
+  /// 目前是空的，維持這樣：UI 改版補進來的字串已經全部接上，接不上的那些
+  /// （3h 的學籍欄位等）連同 key 一起刪掉了，沒有留成永久豁免。
+  const Set<String> allowUnused = <String>{};
 
   test('lib/l10n 的每個 key 都有讀取點', () {
     final arb = json.decode(File('lib/l10n/intl_zh_TW.arb').readAsStringSync())

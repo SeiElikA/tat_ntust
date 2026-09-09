@@ -382,76 +382,15 @@ void main() {
     });
   });
 
-  group('addDiscussion', () {
-    test('送出去的是 forumid/subject/message/groupid，沒有任何 option', () async {
-      Map<String, dynamic>? sent;
-      MoodleWebApiConnector.wsToken = 'tok';
-      MoodleWebApiConnector.wsPost = (parameter) async {
-        sent = Map<String, dynamic>.from(parameter.data as Map);
-        return loadMoodleForumFixture('add_discussion');
-      };
-
-      final id = await MoodleWebApiConnector.addDiscussion(
-          forumId: 5499, subject: '請問作業', htmlMessage: 'a &lt; b<br>c');
-
-      expect(id, 4321);
-      expect(sent!['wsfunction'], MoodleWebApiConnector.addDiscussionFunction);
-      expect(sent!['forumid'], '5499');
-      expect(sent!['subject'], '請問作業');
-      expect(sent!['message'], 'a &lt; b<br>c');
-      expect(sent!['groupid'], '0');
-      expect(sent!.keys.join(','), isNot(contains('options')));
-      expect(sent!.keys.join(','), isNot(contains('messageformat')));
-    });
-
-    test('沒有 discussionid 就是失敗——證明不了寫入發生過', () async {
-      MoodleWebApiConnector.wsToken = 'tok';
-      MoodleWebApiConnector.wsPost =
-          (_) async => loadMoodleForumFixture('add_discussion_no_id');
-
-      expect(
-        () => MoodleWebApiConnector.addDiscussion(
-            forumId: 5499, subject: 's', htmlMessage: 'm'),
-        throwsA(isA<MoodleApiException>()
-            .having((e) => e.errorcode, 'errorcode', 'couldnotadd')),
-      );
-    });
-  });
-
-  group('canAddDiscussionOf', () {
-    test('status 為 true，VALUE_OPTIONAL 的旗標讀得到', () {
-      final r = MoodleWebApiConnector.canAddDiscussionOf(
-          loadMoodleForumFixture('can_add_discussion'));
-
-      expect(r!.status, isTrue);
-      expect(r.cancreateattachment, isTrue);
-    });
-
-    test('status 為 false 而且 VALUE_OPTIONAL 全部缺席', () {
-      final r = MoodleWebApiConnector.canAddDiscussionOf(
-          loadMoodleForumFixture('can_add_discussion_denied'));
-
-      expect(r!.status, isFalse);
-      expect(r.cancreateattachment, isNull);
-    });
-
-    test('沒有 status 或不是 Map → null', () {
-      expect(MoodleWebApiConnector.canAddDiscussionOf(const {'warnings': []}),
-          isNull);
-      expect(MoodleWebApiConnector.canAddDiscussionOf(const []), isNull);
-      expect(MoodleWebApiConnector.canAddDiscussionOf(null), isNull);
-    });
-  });
-
-  group('站台沒開放這兩支 function 時', () {
-    test('canPostToForum / canCreateDiscussion 為 false，而且一個請求都不送', () async {
+  group('站台沒開放回覆那一支時', () {
+    test('canPostToForum 為 false，而且一個請求都不送', () async {
       var calls = 0;
       MoodleWebApiConnector.wsToken = 'tok';
       MoodleWebApiConnector.wsPost = (_) async {
         calls++;
         return const {};
       };
-      // functions[] 有東西（knowsWsFunctions 為真）但沒有這兩支。
+      // functions[] 有東西（knowsWsFunctions 為真）但沒有這一支。
       MoodleWebApiConnector.siteInfo = MoodleProfileEntity(functions: [
         MoodleProfileFunctions(
             name: MoodleWebApiConnector.discussionPostsFunction,
@@ -459,7 +398,6 @@ void main() {
       ]);
 
       expect(MoodleWebApiConnector.canPostToForum, isFalse);
-      expect(MoodleWebApiConnector.canCreateDiscussion, isFalse);
       await expectLater(
         () => MoodleWebApiConnector.addDiscussionPost(
             postId: 900, subject: 's', message: 'm'),
@@ -471,7 +409,6 @@ void main() {
 
     test('site_info 還沒載入時 fail-open', () {
       expect(MoodleWebApiConnector.canPostToForum, isTrue);
-      expect(MoodleWebApiConnector.canCreateDiscussion, isTrue);
     });
   });
 
@@ -906,22 +843,6 @@ void main() {
       );
     });
 
-    test('addDiscussion 的 attachmentsid 是 options[0]（那一支沒有 topreferredformat）',
-        () async {
-      Map<String, dynamic>? sent;
-      MoodleWebApiConnector.wsToken = 'tok';
-      MoodleWebApiConnector.wsPost = (parameter) async {
-        sent = Map<String, dynamic>.from(parameter.data as Map);
-        return loadMoodleForumFixture('add_discussion');
-      };
-
-      await MoodleWebApiConnector.addDiscussion(
-          forumId: 5499, subject: 's', htmlMessage: 'm', attachmentsId: 884411);
-
-      expect(sent!['options[0][name]'], 'attachmentsid');
-      expect(sent!['options[0][value]'], '884411');
-      expect(sent!.keys.join(','), isNot(contains('messageformat')));
-    });
   });
 
   group('upload.php 的錯誤形狀', () {

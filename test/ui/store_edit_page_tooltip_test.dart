@@ -35,8 +35,14 @@ void main() {
     await tester.pumpWidget(const MaterialApp(home: StoreEditPage()));
     await tester.pumpAndSettle();
 
+    // 只看清單裡的按鈕：baseAppbar 的返回鍵也是一顆 IconButton，它有自己的
+    // tooltip，不屬於這一則要守的東西。
+    final rowButtons = find.descendant(
+      of: find.byType(ListView),
+      matching: find.byType(IconButton),
+    );
     final tooltips = tester
-        .widgetList<IconButton>(find.byType(IconButton))
+        .widgetList<IconButton>(rowButtons)
         .map((b) => b.tooltip)
         .toList();
 
@@ -47,6 +53,8 @@ void main() {
 
     expect(find.byTooltip(R.current.edit), findsNWidgets(2));
     expect(find.byTooltip(R.current.delete), findsNWidgets(2));
+    // 返回鍵沒有搶走列上按鈕的名字。
+    expect(rowButtons, findsNWidgets(4));
   });
 
   test('edit 與 delete 兩個 l10n key 有值且互不相同', () {

@@ -15,16 +15,14 @@ import '../helpers/test_l10n.dart';
 
 /// 記錄「畫面上還開著哪些進度框」的 delegate。
 ///
-/// [hideProgress] 模擬全域 `BotToast.cleanAll()` 的殺傷範圍——把畫面上全部的
-/// 遮罩清光。只要 `run()` 走上那條全域路徑，下面第一個測試就會紅。
+/// 進度框只能靠 [ProgressHandle.dismiss] 一個一個關。`run()` 只要關錯一個，
+/// 下面第一個測試就會紅。
 class OverlayUi implements TaskUiDelegate {
   /// 還開著的進度框，key 是開啟順序，value 是訊息。
   final Map<int, String> visible = {};
 
   /// 依序回傳給每一次 confirmRetry 的決定，用完之後一律 giveUp。
   final List<RetryDecision> decisions = [];
-
-  int globalHideCalls = 0;
 
   /// 每次 confirmRetry 被呼叫的當下，畫面上還開著幾個進度框。
   final List<int> visibleAtConfirm = [];
@@ -36,15 +34,6 @@ class OverlayUi implements TaskUiDelegate {
     final id = _nextId++;
     visible[id] = message;
     return _OverlayHandle(this, id);
-  }
-
-  @override
-  void showProgress(String message) => visible[_nextId++] = message;
-
-  @override
-  void hideProgress() {
-    globalHideCalls++;
-    visible.clear();
   }
 
   @override
@@ -127,11 +116,9 @@ void main() {
       a.complete('a');
       await ra;
 
-      // 走全域的 hideProgress()（BotToast.cleanAll()）的話，A 一結束就會把 B
-      // 的遮罩一起關掉，使用者以為 B 也載完了。課程頁三個分頁並行載入，
-      // 每次都會踩到。
+      // 關錯一個的話，A 一結束就會把 B 的遮罩一起關掉，使用者以為 B 也載完
+      // 了。課程頁三個分頁並行載入，每次都會踩到。
       expect(ui.visible.values, ['B'], reason: 'A 結束不能動到 B 的遮罩');
-      expect(ui.globalHideCalls, 0, reason: 'run() 不能再走全域的 hideProgress');
 
       b.complete('b');
       await rb;
@@ -158,7 +145,6 @@ void main() {
       expect(attempts, 2);
       expect(result, isA<Ok<String>>());
       expect(ui.visible, isEmpty, reason: '重試成功後不能殘留遮罩');
-      expect(ui.globalHideCalls, 0);
     });
 
     test('錯誤對話框跳出來的時候進度框已經關掉', () async {
@@ -169,7 +155,7 @@ void main() {
       );
 
       // finally 在 _confirmRetry 之前跑，所以問使用者要不要重試的時候，
-      // allowClick=false 的遮罩不會蓋在對話框上面。
+      // 吃掉觸控的遮罩不會蓋在對話框上面。
       expect(ui.visibleAtConfirm, [0]);
       expect(ui.visible, isEmpty);
     });

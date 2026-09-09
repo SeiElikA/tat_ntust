@@ -1,12 +1,14 @@
-import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_app/ui/components/tat_switch.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_app/src/R.dart';
 import 'package:flutter_app/src/controller/setting/moodle_setting_controller.dart';
 import 'package:flutter_app/src/model/moodle_webapi/moodle_setting_entity.dart';
 import 'package:flutter_app/src/util/ui_utils.dart';
 import 'package:flutter_app/ui/components/page/base_page.dart';
+import 'package:flutter_app/ui/components/tat_tab_bar.dart';
+import 'package:flutter_app/ui/other/theme_context.dart';
 import 'package:get/get.dart';
 
 class MoodleSettingPage extends GetView<MoodleSettingController> {
@@ -33,9 +35,14 @@ class MoodleSettingPage extends GetView<MoodleSettingController> {
         isError: controller.isError.value,
         errorMsg: controller.errorMsg.value,
         isSubPage: true,
+        // 清單自己吃安全區：交給 BasePage 的話最後一列會停在安全區上緣，
+        // 底下空一條跟頁面同色的死帶，看起來像被切掉。
+        bottomSafeArea: false,
+        // 這一頁沒有 DefaultTabController 可以回退，tabController 還沒建好時
+        // 不能先把分頁列畫出來。
         bottom: controller.tabController == null
             ? null
-            : TabBar(
+            : TatTabBar(
                 controller: controller.tabController,
                 tabs: controller.tab
                     .map((e) => Tab(text: e.displayname))
@@ -44,21 +51,23 @@ class MoodleSettingPage extends GetView<MoodleSettingController> {
         child: TabBarView(
             controller: controller.tabController,
             children: controller.tab
-                .map((element) => _buildSettingList(element.name, isToggling))
+                .map((element) =>
+                    _buildSettingList(context, element.name, isToggling))
                 .toList()),
       );
     });
   }
 
-  Widget _buildSettingList(String type, bool isToggling) {
+  Widget _buildSettingList(BuildContext context, String type, bool isToggling) {
     return ListView.separated(
         // 每個分頁一顆 ScrollController：切頁動畫期間兩個分頁的 ListView 會
         // 同時存在，共用一顆會讓它同時掛兩個 position。
         controller: controller.scrollControllerOf(type),
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+        padding: EdgeInsets.fromLTRB(
+            12, 12, 12, 12 + MediaQuery.paddingOf(context).bottom),
         itemBuilder: (context, index) {
           var item = controller.settingList[index];
-          return _buildSettingItem(item, type, isToggling);
+          return _buildSettingItem(context, item, type, isToggling);
         },
         separatorBuilder: (context, index) {
           return const SizedBox(height: 14);
@@ -66,8 +75,11 @@ class MoodleSettingPage extends GetView<MoodleSettingController> {
         itemCount: controller.settingList.length);
   }
 
-  Widget _buildSettingItem(MoodleSettingPreferencesComponents components,
-      String type, bool isToggling) {
+  Widget _buildSettingItem(
+      BuildContext context,
+      MoodleSettingPreferencesComponents components,
+      String type,
+      bool isToggling) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -75,9 +87,8 @@ class MoodleSettingPage extends GetView<MoodleSettingController> {
           padding: const EdgeInsets.only(left: 8.0, bottom: 8),
           child: Text(
             components.displayname,
-            style: TextStyle(
-                fontWeight: FontWeight.w600,
-                color: Get.theme.colorScheme.onSurface),
+            style: context.text.titleSmall
+                ?.copyWith(color: context.scheme.onSurface),
           ),
         ),
         ListView.separated(
@@ -88,8 +99,7 @@ class MoodleSettingPage extends GetView<MoodleSettingController> {
 
             return Container(
                 decoration: BoxDecoration(
-                    color: Get.theme.colorScheme.surfaceContainer,
-                    borderRadius: borderRadius),
+                    color: context.tokens.card, borderRadius: borderRadius),
                 padding:
                     const EdgeInsets.symmetric(vertical: 14, horizontal: 14),
                 child: Row(
@@ -97,16 +107,14 @@ class MoodleSettingPage extends GetView<MoodleSettingController> {
                     Expanded(
                       child: Text(
                         e.displayname,
-                        style: TextStyle(
-                            color: Get.theme.colorScheme.onSurfaceVariant),
+                        style: context.text.bodyLarge
+                            ?.copyWith(color: context.scheme.onSurfaceVariant),
                       ),
                     ),
                     const SizedBox(
                       width: 12,
                     ),
-                    Switch.adaptive(
-                      activeThumbColor:
-                          Platform.isIOS ? Get.theme.colorScheme.primary : null,
+                    TatSwitch(
                       value: e.processors
                           .where((element) =>
                               element.name == type && element.enabled)

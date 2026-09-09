@@ -8,12 +8,12 @@ import 'package:flutter_app/src/model/course/course_class_json.dart';
 import 'package:flutter_app/src/model/course_table/course_table_json.dart';
 import 'package:flutter_app/ui/components/custom_appbar.dart';
 import 'package:flutter_app/ui/components/page/error_page.dart';
+import 'package:flutter_app/ui/components/tat_tab_bar.dart';
 import 'package:flutter_app/ui/pages/course_data/screen/course_announcement_page.dart';
 import 'package:flutter_app/ui/pages/course_data/screen/course_assignment_page.dart';
 import 'package:flutter_app/ui/pages/course_data/screen/course_directory_page.dart';
 import 'package:flutter_app/ui/pages/course_data/screen/course_score_page.dart';
 import 'package:flutter_app/ui/routes/route_utils.dart';
-import 'package:get/get.dart';
 import 'package:flutter_app/ui/other/lucide_icons.dart';
 
 class CourseDataPage extends StatefulWidget {
@@ -40,13 +40,13 @@ class _CourseDataPageState extends State<CourseDataPage>
     with SingleTickerProviderStateMixin {
   TabController? _tabController;
   late final PageController _pageController;
-  late int _currentIndex;
   List<Widget> _pages = [];
+
   /// getter 而不是 initState 裡指派的欄位：initState 只跑一次，切換語言後
   /// 分頁標籤會停在舊語言。長度固定，TabController 照樣讀得到。
   List<Map<String, dynamic>> get _tabItems => [
         {"name": R.current.file, "icon": LucideIcons.fileText},
-        {"name": R.current.announcement, "icon": LucideIcons.messageSquare},
+        {"name": R.current.announcement, "icon": LucideIcons.messagesSquare},
         {"name": R.current.score, "icon": LucideIcons.graduationCap},
         {"name": R.current.assignment, "icon": LucideIcons.clipboardList},
       ];
@@ -56,8 +56,7 @@ class _CourseDataPageState extends State<CourseDataPage>
   @override
   void initState() {
     super.initState();
-    // 三個都要跟著 initialTab，少設一個第一幀的指示器與內容就對不上。
-    _currentIndex = widget.initialTab;
+    // 兩個都要跟著 initialTab，少設一個第一幀的指示器與內容就對不上。
     _pageController = PageController(initialPage: widget.initialTab);
     _controller = CourseDataController(widget.courseInfo.main.course.id);
     // 四個分頁一起抓，不等使用者滑過去；見 CourseDataController。
@@ -109,42 +108,30 @@ class _CourseDataPageState extends State<CourseDataPage>
         body: PageView(
           controller: _pageController,
           children: _pages,
-          onPageChanged: (index) {
-            _tabController?.animateTo(index);
-            setState(() {
-              _currentIndex = index;
-            });
-          },
+          onPageChanged: (index) => _tabController?.animateTo(index),
         ),
       ),
     );
   }
 
-  TabBar _buildTabBar(List<dynamic> items) {
-    return TabBar(
+  /// 分頁列的樣式在 [TatTabBar]，這裡只給內容。
+  PreferredSizeWidget _buildTabBar(List<Map<String, dynamic>> items) {
+    return TatTabBar(
       isScrollable: false,
       controller: _tabController,
-      indicatorSize: TabBarIndicatorSize.tab,
-      tabs: items.map((item) {
-        final index = items.indexOf(item);
-        return Tab(
-          icon: Icon(item["icon"] as IconData,
-              size: 24,
-              color: _currentIndex == index
-                  ? Get.theme.colorScheme.primary
-                  : Get.theme.colorScheme.onSurface),
-          iconMargin: const EdgeInsets.only(bottom: 6),
-          child: AutoSizeText(
-            item["name"] as String,
-            maxLines: 1,
-            minFontSize: 6,
+      tabs: [
+        for (final item in items)
+          Tab(
+            icon: Icon(item["icon"] as IconData, size: 21),
+            iconMargin: const EdgeInsets.only(bottom: 7),
+            child: AutoSizeText(
+              item["name"] as String,
+              maxLines: 1,
+              minFontSize: 6,
+            ),
           ),
-        );
-      }).toList(),
-      onTap: (index) {
-        _pageController.jumpToPage(index);
-        _currentIndex = index;
-      },
+      ],
+      onTap: (index) => _pageController.jumpToPage(index),
     );
   }
 }

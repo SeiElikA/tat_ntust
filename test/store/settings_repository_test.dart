@@ -21,8 +21,8 @@ void main() {
       expect(SettingsStore.showHiddenFilesKey, 'hidden');
       expect(SettingsStore.fileSortKey, 'sort');
       expect(SettingsStore.downloadPathKey, 'download_path');
-      expect(SettingsStore.announcementLastReadKey,
-          'announcement_last_read_time');
+      expect(
+          SettingsStore.announcementLastReadKey, 'announcement_last_read_time');
     });
 
     test('寫入後底層存的就是那些 key', () async {
@@ -80,7 +80,8 @@ void main() {
     test('沿用原本 UTC 加 8 小時的寫法', () async {
       final before = DateTime.now().toUtc().add(const Duration(hours: 8));
       await repo.markAnnouncementRead();
-      final stored = DateTime.parse(store.raw['announcement_last_read_time'] as String);
+      final stored =
+          DateTime.parse(store.raw['announcement_last_read_time'] as String);
 
       // 允許幾秒誤差，重點是它存的是 UTC+8 而不是本地時間或純 UTC。
       expect(stored.difference(before).abs().inSeconds, lessThan(5));

@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_app/src/config/app_tokens.dart';
 import 'package:flutter_app/src/util/ui_utils.dart';
-import 'package:get/get.dart';
 import 'package:flutter_app/ui/other/lucide_icons.dart';
+import 'package:flutter_app/ui/other/theme_context.dart';
 
 class CourseInfoTile extends StatelessWidget {
   const CourseInfoTile(
@@ -20,32 +21,31 @@ class CourseInfoTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = context.scheme;
     return InkWell(
         onTap: onTap,
         child: Container(
           color: UIUtils.getListColor(index),
-          height: 50,
+          height: TatTokens.heightRow,
           child: Row(
             children: [
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 12.0),
-                child: Icon(
-                  icon,
-                  size: 24,
-                  color: Get.theme.colorScheme.onSurface,
-                ),
+                child: Icon(icon, size: 24, color: scheme.onSurfaceVariant),
               ),
               Expanded(
                 child: Text(
                   title,
-                  style: TextStyle(
-                    color: Get.theme.colorScheme.onSurface,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: context.text.bodyLarge?.copyWith(
+                    color: scheme.onSurface,
                   ),
                 ),
               ),
-              Visibility(
-                  visible: isShowArrow,
-                  child: const Icon(LucideIcons.chevronRight, size: 14)),
+              if (isShowArrow)
+                Icon(LucideIcons.chevronRight,
+                    size: 14, color: scheme.onSurfaceVariant),
               const SizedBox(width: 8)
             ],
           ),

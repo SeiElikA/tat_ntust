@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_app/ui/other/lucide_icons.dart';
 import 'package:flutter_app/src/R.dart';
 import 'package:flutter_app/src/connector/moodle_webapi_connector.dart';
 import 'package:flutter_app/src/controller/announcement/announcement_center_controller.dart';
@@ -14,22 +13,25 @@ import 'package:flutter_app/ui/components/card/section_card.dart';
 import 'package:flutter_app/ui/components/custom_appbar.dart';
 import 'package:flutter_app/ui/components/page/inline_error_view.dart';
 import 'package:flutter_app/ui/components/page/result_view.dart';
-import 'package:flutter_app/ui/components/page/section_empty_state.dart';
 import 'package:flutter_app/ui/components/page/web_view_opener.dart';
+import 'package:flutter_app/ui/other/lucide_icons.dart';
+import 'package:flutter_app/ui/other/tat_dialog.dart';
+import 'package:flutter_app/ui/pages/announcement/announcement_page.dart';
+import 'package:flutter_app/ui/pages/announcement/components/announcement_banner.dart';
+import 'package:flutter_app/ui/pages/announcement/components/notification_empty_view.dart';
+import 'package:flutter_app/ui/pages/announcement/components/notification_groups.dart';
 import 'package:flutter_app/ui/pages/announcement/notification_tile.dart';
-import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:get/get.dart';
-import 'package:intl/intl.dart';
-import 'package:url_launcher/url_launcher_string.dart';
 
-/// 「公告與通知」：上半是 App 自己的公告（Remote Config，同啟動彈窗的內容），
-/// 下半是 Moodle 站內通知。WebView 開啟器由呼叫端注入，
-/// 見 docs/ARCHITECTURE.md「UI 慣例」。
+/// 「通知」：最上面是 TAT 自己的公告（Remote Config，同啟動彈窗的內容）擺成
+/// 一張色塊卡，底下是 Moodle 站內通知，依今天／本週／更早分組。
+/// WebView 開啟器由呼叫端注入，見 docs/ARCHITECTURE.md「UI 慣例」。
 ///
-/// 兩半疊在同一個捲動視圖裡而不是分頁：量級差太多（0–2 則對 0–50 則），而且
-/// 標題在卡片外，一半載入或失敗時另一半照樣看得到。也因為每一半都只是頁面
-/// 中段的一個區塊，失敗畫面一律是 `InlineErrorView`，這一頁不需要注入
-/// 頁面層級的 errorBuilder。
+/// TAT 公告只畫最新的一則：一年只有兩三則，開一個永遠只有 0–1 列的區塊
+/// 比不開更空。其餘幾則在點「看完整公告」之後的 [AnnouncementPage] 裡翻。
+///
+/// 每一半都只是頁面中段的一個區塊，失敗畫面一律是 `InlineErrorView`，
+/// 這一頁不需要注入頁面層級的 errorBuilder。
 class AnnouncementCenterPage extends StatefulWidget {
   const AnnouncementCenterPage({
     super.key,
@@ -43,7 +45,7 @@ class AnnouncementCenterPage extends StatefulWidget {
   /// 測試注入預先載好的狀態；注入時這一頁不會自己再發請求。
   final AnnouncementCenterController? controller;
 
-  /// 「現在」，時間欄的基準。
+  /// 「現在」，時間欄與分組的基準。
   final DateTime Function() clock;
 
   @override
@@ -75,47 +77,61 @@ class _AnnouncementCenterPageState extends State<AnnouncementCenterPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: baseAppbar(title: R.current.announcementCenter),
+      appBar: baseAppbar(
+        title: R.current.notificationCenterTitle,
+        // 設計稿上沒有這顆鈕——清單本身該乾淨。放進 appbar 的 action 是唯一
+        // 不會擠掉分組標題與列的位置。
+        action: [_MarkAllReadButton(controller: _controller)],
+      ),
       body: RefreshIndicator(
         onRefresh: _controller.refreshAll,
-        child: ListView(
-          // 清單空或是錯誤畫面時也要拉得動。
-          physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.fromLTRB(12, 4, 12, 32),
-          children: [
-            SectionHeader(
-              icon: LucideIcons.megaphone,
-              title: R.current.appAnnouncement,
-              first: true,
-            ),
-            ResultView<List<AnnouncementInfoJson>>(
-              shrinkWrap: true,
-              state: _controller.appNotices,
-              onRetry: _controller.loadAppNotices,
-              errorBuilder: (message) => InlineErrorView(
-                message: message,
-                onRetry: _controller.loadAppNotices,
-              ),
-              builder: _buildAppNotices,
-            ),
-            SectionHeader(
-              icon: LucideIcons.bell,
-              title: R.current.moodleNotification,
-              trailing: _MarkAllReadButton(controller: _controller),
-            ),
-            ResultView<MoodleNotificationList>(
-              shrinkWrap: true,
-              state: _controller.notifications,
-              onRetry: _reloadNotifications,
-              errorBuilder: (message) => InlineErrorView(
-                message: message,
-                onRetry: _reloadNotifications,
-              ),
-              builder: _buildNotifications,
-            ),
-          ],
-        ),
+        // 用 sliver 而不是 ListView：空狀態要在「公告卡以下的剩餘高度」裡置中，
+        // 而捲動清單給每一格的高度就是那一格自己的高度，`Center` 在裡面只剩
+        // 水平置中。剩下多少高度只有 sliver 量得到。
+        child: Obx(() => CustomScrollView(
+              // 清單空或是錯誤畫面時也要拉得動。
+              physics: const AlwaysScrollableScrollPhysics(),
+              slivers: [
+                // 沒有公告時這一格是零高度（連內距都沒有），空狀態才會落在
+                // 整個畫面的正中央而不是被上面那點內距推低半格。
+                SliverToBoxAdapter(child: _buildBanner()),
+                _buildNotificationsSliver(),
+              ],
+            )),
       ),
+    );
+  }
+
+  /// 通知那一半。有清單時就是頁面中段的一段；空的時候改成吃掉剩餘高度的
+  /// [SliverFillRemaining]，那張空狀態才會真的落在畫面中央。
+  ///
+  /// 只有空清單走 fill remaining：它是先問 child 的 intrinsic 高度再決定要不要
+  /// 撐開，而通知列展開後裡面是 `MoodleHtmlView`，那東西量不得。
+  Widget _buildNotificationsSliver() {
+    final content = ResultView<MoodleNotificationList>(
+      shrinkWrap: true,
+      state: _controller.notifications,
+      onRetry: _reloadNotifications,
+      errorBuilder: (message) => InlineErrorView(
+        message: message,
+        onRetry: _reloadNotifications,
+      ),
+      builder: _buildNotifications,
+    );
+    final data = _controller.notifications.value?.dataOrNull;
+    if (data != null && data.notifications.isEmpty) {
+      return SliverFillRemaining(
+        hasScrollBody: false,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          child: content,
+        ),
+      );
+    }
+    return SliverPadding(
+      // 上緣的 12 由公告卡自己帶，沒有卡片時才由這裡補。
+      padding: EdgeInsets.fromLTRB(12, _notices.isEmpty ? 12 : 0, 12, 32),
+      sliver: SliverToBoxAdapter(child: content),
     );
   }
 
@@ -123,54 +139,75 @@ class _AnnouncementCenterPageState extends State<AnnouncementCenterPage> {
   Future<void> _reloadNotifications() =>
       _controller.loadNotifications(background: false);
 
-  Widget _buildAppNotices(List<AnnouncementInfoJson> list) {
-    if (list.isEmpty) {
-      return _empty(R.current.appAnnouncementEmpty);
-    }
-    final items = AnnouncementCenterController.sortForList(list);
-    return Column(
-      children: [
-        for (var i = 0; i < items.length; i++) ...[
-          if (i > 0) const SizedBox(height: 10),
-          _AppNoticeCard(
-            info: items[i],
-            index: i,
-            unread: AnnouncementCenterController.isUnread(
-                items[i], _controller.lastReadSnapshot),
-          ),
-        ],
-      ],
+  /// 最新的一則 TAT 公告，新到舊排序後的第一則。
+  List<AnnouncementInfoJson> get _notices {
+    final list = _controller.appNotices.value?.dataOrNull ?? const [];
+    return list.isEmpty
+        ? const []
+        : AnnouncementCenterController.sortForList(list);
+  }
+
+  /// 公告那一半失敗時什麼都不畫：它是一張「順便看看」的卡，為它在通知清單
+  /// 上方擺一整塊紅色錯誤畫面，等於讓次要內容蓋掉主要內容。下拉重新整理
+  /// 本來就會再試一次。
+  Widget _buildBanner() {
+    final notices = _notices;
+    if (notices.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+      child: AnnouncementBanner(
+        info: notices.first,
+        unread: AnnouncementCenterController.isUnread(
+            notices.first, _controller.lastReadSnapshot),
+        onOpen: () => unawaited(_openAnnouncement(notices)),
+      ),
     );
   }
+
+  /// 公告全文。整份清單一起帶過去，那一頁自己有翻頁；index 0 就是卡片上
+  /// 這一則（[_notices] 已經排好）。倒數是啟動彈窗才需要的東西，這裡是
+  /// 使用者自己點進來的，傳 0。
+  Future<void> _openAnnouncement(List<AnnouncementInfoJson> notices) =>
+      Navigator.of(context).push<void>(MaterialPageRoute(
+        builder: (_) => AnnouncementPage(info: notices, countDown: 0),
+      ));
 
   Widget _buildNotifications(MoodleNotificationList data) {
     if (data.notifications.isEmpty) {
       // 清單空但未讀數不是 0 ＝ 使用者在 Moodle 關掉了站內通知，
-      // 跟「真的沒有通知」是兩件事。
-      return _empty(MoodleNotificationUtils.looksDisabledByUser(data)
-          ? R.current.notificationDisabledOnMoodle
-          : R.current.notificationEmpty);
+      // 跟「真的沒有通知」是兩件事，所以只換第二行的說明。
+      return NotificationEmptyView(
+        message: R.current.notificationEmpty,
+        hint: MoodleNotificationUtils.looksDisabledByUser(data)
+            ? R.current.notificationDisabledOnMoodle
+            : R.current.notificationEmptyHint,
+      );
     }
 
     final now = widget.clock();
     final items = MoodleNotificationUtils.sortNewestFirst(data.notifications);
+    final groups = NotificationGroups.groupByAge(items, now);
+    // 上面有公告卡時第一個分組標題要留出正常的段距；沒有的話它就是整頁的
+    // 第一個元素，`first` 才把上緣收緊。
+    final hasBanner = _notices.isNotEmpty;
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        for (var i = 0; i < items.length; i++) ...[
-          if (i > 0)
-            Divider(
-              height: 1,
-              thickness: 1,
-              indent: 60,
-              color: Theme.of(context).colorScheme.outlineVariant,
-            ),
-          _buildTile(items[i], now),
+        for (var g = 0; g < groups.length; g++) ...[
+          SectionHeader(
+            title: NotificationGroups.labelOf(groups[g].bucket),
+            first: g == 0 && !hasBanner,
+          ),
+          for (var i = 0; i < groups[g].items.length; i++) ...[
+            if (i > 0) const SizedBox(height: 2),
+            _buildTile(groups[g].items[i], now, i, groups[g].items.length),
+          ],
         ],
       ],
     );
   }
 
-  Widget _buildTile(MoodleNotification n, DateTime now) {
+  Widget _buildTile(MoodleNotification n, DateTime now, int index, int length) {
     final url = MoodleNotificationUtils.openUrlOf(
       n,
       siteHost: MoodleWebApiConnector.siteHost,
@@ -182,6 +219,8 @@ class _AnnouncementCenterPageState extends State<AnnouncementCenterPage> {
       openable: url != null,
       expanded: _expanded.contains(n.id),
       openWebView: widget.openWebView,
+      index: index,
+      length: length,
       onTap: () => unawaited(_onTap(n, url)),
     );
   }
@@ -199,17 +238,13 @@ class _AnnouncementCenterPageState extends State<AnnouncementCenterPage> {
     // 已經做了，再換一次會在伺服器 6 分鐘的節流內白燒一把鑰匙。
     await widget.openWebView(n.subject, url);
   }
-
-  /// 區塊級的空狀態：兩半都是頁面中段的一塊，整頁級的 `EmptyState` 疊兩份
-  /// 會變成同一張插圖上下重複兩次。
-  Widget _empty(String message) => SectionEmptyState(
-        icon: LucideIcons.bell,
-        message: message,
-      );
 }
 
 /// 「全部標為已讀」。只在有未讀而且是 `Ok`（不是 `Stale`）時出現：`Stale`
 /// 幾乎一定是離線，提供一個必定失敗的寫入比不提供更糟。
+///
+/// 是圖示鈕不是文字鈕：appbar 上的標題只有兩個字，一顆六個字的文字鈕會變成
+/// 那一列最搶眼的東西。
 class _MarkAllReadButton extends StatelessWidget {
   const _MarkAllReadButton({required this.controller});
 
@@ -220,11 +255,13 @@ class _MarkAllReadButton extends StatelessWidget {
     return Obx(() {
       if (controller.markingAll.value) {
         return const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 12),
-          child: SizedBox(
-            width: 16,
-            height: 16,
-            child: CircularProgressIndicator(strokeWidth: 2),
+          padding: EdgeInsets.symmetric(horizontal: 16),
+          child: Center(
+            child: SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
           ),
         );
       }
@@ -234,9 +271,10 @@ class _MarkAllReadButton extends StatelessWidget {
         _ => 0,
       };
       if (unread <= 0) return const SizedBox.shrink();
-      return TextButton(
-        onPressed: () => unawaited(_confirmAndMark(context)),
-        child: Text(R.current.notificationMarkAllRead),
+      return IconButton(
+        tooltip: R.current.notificationMarkAllRead,
+        icon: const Icon(LucideIcons.checkCheck, size: 20),
+        onPressed: () => unawaited(_confirmAndMark()),
       );
     });
   }
@@ -246,94 +284,26 @@ class _MarkAllReadButton extends StatelessWidget {
   /// 對話框刻意不寫數字：`core_message_mark_all_notifications_as_read` 標的是
   /// `{notifications}` 全部，而畫面上的未讀數只算 popup 那一部分，寫上去等於
   /// 少報這次寫入的範圍。
-  Future<void> _confirmAndMark(BuildContext context) async {
-    final confirmed = await Get.dialog<bool>(
-      AlertDialog.adaptive(
-        title: Text(R.current.notificationMarkAllRead),
-        content: Text(R.current.notificationMarkAllReadConfirm),
-        actions: [
-          TextButton(
-            onPressed: () => Get.back<bool>(result: false),
-            child: Text(R.current.cancel),
-          ),
-          TextButton(
-            onPressed: () => Get.back<bool>(result: true),
-            child: Text(R.current.sure),
-          ),
-        ],
+  Future<void> _confirmAndMark() async {
+    final confirmed = await showTatDialog<bool>(
+      dialog: TatDialog(
+        title: R.current.notificationMarkAllRead,
+        body: R.current.notificationMarkAllReadConfirm,
+        kind: TatDialogKind.warning,
+        destructive: true,
+        secondary: TatDialogAction(
+          label: R.current.cancel,
+          onPressed: () => Get.back<bool>(result: false),
+        ),
+        primary: TatDialogAction(
+          label: R.current.sure,
+          onPressed: () => Get.back<bool>(result: true),
+        ),
       ),
     );
     if (confirmed != true) return;
     if (await controller.markAllRead()) {
       TaskUiDelegate.instance.toast(R.current.notificationMarkAllReadDone);
     }
-  }
-}
-
-/// 一則 App 公告。內文沿用啟動彈窗的 `flutter_markdown`，同一段公告在兩個
-/// 地方才會長得一樣；連結一律走外部瀏覽器（公告連的是表單與商店，不是 Moodle）。
-class _AppNoticeCard extends StatelessWidget {
-  const _AppNoticeCard({
-    required this.info,
-    required this.index,
-    required this.unread,
-  });
-
-  final AnnouncementInfoJson info;
-  final int index;
-  final bool unread;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return SectionCard([
-      Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (unread) ...[
-            Semantics(
-              label: R.current.notificationUnread,
-              child: Container(
-                key: ValueKey('notice-unread-$index'),
-                margin: const EdgeInsets.only(top: 7, right: 8),
-                width: 8,
-                height: 8,
-                decoration: BoxDecoration(
-                    color: scheme.primary, shape: BoxShape.circle),
-              ),
-            ),
-          ],
-          // 卡片標題，不是 SectionSubLabel：那是卡片內小標的字級，會比
-          // 底下的 Markdown 內文還小。
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: Text(
-                info.title,
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
-                      color: scheme.onSurface,
-                      height: 1.3,
-                    ),
-              ),
-            ),
-          ),
-        ],
-      ),
-      // startTime 是 UTC 欄位裝著台北的牆上時間（見 RemoteConfigUtils），
-      // toLocal() 會讓每一則公告的日期整整位移八小時。
-      SectionField(
-        R.current.announcementPublishedAt,
-        DateFormat.yMd().format(info.startTime),
-      ),
-      const SectionDivider(),
-      MarkdownBody(
-        data: info.content,
-        selectable: true,
-        onTapLink: (text, href, title) {
-          if (href != null) unawaited(launchUrlString(href));
-        },
-      ),
-    ]);
   }
 }

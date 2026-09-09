@@ -94,7 +94,8 @@ class UninstalledAuthSession implements AuthSession {
       '測試請指派 test/helpers/fake_auth_session.dart 的 FakeAuthSession。');
 
   @override
-  Future<AuthError?> ensure(Set<SystemId> requires, {bool interactive = true}) =>
+  Future<AuthError?> ensure(Set<SystemId> requires,
+          {bool interactive = true}) =>
       _fail();
 
   @override

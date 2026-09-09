@@ -7,6 +7,11 @@ class AppLink {
   static const feedbackBaseUrl =
       "https://docs.google.com/forms/d/e/1FAIpQLSfHdgBnYpc7plIH2GBYeYcStwPIgZRB_oKL3guMXWX87svryA/viewform";
 
+  /// 條款的修改紀錄。條款本身是 repo 裡的一個檔案，GitHub 的 commits 頁就是
+  /// 它完整的版本歷史。
+  static const privacyPolicyHistory =
+      "$gitHub/commits/master/privacy-policy.md";
+
   static const privacyPolicyUrl =
       "https://raw.githubusercontent.com/$githubOwner/$githubName/master/privacy-policy.md";
 

@@ -25,9 +25,8 @@ class DioConnector {
     "Upgrade-Insecure-Requests": "1",
   };
 
-  Alice alice = Alice(
-    darkTheme: true,
-  );
+  // alice 3.10 起 darkTheme 不再有作用，它改看 Theme.of(context).brightness。
+  Alice alice = Alice();
 
   static final BaseOptions dioOptions = BaseOptions(
       connectTimeout: const Duration(milliseconds: 10000),

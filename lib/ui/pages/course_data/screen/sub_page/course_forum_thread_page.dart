@@ -21,6 +21,7 @@ import 'package:flutter_app/ui/components/page/inline_error_view.dart';
 import 'package:flutter_app/ui/components/page/result_view.dart';
 import 'package:flutter_app/ui/components/page/web_view_opener.dart';
 import 'package:flutter_app/ui/other/lucide_icons.dart';
+import 'package:flutter_app/ui/other/tat_dialog.dart';
 import 'package:flutter_app/ui/pages/course_data/screen/sub_page/course_forum_compose_page.dart';
 import 'package:flutter_app/ui/pages/course_data/screen/sub_page/course_forum_rich_edit_page.dart';
 import 'package:flutter_app/ui/pages/course_data/screen/widgets/forum_attach_picker.dart';
@@ -34,8 +35,8 @@ import 'package:get/get.dart';
 /// 一則討論串：第一篇加上全部回覆。公告分頁與一般討論區都推這一頁——它們是
 /// 同一種東西，只是討論區的 type 不同。
 ///
-/// **回覆不換頁**：底部釘一條 [ForumComposerBar]，對話還在上面。編輯與開新
-/// 主題才換頁（`CourseForumComposePage`）。WebView 開啟器由呼叫端注入，
+/// **回覆不換頁**：底部釘一條 [ForumComposerBar]，對話還在上面。只有編輯既有
+/// 貼文才換頁（`CourseForumComposePage.edit`）。WebView 開啟器由呼叫端注入，
 /// 見 docs/ARCHITECTURE.md「UI 慣例」。
 class CourseForumThreadPage extends StatefulWidget {
   const CourseForumThreadPage(
@@ -140,6 +141,8 @@ class _CourseForumThreadPageState extends State<CourseForumThreadPage> {
         unawaited(_confirmDiscard());
       },
       child: Scaffold(
+        // 鍵盤打開時要把 body 讓出來——回覆列就住在 body 的最下面。
+        resizeToAvoidBottomInset: true,
         appBar: baseAppbar(
           title: _title,
           onBack: () => Navigator.maybePop(context),
@@ -151,16 +154,35 @@ class _CourseForumThreadPageState extends State<CourseForumThreadPage> {
             ),
           ],
         ),
-        body: ResultView<List<MoodleForumPost>>(
-          state: _controller.posts,
-          // **一定要 keepVisible**：這顆重試只出現在 `Stale` 的橫幅上，也就是
-          // 貼文與回覆列都還在畫面上的時候。清成 null 會把回覆列整個拆掉，
-          // 連同它 State 裡的草稿與已挑好的附件一起消失。
-          onRetry: () => _controller.loadPosts(keepVisible: true),
-          errorBuilder: _fallback,
-          builder: _thread,
+        // 回覆列是 body 的最後一格，**不是 `bottomNavigationBar`**：那個位置
+        // 是照整個畫面的高度釘的，鍵盤一開就把它整條蓋住（那正是使用者回報
+        // 的「打字看不到自己在打什麼」）。放進 body 之後
+        // `resizeToAvoidBottomInset` 會把整欄抬到鍵盤上方，貼文自己讓出高度。
+        body: Column(
+          children: [
+            Expanded(
+              child: GestureDetector(
+                // 討論串上的空白處收鍵盤。只包貼文那一段，不包回覆列——包進去
+                // 的話點到列自己的留白就會把正在打的字關掉鍵盤。translucent 才
+                // 收得到落在貼文之間空隙的點擊，而貼文自己的 InkWell 在手勢
+                // 競技場裡比較深，照樣先贏。
+                behavior: HitTestBehavior.translucent,
+                onTap: () => FocusScope.of(context).unfocus(),
+                child: ResultView<List<MoodleForumPost>>(
+                  state: _controller.posts,
+                  // **一定要 keepVisible**：這顆重試只出現在 `Stale` 的橫幅
+                  // 上，也就是貼文與回覆列都還在畫面上的時候。清成 null 會把
+                  // 回覆列整個拆掉，連同它 State 裡的草稿與已挑好的附件一起
+                  // 消失。
+                  onRetry: () => _controller.loadPosts(keepVisible: true),
+                  errorBuilder: _fallback,
+                  builder: _thread,
+                ),
+              ),
+            ),
+            _bottomBar(),
+          ],
         ),
-        bottomNavigationBar: _bottomBar(),
       ),
     );
   }
@@ -551,22 +573,23 @@ class _CourseForumThreadPageState extends State<CourseForumThreadPage> {
 
   Future<void> _confirmDelete(MoodleForumPost p) async {
     final isTopicPost = !p.hasparent;
-    final confirmed = await Get.dialog<bool>(
-      AlertDialog.adaptive(
+    final confirmed = await showTatDialog<bool>(
+      dialog: TatDialog(
         // 主文的刪除會連同整串一起消失——Moodle 的行為，不可以用同一句話騙人。
-        content: Text(isTopicPost
+        title: isTopicPost
             ? R.current.forumDeleteTopicConfirm
-            : R.current.forumDeletePostConfirm),
-        actions: [
-          TextButton(
-            onPressed: () => Get.back<bool>(result: false),
-            child: Text(R.current.cancel),
-          ),
-          TextButton(
-            onPressed: () => Get.back<bool>(result: true),
-            child: Text(R.current.sure),
-          ),
-        ],
+            : R.current.forumDeletePostConfirm,
+        body: null,
+        kind: TatDialogKind.warning,
+        destructive: true,
+        secondary: TatDialogAction(
+          label: R.current.cancel,
+          onPressed: () => Get.back<bool>(result: false),
+        ),
+        primary: TatDialogAction(
+          label: R.current.sure,
+          onPressed: () => Get.back<bool>(result: true),
+        ),
       ),
     );
     if (confirmed != true || !mounted) return;
@@ -593,20 +616,22 @@ class _CourseForumThreadPageState extends State<CourseForumThreadPage> {
     }
   }
 
+  /// 放棄草稿是破壞性的是非題：主鈕換 error 底，問句本身就是標題。
   Future<void> _confirmDiscard() async {
-    final discard = await Get.dialog<bool>(
-      AlertDialog.adaptive(
-        content: Text(R.current.forumDiscardDraft),
-        actions: [
-          TextButton(
-            onPressed: () => Get.back<bool>(result: false),
-            child: Text(R.current.cancel),
-          ),
-          TextButton(
-            onPressed: () => Get.back<bool>(result: true),
-            child: Text(R.current.sure),
-          ),
-        ],
+    final discard = await showTatDialog<bool>(
+      dialog: TatDialog(
+        title: R.current.forumDiscardDraft,
+        body: null,
+        kind: TatDialogKind.warning,
+        destructive: true,
+        secondary: TatDialogAction(
+          label: R.current.cancel,
+          onPressed: () => Get.back<bool>(result: false),
+        ),
+        primary: TatDialogAction(
+          label: R.current.sure,
+          onPressed: () => Get.back<bool>(result: true),
+        ),
       ),
     );
     if (discard != true || !mounted) return;

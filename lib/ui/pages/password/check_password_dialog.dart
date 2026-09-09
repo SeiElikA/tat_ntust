@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_app/debug/log/log.dart';
 import 'package:flutter_app/src/R.dart';
-import 'package:flutter_app/ui/pages/password/password_field.dart';
 import 'package:flutter_app/src/store/model.dart';
+import 'package:flutter_app/ui/other/tat_dialog.dart';
+import 'package:flutter_app/ui/pages/password/password_field.dart';
 import 'package:get/get.dart';
 import 'package:local_auth/local_auth.dart';
 
@@ -53,47 +54,34 @@ class _CheckPasswordDialogState extends State<CheckPasswordDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      title: Center(
-        child: Text(
-          R.current.checkIdentity,
-          textAlign: TextAlign.center,
-        ),
-      ),
-      shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.all(Radius.circular(20))),
+    return TatDialog(
+      title: R.current.checkIdentity,
+      body: R.current.originPassword,
+      kind: TatDialogKind.info,
       content: Form(
         key: _formKey,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            PasswordField(
-              controller: _originPasswordController,
-              focusNode: _originPasswordFocus,
-              obscured: !passwordShow,
-              onToggleObscured: () =>
-                  setState(() => passwordShow = !passwordShow),
-              hintText: R.current.originPassword,
-              validator: (value) => _validatorOriginPassword(value!),
-              errorMessage: _originPasswordErrorMessage,
-            ),
-          ],
+        child: PasswordField(
+          controller: _originPasswordController,
+          focusNode: _originPasswordFocus,
+          obscured: !passwordShow,
+          onToggleObscured: () => setState(() => passwordShow = !passwordShow),
+          hintText: R.current.password,
+          validator: (value) => _validatorOriginPassword(value ?? ""),
+          errorMessage: _originPasswordErrorMessage,
         ),
       ),
-      actions: [
-        TextButton(
-          child: Text(R.current.cancel),
-          onPressed: () => Get.back<bool>(result: false),
-        ),
-        TextButton(
-          child: Text(R.current.sure),
-          onPressed: () {
-            if (_formKey.currentState!.validate()) {
-              Get.back<bool>(result: true);
-            }
-          },
-        )
-      ],
+      secondary: TatDialogAction(
+        label: R.current.cancel,
+        onPressed: () => Get.back<bool>(result: false),
+      ),
+      primary: TatDialogAction(
+        label: R.current.sure,
+        onPressed: () {
+          if (_formKey.currentState!.validate()) {
+            Get.back<bool>(result: true);
+          }
+        },
+      ),
     );
   }
 

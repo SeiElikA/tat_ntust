@@ -3,11 +3,13 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_app/src/R.dart';
+import 'package:flutter_app/src/config/app_tokens.dart';
 import 'package:flutter_app/src/service/task_ui_delegate.dart';
 import 'package:flutter_app/src/util/moodle_forum_edit_utils.dart';
 import 'package:flutter_app/ui/pages/course_data/screen/widgets/forum_composer_bar.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_app/ui/other/lucide_icons.dart';
+import 'package:flutter_app/ui/other/theme_context.dart';
 import 'package:sprintf/sprintf.dart';
 
 import '../helpers/recording_ui.dart';
@@ -87,22 +89,26 @@ void main() {
 
     await tester.pumpWidget(MaterialApp(
       home: Scaffold(
-        body: const SizedBox.shrink(),
-        bottomNavigationBar: ForumComposerBar(
-          hintText: R.current.forumReplyHint,
-          targetLabel: targetLabel,
-          topicLabel: topicLabel,
-          canAttach: canAttach,
-          maxAttachments: maxAttachments,
-          maxBytes: maxBytes,
-          onPickFiles: (remaining) async => picked,
-          onSend: (text, files, {required onProgress}) => onSend(text, files),
-          onCancelUpload: onCancelUpload ?? () {},
-          onAimAtRoot: onAimAtRoot ?? () {},
-          onScrollToTarget: () {},
-          onDraftChanged: (has) => drafts?.add(has),
-          onBusyChanged: (busy) => busies?.add(busy),
-        ),
+        // 正式的位置就在 body 的最下面（不是 bottomNavigationBar，那裡會被
+        // 鍵盤蓋住），測試的骨架照著擺。
+        body: Column(children: [
+          const Expanded(child: SizedBox.shrink()),
+          ForumComposerBar(
+            hintText: R.current.forumReplyHint,
+            targetLabel: targetLabel,
+            topicLabel: topicLabel,
+            canAttach: canAttach,
+            maxAttachments: maxAttachments,
+            maxBytes: maxBytes,
+            onPickFiles: (remaining) async => picked,
+            onSend: (text, files, {required onProgress}) => onSend(text, files),
+            onCancelUpload: onCancelUpload ?? () {},
+            onAimAtRoot: onAimAtRoot ?? () {},
+            onScrollToTarget: () {},
+            onDraftChanged: (has) => drafts?.add(has),
+            onBusyChanged: (busy) => busies?.add(busy),
+          ),
+        ]),
       ),
     ));
     await tester.pumpAndSettle();
@@ -115,6 +121,29 @@ void main() {
     // 空欄位不必被告知自己是空的。
     expect(find.text(R.current.forumSubjectRequired), findsNothing);
     expect(find.byType(LinearProgressIndicator), findsNothing);
+  });
+
+  testWidgets('欄位與送出鈕照設計稿：高 48 的填色欄、44 見方的送出鈕，欄位填的是頁面色', (tester) async {
+    await pump(tester, onSend: (t, f) async => true);
+
+    // 高度來自主題的 InputDecorationTheme（heightField），不是自己畫的盒子。
+    final field = tester.getSize(find.byType(TextField));
+    expect(field.height, TatTokens.heightField);
+
+    final decoration =
+        tester.widget<TextField>(find.byType(TextField)).decoration!;
+    // 這條列是卡片色，欄位取相反的那一階：頁面色。
+    final context = tester.element(find.byType(TextField));
+    expect(decoration.fillColor, context.tokens.page);
+    expect(decoration.border, isNull, reason: '形狀一律交給主題，不自己畫圓角盒子');
+
+    // 停用態也是 44 見方，四態之間不會左右抖。
+    expect(tester.getSize(sendButton()).width, TatTokens.heightButton);
+
+    await tester.enterText(find.byType(TextField), '謝謝老師');
+    await tester.pumpAndSettle();
+    expect(tester.getSize(sendButton()).width, TatTokens.heightButton);
+    expect(tester.getSize(sendButton()).height, TatTokens.heightButton);
   });
 
   testWidgets('只有空白不算內容；有字才給送', (tester) async {

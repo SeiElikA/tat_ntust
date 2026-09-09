@@ -2,12 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_app/src/R.dart';
 import 'package:flutter_app/ui/pages/password/check_password_dialog.dart';
-import 'package:flutter_app/ui/pages/password/webmail_password_dialog.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../helpers/test_l10n.dart';
 
-/// 兩個密碼對話框右邊的眼睛按鈕。
+/// 密碼對話框右邊的眼睛按鈕。
 ///
 /// 圖示是這顆按鈕唯一的狀態指示，所以 tooltip 必須跟著 passwordShow 走，
 /// 講「按下去會發生什麼」。tooltip 會被 IconButton 轉成 semantics label，
@@ -39,16 +38,6 @@ void main() {
     expect(R.current.showPassword, isNotEmpty);
     expect(R.current.hidePassword, isNotEmpty);
     expect(R.current.showPassword, isNot(R.current.hidePassword));
-  });
-
-  group('WebMailPasswordDialog', () {
-    testWidgets('眼睛按鈕有名字，而且名字跟著顯示／隱藏狀態切換', (tester) async {
-      await tester.pumpWidget(
-        const MaterialApp(home: Material(child: WebMailPasswordDialog())),
-      );
-
-      await expectTooltipFollowsState(tester);
-    });
   });
 
   group('CheckPasswordDialog', () {

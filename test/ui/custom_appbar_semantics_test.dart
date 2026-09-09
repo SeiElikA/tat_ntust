@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_app/src/config/app_colors.dart';
+import 'package:flutter_app/src/config/app_tokens.dart';
+import 'package:flutter_app/src/config/app_styles.dart';
 import 'package:flutter_app/ui/components/custom_appbar.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -52,5 +55,41 @@ void main() {
     );
 
     expect(find.byType(IconButton), findsNothing);
+  });
+
+  group('底色與狀態列交給 AppBarTheme', () {
+    final scheme = ColorScheme.fromSeed(seedColor: AppColors.fallbackSeed);
+    final tokens = TatTokens.from(scheme);
+    final theme = ThemeData(
+      colorScheme: scheme,
+      appBarTheme: AppStyles.appBarTheme(scheme, tokens),
+    );
+
+    /// 這兩顆以前一個寫死 `Colors.transparent`、一個什麼都不寫，同一個 app 裡
+    /// 兩條 bar 長得不一樣；動態取色下透明那條等於把層級整個關掉。
+    for (final (name, build) in [
+      ('mainAppbar', mainAppbar),
+      ('baseAppbar', baseAppbar),
+    ]) {
+      testWidgets('$name 不自己指定底色', (tester) async {
+        await tester.pumpWidget(MaterialApp(
+          theme: theme,
+          home: Scaffold(appBar: build(title: '測試頁')),
+        ));
+
+        final appBar = tester.widget<AppBar>(find.byType(AppBar));
+        expect(appBar.backgroundColor, isNull, reason: '底色只能有一個出處：AppBarTheme');
+        // systemOverlayStyle 也不自己算：AppBar 會從實際底色推狀態列圖示明暗，
+        // 自己算的那份是拿全域 Get.theme 猜的，第一幀一定猜錯。
+        expect(appBar.systemOverlayStyle, isNull);
+
+        final material = tester.widget<Material>(find
+            .descendant(
+                of: find.byType(AppBar), matching: find.byType(Material))
+            .first);
+        // 兩條 bar 都吃 AppBarTheme 的底色，也就是頁面底色那一階。
+        expect(material.color, tokens.page);
+      });
+    }
   });
 }

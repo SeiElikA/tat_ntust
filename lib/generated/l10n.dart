@@ -59,19 +59,14 @@ class S {
     return Intl.message('NTUST TAT', name: 'loginTitle', desc: '', args: []);
   }
 
-  /// `A school affairs app specially designed for students of National Taiwan University of Science and Technology\nMoodle, semester schedule, score inquiry, school certificate, etc.\nAll kinds of services are available in one app`
+  /// `A campus app designed for students of National Taiwan University of Science and Technology. Moodle, semester timetable, grades, enrollment certificates and more, all in one app.`
   String get loginDescription {
     return Intl.message(
-      'A school affairs app specially designed for students of National Taiwan University of Science and Technology\nMoodle, semester schedule, score inquiry, school certificate, etc.\nAll kinds of services are available in one app',
+      'A campus app designed for students of National Taiwan University of Science and Technology. Moodle, semester timetable, grades, enrollment certificates and more, all in one app.',
       name: 'loginDescription',
       desc: '',
       args: [],
     );
-  }
-
-  /// `Agree`
-  String get agree {
-    return Intl.message('Agree', name: 'agree', desc: '', args: []);
   }
 
   /// `Wait`
@@ -89,9 +84,9 @@ class S {
     return Intl.message('Error', name: 'error', desc: '', args: []);
   }
 
-  /// `success`
+  /// `Success`
   String get success {
-    return Intl.message('success', name: 'success', desc: '', args: []);
+    return Intl.message('Success', name: 'success', desc: '', args: []);
   }
 
   /// `Warning`
@@ -139,9 +134,14 @@ class S {
     );
   }
 
-  /// `load cache`
+  /// `Could not fetch the latest data; showing the last successful result.`
   String get loadingCache {
-    return Intl.message('load cache', name: 'loadingCache', desc: '', args: []);
+    return Intl.message(
+      'Could not fetch the latest data; showing the last successful result.',
+      name: 'loadingCache',
+      desc: '',
+      args: [],
+    );
   }
 
   /// `Login`
@@ -204,10 +204,10 @@ class S {
     );
   }
 
-  /// ` Download error`
+  /// `Download error`
   String get downloadError {
     return Intl.message(
-      ' Download error',
+      'Download error',
       name: 'downloadError',
       desc: '',
       args: [],
@@ -469,11 +469,6 @@ class S {
     return Intl.message('Instructor', name: 'instructor', desc: '', args: []);
   }
 
-  /// `Location`
-  String get location {
-    return Intl.message('Location', name: 'location', desc: '', args: []);
-  }
-
   /// `Course Title`
   String get courseName {
     return Intl.message('Course Title', name: 'courseName', desc: '', args: []);
@@ -497,16 +492,6 @@ class S {
   /// ` not support`
   String get noSupport {
     return Intl.message(' not support', name: 'noSupport', desc: '', args: []);
-  }
-
-  /// `No any favorite`
-  String get noAnyFavorite {
-    return Intl.message(
-      'No any favorite',
-      name: 'noAnyFavorite',
-      desc: '',
-      args: [],
-    );
   }
 
   /// `Setting complete`
@@ -569,6 +554,26 @@ class S {
     );
   }
 
+  /// `Add a course by its code or name`
+  String get importCourseHint {
+    return Intl.message(
+      'Add a course by its code or name',
+      name: 'importCourseHint',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Timetable options`
+  String get courseTableOptions {
+    return Intl.message(
+      'Timetable options',
+      name: 'courseTableOptions',
+      desc: '',
+      args: [],
+    );
+  }
+
   /// `Remarks`
   String get note {
     return Intl.message('Remarks', name: 'note', desc: '', args: []);
@@ -577,16 +582,6 @@ class S {
   /// `Search`
   String get search {
     return Intl.message('Search', name: 'search', desc: '', args: []);
-  }
-
-  /// `Search credit`
-  String get searchCredit {
-    return Intl.message(
-      'Search credit',
-      name: 'searchCredit',
-      desc: '',
-      args: [],
-    );
   }
 
   /// `Moodle`
@@ -734,49 +729,9 @@ class S {
     );
   }
 
-  /// `Total enrolled (NTUST / system universities)`
-  String get choosePeople {
-    return Intl.message(
-      'Total enrolled (NTUST / system universities)',
-      name: 'choosePeople',
-      desc: '',
-      args: [],
-    );
-  }
-
-  /// `Enrollment limit`
-  String get chooseUpBoundary {
-    return Intl.message(
-      'Enrollment limit',
-      name: 'chooseUpBoundary',
-      desc: '',
-      args: [],
-    );
-  }
-
-  /// `NTUST first-round limit (returning students only): %s\nNTUST add/drop limit / new students first-semester first-round limit: %s\nUniversity system cross-enrollment limit: %s`
-  String get choosePeopleString {
-    return Intl.message(
-      'NTUST first-round limit (returning students only): %s\nNTUST add/drop limit / new students first-semester first-round limit: %s\nUniversity system cross-enrollment limit: %s',
-      name: 'choosePeopleString',
-      desc: '',
-      args: [],
-    );
-  }
-
-  /// `member`
+  /// `Member`
   String get member {
-    return Intl.message('member', name: 'member', desc: '', args: []);
-  }
-
-  /// `Total member: `
-  String get totalMember {
-    return Intl.message(
-      'Total member: ',
-      name: 'totalMember',
-      desc: '',
-      args: [],
-    );
+    return Intl.message('Member', name: 'member', desc: '', args: []);
   }
 
   /// `There's nothing here`
@@ -879,9 +834,14 @@ class S {
     );
   }
 
-  /// `Info`
+  /// `Information system`
   String get informationSystem {
-    return Intl.message('Info', name: 'informationSystem', desc: '', args: []);
+    return Intl.message(
+      'Information system',
+      name: 'informationSystem',
+      desc: '',
+      args: [],
+    );
   }
 
   /// `Other`
@@ -902,16 +862,6 @@ class S {
   /// `No function`
   String get noFunction {
     return Intl.message('No function', name: 'noFunction', desc: '', args: []);
-  }
-
-  /// `Change the password`
-  String get changePassword {
-    return Intl.message(
-      'Change the password',
-      name: 'changePassword',
-      desc: '',
-      args: [],
-    );
   }
 
   /// `Sign out`
@@ -1049,11 +999,131 @@ class S {
     return Intl.message('Ignore', name: 'updateIgnore', desc: '', args: []);
   }
 
-  /// `Are you sure you want to log out? \nAll data will be cleared`
-  String get logoutWarning {
+  /// `Your password never leaves this phone`
+  String get privacySummaryLocalTitle {
     return Intl.message(
-      'Are you sure you want to log out? \nAll data will be cleared',
-      name: 'logoutWarning',
+      'Your password never leaves this phone',
+      name: 'privacySummaryLocalTitle',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Sign-in details live in the device's secure storage. They are never sent to a TAT server — there isn't one. The app talks to NTUST and Moodle directly.`
+  String get privacySummaryLocalBody {
+    return Intl.message(
+      'Sign-in details live in the device\'s secure storage. They are never sent to a TAT server — there isn\'t one. The app talks to NTUST and Moodle directly.',
+      name: 'privacySummaryLocalBody',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Your grades and timetable don't pass through us`
+  String get privacySummaryDataTitle {
+    return Intl.message(
+      'Your grades and timetable don\'t pass through us',
+      name: 'privacySummaryDataTitle',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Every piece of course data is fetched by your own phone from the school's systems. We never see it and never store it.`
+  String get privacySummaryDataBody {
+    return Intl.message(
+      'Every piece of course data is fetched by your own phone from the school\'s systems. We never see it and never store it.',
+      name: 'privacySummaryDataBody',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Anonymous usage stats`
+  String get privacySummaryAnalyticsTitle {
+    return Intl.message(
+      'Anonymous usage stats',
+      name: 'privacySummaryAnalyticsTitle',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Which screens get opened is reported to Firebase Analytics so we know what to fix. No student ID, no grades.`
+  String get privacySummaryAnalyticsBody {
+    return Intl.message(
+      'Which screens get opened is reported to Firebase Analytics so we know what to fix. No student ID, no grades.',
+      name: 'privacySummaryAnalyticsBody',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Crash reports`
+  String get privacySummaryCrashTitle {
+    return Intl.message(
+      'Crash reports',
+      name: 'privacySummaryCrashTitle',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `When the app crashes, the stack trace goes to Firebase Crashlytics.`
+  String get privacySummaryCrashBody {
+    return Intl.message(
+      'When the app crashes, the stack trace goes to Firebase Crashlytics.',
+      name: 'privacySummaryCrashBody',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Policy text`
+  String get privacyBodyTitle {
+    return Intl.message(
+      'Policy text',
+      name: 'privacyBodyTitle',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `%s sections`
+  String get privacySectionCount {
+    return Intl.message(
+      '%s sections',
+      name: 'privacySectionCount',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `See this policy's history on GitHub`
+  String get privacyHistoryLink {
+    return Intl.message(
+      'See this policy\'s history on GitHub',
+      name: 'privacyHistoryLink',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Agree and continue`
+  String get privacyAgreeContinue {
+    return Intl.message(
+      'Agree and continue',
+      name: 'privacyAgreeContinue',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `TAT can't be used without agreeing`
+  String get privacyAgreeRequired {
+    return Intl.message(
+      'TAT can\'t be used without agreeing',
+      name: 'privacyAgreeRequired',
       desc: '',
       args: [],
     );
@@ -1139,21 +1209,6 @@ class S {
     return Intl.message('fullRange', name: 'fullRange', desc: '', args: []);
   }
 
-  /// `percentage`
-  String get percentage {
-    return Intl.message('percentage', name: 'percentage', desc: '', args: []);
-  }
-
-  /// `Note! After importing, it will not really join the course selection, just to facilitate viewing the time and place`
-  String get importCourseWarning {
-    return Intl.message(
-      'Note! After importing, it will not really join the course selection, just to facilitate viewing the time and place',
-      name: 'importCourseWarning',
-      desc: '',
-      args: [],
-    );
-  }
-
   /// `Can't join the class`
   String get addCustomCourseError {
     return Intl.message(
@@ -1162,11 +1217,6 @@ class S {
       desc: '',
       args: [],
     );
-  }
-
-  /// `Searching...`
-  String get searching {
-    return Intl.message('Searching...', name: 'searching', desc: '', args: []);
   }
 
   /// `Remove`
@@ -1194,31 +1244,6 @@ class S {
     );
   }
 
-  /// `WebMail`
-  String get webMail {
-    return Intl.message('WebMail', name: 'webMail', desc: '', args: []);
-  }
-
-  /// `Please Enter WebMail Password`
-  String get pleaseEnterWebMailPassword {
-    return Intl.message(
-      'Please Enter WebMail Password',
-      name: 'pleaseEnterWebMailPassword',
-      desc: '',
-      args: [],
-    );
-  }
-
-  /// `Enter text above to search for courses`
-  String get courseSearchHint {
-    return Intl.message(
-      'Enter text above to search for courses',
-      name: 'courseSearchHint',
-      desc: '',
-      args: [],
-    );
-  }
-
   /// `No relevant courses found`
   String get courseSearchNotFound {
     return Intl.message(
@@ -1239,19 +1264,9 @@ class S {
     );
   }
 
-  /// `Course code copied`
-  String get copy_course_id {
-    return Intl.message(
-      'Course code copied',
-      name: 'copy_course_id',
-      desc: '',
-      args: [],
-    );
-  }
-
-  /// `Copied!`
+  /// `Copied`
   String get copy {
-    return Intl.message('Copied!', name: 'copy', desc: '', args: []);
+    return Intl.message('Copied', name: 'copy', desc: '', args: []);
   }
 
   /// `Curriculum`
@@ -1359,10 +1374,10 @@ class S {
     return Intl.message('Dark', name: 'theme_dark', desc: '', args: []);
   }
 
-  /// `"Your login information will be stored only on this device and will not be uploaded to any server.`
+  /// `Your login information will be stored only on this device and will not be uploaded to any server.`
   String get login_hint {
     return Intl.message(
-      '"Your login information will be stored only on this device and will not be uploaded to any server.',
+      'Your login information will be stored only on this device and will not be uploaded to any server.',
       name: 'login_hint',
       desc: '',
       args: [],
@@ -1384,6 +1399,101 @@ class S {
     return Intl.message(
       'Hide password',
       name: 'hidePassword',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `TAT is signing you in — no need to type your password`
+  String get browserAutoLoginNotice {
+    return Intl.message(
+      'TAT is signing you in — no need to type your password',
+      name: 'browserAutoLoginNotice',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `The school wants a captcha this time; you have to enter it yourself`
+  String get browserCaptchaNotice {
+    return Intl.message(
+      'The school wants a captcha this time; you have to enter it yourself',
+      name: 'browserCaptchaNotice',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `The one-tap sign-in link expired, so the original page was opened instead`
+  String get browserAutologinExpired {
+    return Intl.message(
+      'The one-tap sign-in link expired, so the original page was opened instead',
+      name: 'browserAutologinExpired',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Sign in again`
+  String get browserRelogin {
+    return Intl.message(
+      'Sign in again',
+      name: 'browserRelogin',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `This is an external site, not a school system`
+  String get browserExternalSite {
+    return Intl.message(
+      'This is an external site, not a school system',
+      name: 'browserExternalSite',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `%s saved to Downloads`
+  String get browserDownloadSaved {
+    return Intl.message(
+      '%s saved to Downloads',
+      name: 'browserDownloadSaved',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Copy address`
+  String get browserCopyUrl {
+    return Intl.message(
+      'Copy address',
+      name: 'browserCopyUrl',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Address copied`
+  String get browserUrlCopied {
+    return Intl.message(
+      'Address copied',
+      name: 'browserUrlCopied',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Share`
+  String get browserShare {
+    return Intl.message('Share', name: 'browserShare', desc: '', args: []);
+  }
+
+  /// `An external browser does not have your sign-in`
+  String get browserOpenExternalNote {
+    return Intl.message(
+      'An external browser does not have your sign-in',
+      name: 'browserOpenExternalNote',
       desc: '',
       args: [],
     );
@@ -1462,6 +1572,56 @@ class S {
   /// `Later`
   String get deadlineLater {
     return Intl.message('Later', name: 'deadlineLater', desc: '', args: []);
+  }
+
+  /// `Late %s`
+  String get deadlineRestOfMonth {
+    return Intl.message(
+      'Late %s',
+      name: 'deadlineRestOfMonth',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `%s days left`
+  String get deadlineRemainingDays {
+    return Intl.message(
+      '%s days left',
+      name: 'deadlineRemainingDays',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `%s hours left`
+  String get deadlineRemainingHours {
+    return Intl.message(
+      '%s hours left',
+      name: 'deadlineRemainingHours',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `School calendar`
+  String get calendarSourceSchool {
+    return Intl.message(
+      'School calendar',
+      name: 'calendarSourceSchool',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Assignment due`
+  String get calendarSourceDeadline {
+    return Intl.message(
+      'Assignment due',
+      name: 'calendarSourceDeadline',
+      desc: '',
+      args: [],
+    );
   }
 
   /// `Failed to load Moodle to-do items`
@@ -1552,16 +1712,6 @@ class S {
   /// `Draft`
   String get assignStatusDraft {
     return Intl.message('Draft', name: 'assignStatusDraft', desc: '', args: []);
-  }
-
-  /// `Submitted`
-  String get assignStatusSubmitted {
-    return Intl.message(
-      'Submitted',
-      name: 'assignStatusSubmitted',
-      desc: '',
-      args: [],
-    );
   }
 
   /// `Graded`
@@ -2864,6 +3014,126 @@ class S {
     );
   }
 
+  /// `Awaiting grade`
+  String get assignStatusAwaitingGrade {
+    return Intl.message(
+      'Awaiting grade',
+      name: 'assignStatusAwaitingGrade',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Extended`
+  String get assignStatusExtended {
+    return Intl.message(
+      'Extended',
+      name: 'assignStatusExtended',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Due %s`
+  String get assignDueOn {
+    return Intl.message('Due %s', name: 'assignDueOn', desc: '', args: []);
+  }
+
+  /// `Extended to %s`
+  String get assignExtendedTo {
+    return Intl.message(
+      'Extended to %s',
+      name: 'assignExtendedTo',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Submitted %s`
+  String get assignSubmittedOn {
+    return Intl.message(
+      'Submitted %s',
+      name: 'assignSubmittedOn',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Last edited %s`
+  String get assignDraftEditedAt {
+    return Intl.message(
+      'Last edited %s',
+      name: 'assignDraftEditedAt',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `%s day(s) left`
+  String get assignRemainDays {
+    return Intl.message(
+      '%s day(s) left',
+      name: 'assignRemainDays',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `%s hour(s) left`
+  String get assignRemainHours {
+    return Intl.message(
+      '%s hour(s) left',
+      name: 'assignRemainHours',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Less than an hour left`
+  String get assignRemainSoon {
+    return Intl.message(
+      'Less than an hour left',
+      name: 'assignRemainSoon',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `%s item(s)`
+  String get assignCountItems {
+    return Intl.message(
+      '%s item(s)',
+      name: 'assignCountItems',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `All graded`
+  String get assignAllGraded {
+    return Intl.message(
+      'All graded',
+      name: 'assignAllGraded',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Feedback`
+  String get gradeFeedbackTag {
+    return Intl.message(
+      'Feedback',
+      name: 'gradeFeedbackTag',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Collapse`
+  String get collapse {
+    return Intl.message('Collapse', name: 'collapse', desc: '', args: []);
+  }
+
   /// `Quiz`
   String get quizDetail {
     return Intl.message('Quiz', name: 'quizDetail', desc: '', args: []);
@@ -3429,16 +3699,6 @@ class S {
     );
   }
 
-  /// `New discussion`
-  String get forumNewDiscussion {
-    return Intl.message(
-      'New discussion',
-      name: 'forumNewDiscussion',
-      desc: '',
-      args: [],
-    );
-  }
-
   /// `Subject`
   String get forumSubject {
     return Intl.message('Subject', name: 'forumSubject', desc: '', args: []);
@@ -3472,11 +3732,6 @@ class S {
   /// `Posting…`
   String get forumSending {
     return Intl.message('Posting…', name: 'forumSending', desc: '', args: []);
-  }
-
-  /// `Posted`
-  String get forumSendDone {
-    return Intl.message('Posted', name: 'forumSendDone', desc: '', args: []);
   }
 
   /// `Posted, but the thread could not be reloaded`
@@ -3549,6 +3804,31 @@ class S {
     );
   }
 
+  /// `All`
+  String get forumFilterAll {
+    return Intl.message('All', name: 'forumFilterAll', desc: '', args: []);
+  }
+
+  /// `Announcements %s`
+  String get forumFilterAnnouncements {
+    return Intl.message(
+      'Announcements %s',
+      name: 'forumFilterAnnouncements',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Discussions %s`
+  String get forumFilterDiscussions {
+    return Intl.message(
+      'Discussions %s',
+      name: 'forumFilterDiscussions',
+      desc: '',
+      args: [],
+    );
+  }
+
   /// `This forum has no discussions yet`
   String get forumEmpty {
     return Intl.message(
@@ -3579,41 +3859,11 @@ class S {
     );
   }
 
-  /// `This forum is not open for new discussions`
-  String get forumCannotPostHere {
-    return Intl.message(
-      'This forum is not open for new discussions',
-      name: 'forumCannotPostHere',
-      desc: '',
-      args: [],
-    );
-  }
-
-  /// `Couldn't check whether you can post here`
-  String get forumCannotCheckPosting {
-    return Intl.message(
-      'Couldn\'t check whether you can post here',
-      name: 'forumCannotCheckPosting',
-      desc: '',
-      args: [],
-    );
-  }
-
   /// `You can't post in this thread right now`
   String get forumErrorNoPermission {
     return Intl.message(
       'You can\'t post in this thread right now',
       name: 'forumErrorNoPermission',
-      desc: '',
-      args: [],
-    );
-  }
-
-  /// `This forum won't accept a new discussion`
-  String get forumErrorCannotCreateDiscussion {
-    return Intl.message(
-      'This forum won\'t accept a new discussion',
-      name: 'forumErrorCannotCreateDiscussion',
       desc: '',
       args: [],
     );
@@ -3669,21 +3919,21 @@ class S {
     );
   }
 
-  /// `TAT announcements`
-  String get appAnnouncement {
+  /// `Notifications`
+  String get notificationCenterTitle {
     return Intl.message(
-      'TAT announcements',
-      name: 'appAnnouncement',
+      'Notifications',
+      name: 'notificationCenterTitle',
       desc: '',
       args: [],
     );
   }
 
-  /// `No TAT announcements right now`
-  String get appAnnouncementEmpty {
+  /// `TAT announcements`
+  String get appAnnouncement {
     return Intl.message(
-      'No TAT announcements right now',
-      name: 'appAnnouncementEmpty',
+      'TAT announcements',
+      name: 'appAnnouncement',
       desc: '',
       args: [],
     );
@@ -3699,6 +3949,21 @@ class S {
     );
   }
 
+  /// `Read the full announcement`
+  String get announcementReadFull {
+    return Intl.message(
+      'Read the full announcement',
+      name: 'announcementReadFull',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Next`
+  String get announcementNext {
+    return Intl.message('Next', name: 'announcementNext', desc: '', args: []);
+  }
+
   /// `Failed to load TAT announcements`
   String get getAppNoticeError {
     return Intl.message(
@@ -3709,11 +3974,11 @@ class S {
     );
   }
 
-  /// `Moodle notifications`
-  String get moodleNotification {
+  /// `Earlier`
+  String get notificationGroupEarlier {
     return Intl.message(
-      'Moodle notifications',
-      name: 'moodleNotification',
+      'Earlier',
+      name: 'notificationGroupEarlier',
       desc: '',
       args: [],
     );
@@ -3724,6 +3989,16 @@ class S {
     return Intl.message(
       'No notifications',
       name: 'notificationEmpty',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Course announcements, assignment deadlines and released grades show up here.`
+  String get notificationEmptyHint {
+    return Intl.message(
+      'Course announcements, assignment deadlines and released grades show up here.',
+      name: 'notificationEmptyHint',
       desc: '',
       args: [],
     );
@@ -3899,10 +4174,10 @@ class S {
     );
   }
 
-  /// `Remove current picture`
+  /// `Remove picture`
   String get avatarRemove {
     return Intl.message(
-      'Remove current picture',
+      'Remove picture',
       name: 'avatarRemove',
       desc: '',
       args: [],
@@ -4244,6 +4519,16 @@ class S {
     return Intl.message('edited', name: 'forumEdited', desc: '', args: []);
   }
 
+  /// `Started`
+  String get forumTopicStarter {
+    return Intl.message(
+      'Started',
+      name: 'forumTopicStarter',
+      desc: '',
+      args: [],
+    );
+  }
+
   /// `Edit post`
   String get forumEditPost {
     return Intl.message('Edit post', name: 'forumEditPost', desc: '', args: []);
@@ -4524,6 +4809,1231 @@ class S {
     return Intl.message(
       'You cannot edit this post',
       name: 'forumErrorNoEditPermission',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `More`
+  String get titleMore {
+    return Intl.message('More', name: 'titleMore', desc: '', args: []);
+  }
+
+  /// `About TAT`
+  String get groupAboutTat {
+    return Intl.message('About TAT', name: 'groupAboutTat', desc: '', args: []);
+  }
+
+  /// `All services`
+  String get allServices {
+    return Intl.message(
+      'All services',
+      name: 'allServices',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Enrollment, course search, evaluation`
+  String get curriculumDescription {
+    return Intl.message(
+      'Enrollment, course search, evaluation',
+      name: 'curriculumDescription',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Student record, conduct, leaving procedures`
+  String get personInfoDescription {
+    return Intl.message(
+      'Student record, conduct, leaving procedures',
+      name: 'personInfoDescription',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Dormitory, room booking, counselling`
+  String get campusLifeDescription {
+    return Intl.message(
+      'Dormitory, room booking, counselling',
+      name: 'campusLifeDescription',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Scholarships, fee waivers, work-study`
+  String get financialSupportDescription {
+    return Intl.message(
+      'Scholarships, fee waivers, work-study',
+      name: 'financialSupportDescription',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Language`
+  String get languageSetting {
+    return Intl.message(
+      'Language',
+      name: 'languageSetting',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Traditional Chinese`
+  String get languageZhTW {
+    return Intl.message(
+      'Traditional Chinese',
+      name: 'languageZhTW',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `English`
+  String get languageEn {
+    return Intl.message('English', name: 'languageEn', desc: '', args: []);
+  }
+
+  /// `This information comes from the university's systems. To correct it, go through campus services.`
+  String get profileReadOnlyNote {
+    return Intl.message(
+      'This information comes from the university\'s systems. To correct it, go through campus services.',
+      name: 'profileReadOnlyNote',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Open student record`
+  String get goToStudentRecord {
+    return Intl.message(
+      'Open student record',
+      name: 'goToStudentRecord',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Search services`
+  String get searchService {
+    return Intl.message(
+      'Search services',
+      name: 'searchService',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `%s items`
+  String get itemCount {
+    return Intl.message('%s items', name: 'itemCount', desc: '', args: []);
+  }
+
+  /// `No services found`
+  String get subSystemSearchEmpty {
+    return Intl.message(
+      'No services found',
+      name: 'subSystemSearchEmpty',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `GPA`
+  String get gpaLabel {
+    return Intl.message('GPA', name: 'gpaLabel', desc: '', args: []);
+  }
+
+  /// `Failed`
+  String get scoreFailed {
+    return Intl.message('Failed', name: 'scoreFailed', desc: '', args: []);
+  }
+
+  /// `Passed`
+  String get scorePassed {
+    return Intl.message('Passed', name: 'scorePassed', desc: '', args: []);
+  }
+
+  /// `%s courses`
+  String get courseCount {
+    return Intl.message('%s courses', name: 'courseCount', desc: '', args: []);
+  }
+
+  /// `%s credits`
+  String get creditCount {
+    return Intl.message('%s credits', name: 'creditCount', desc: '', args: []);
+  }
+
+  /// `Assignment and exam scores during the term`
+  String get moodleCourseGradesSubtitle {
+    return Intl.message(
+      'Assignment and exam scores during the term',
+      name: 'moodleCourseGradesSubtitle',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Copy`
+  String get copyAction {
+    return Intl.message('Copy', name: 'copyAction', desc: '', args: []);
+  }
+
+  /// `Class / lab`
+  String get courseAndPracticalTimes {
+    return Intl.message(
+      'Class / lab',
+      name: 'courseAndPracticalTimes',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `%s / %s hr`
+  String get hoursValue {
+    return Intl.message('%s / %s hr', name: 'hoursValue', desc: '', args: []);
+  }
+
+  /// `Enrolled`
+  String get enrolledCount {
+    return Intl.message('Enrolled', name: 'enrolledCount', desc: '', args: []);
+  }
+
+  /// `%s (%s / %s)`
+  String get enrolledCountValue {
+    return Intl.message(
+      '%s (%s / %s)',
+      name: 'enrolledCountValue',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Limit %s · NTUST %s · Cross-campus %s`
+  String get enrollmentLimitSummary {
+    return Intl.message(
+      'Limit %s · NTUST %s · Cross-campus %s',
+      name: 'enrollmentLimitSummary',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Enrolled students`
+  String get enrolledStudents {
+    return Intl.message(
+      'Enrolled students',
+      name: 'enrolledStudents',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `%s people`
+  String get peopleCount {
+    return Intl.message('%s people', name: 'peopleCount', desc: '', args: []);
+  }
+
+  /// `Textbooks and references`
+  String get courseTextbookAndRefbook {
+    return Intl.message(
+      'Textbooks and references',
+      name: 'courseTextbookAndRefbook',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Search by name or class`
+  String get searchStudent {
+    return Intl.message(
+      'Search by name or class',
+      name: 'searchStudent',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `By continuing you agree to the`
+  String get continueMeansAgree {
+    return Intl.message(
+      'By continuing you agree to the',
+      name: 'continueMeansAgree',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `B11234567`
+  String get accountHint {
+    return Intl.message('B11234567', name: 'accountHint', desc: '', args: []);
+  }
+
+  /// `Log out?`
+  String get logoutConfirmTitle {
+    return Intl.message(
+      'Log out?',
+      name: 'logoutConfirmTitle',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `This clears all data, including the account and password saved on this device and the cached timetable.`
+  String get logoutConfirmDesc {
+    return Intl.message(
+      'This clears all data, including the account and password saved on this device and the cached timetable.',
+      name: 'logoutConfirmDesc',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `The NTUST system rejected the saved account and password. If you changed it recently, update it and try again.`
+  String get credentialRejectedDesc {
+    return Intl.message(
+      'The NTUST system rejected the saved account and password. If you changed it recently, update it and try again.',
+      name: 'credentialRejectedDesc',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Exchange student enrollment`
+  String get activitiesDescription {
+    return Intl.message(
+      'Exchange student enrollment',
+      name: 'activitiesDescription',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Licensed software, campus documents`
+  String get resourcesDescription {
+    return Intl.message(
+      'Licensed software, campus documents',
+      name: 'resourcesDescription',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Contact`
+  String get contactInfo {
+    return Intl.message('Contact', name: 'contactInfo', desc: '', args: []);
+  }
+
+  /// `Campus email`
+  String get campusEmail {
+    return Intl.message(
+      'Campus email',
+      name: 'campusEmail',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `More fields`
+  String get otherFields {
+    return Intl.message('More fields', name: 'otherFields', desc: '', args: []);
+  }
+
+  /// `No semester selected, the calendar was not updated`
+  String get calendarNoSemesterSelected {
+    return Intl.message(
+      'No semester selected, the calendar was not updated',
+      name: 'calendarNoSemesterSelected',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `%s courses · %s credits`
+  String get courseTableSummary {
+    return Intl.message(
+      '%s courses · %s credits',
+      name: 'courseTableSummary',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Search file name`
+  String get searchFileName {
+    return Intl.message(
+      'Search file name',
+      name: 'searchFileName',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `No files match that name`
+  String get fileSearchNoResult {
+    return Intl.message(
+      'No files match that name',
+      name: 'fileSearchNoResult',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `%s file(s) · %s week(s) with content`
+  String get fileStatsWeekly {
+    return Intl.message(
+      '%s file(s) · %s week(s) with content',
+      name: 'fileStatsWeekly',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `%s file(s) · %s topic(s)`
+  String get fileStatsTopic {
+    return Intl.message(
+      '%s file(s) · %s topic(s)',
+      name: 'fileStatsTopic',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `This week`
+  String get thisWeek {
+    return Intl.message('This week', name: 'thisWeek', desc: '', args: []);
+  }
+
+  /// `Weeks with content`
+  String get weeksWithFiles {
+    return Intl.message(
+      'Weeks with content',
+      name: 'weeksWithFiles',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Other weeks with content`
+  String get otherWeeksWithFiles {
+    return Intl.message(
+      'Other weeks with content',
+      name: 'otherWeeksWithFiles',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Show the %s empty week(s)`
+  String get showEmptyWeeks {
+    return Intl.message(
+      'Show the %s empty week(s)',
+      name: 'showEmptyWeeks',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Hide the empty weeks`
+  String get hideEmptyWeeks {
+    return Intl.message(
+      'Hide the empty weeks',
+      name: 'hideEmptyWeeks',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Show %s more item(s)`
+  String get showRemainingFiles {
+    return Intl.message(
+      'Show %s more item(s)',
+      name: 'showRemainingFiles',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Topics`
+  String get topic {
+    return Intl.message('Topics', name: 'topic', desc: '', args: []);
+  }
+
+  /// `%s add-drop draft`
+  String get simulationDraftLabel {
+    return Intl.message(
+      '%s add-drop draft',
+      name: 'simulationDraftLabel',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Draft only, your real table is untouched`
+  String get simulationSubtitle {
+    return Intl.message(
+      'Draft only, your real table is untouched',
+      name: 'simulationSubtitle',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `%s clashes: %s`
+  String get simulationConflictBanner {
+    return Intl.message(
+      '%s clashes: %s',
+      name: 'simulationConflictBanner',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Draft: %s courses, %s credits`
+  String get simulationDraftSummary {
+    return Intl.message(
+      'Draft: %s courses, %s credits',
+      name: 'simulationDraftSummary',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `%s credits including your real table`
+  String get simulationTotalSummary {
+    return Intl.message(
+      '%s credits including your real table',
+      name: 'simulationTotalSummary',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `No clashes`
+  String get simulationNoConflict {
+    return Intl.message(
+      'No clashes',
+      name: 'simulationNoConflict',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `No courses yet. Tap Search courses below to start planning.`
+  String get simulationEmptyHint {
+    return Intl.message(
+      'No courses yet. Tap Search courses below to start planning.',
+      name: 'simulationEmptyHint',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `New draft table`
+  String get simulationNew {
+    return Intl.message(
+      'New draft table',
+      name: 'simulationNew',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Remove from draft`
+  String get simulationRemoveCourse {
+    return Intl.message(
+      'Remove from draft',
+      name: 'simulationRemoveCourse',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Search courses`
+  String get courseSearchTitle {
+    return Intl.message(
+      'Search courses',
+      name: 'courseSearchTitle',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Hide clashes`
+  String get courseSearchHideConflict {
+    return Intl.message(
+      'Hide clashes',
+      name: 'courseSearchHideConflict',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `%s courses`
+  String get courseSearchResultSummary {
+    return Intl.message(
+      '%s courses',
+      name: 'courseSearchResultSummary',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `%s clash with your table`
+  String get courseSearchConflictSummary {
+    return Intl.message(
+      '%s clash with your table',
+      name: 'courseSearchConflictSummary',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Clashes with %s (%s)`
+  String get courseSearchConflictWith {
+    return Intl.message(
+      'Clashes with %s (%s)',
+      name: 'courseSearchConflictWith',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Add to draft`
+  String get courseSearchAdd {
+    return Intl.message(
+      'Add to draft',
+      name: 'courseSearchAdd',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `%s clashes`
+  String get simulationConflictCount {
+    return Intl.message(
+      '%s clashes',
+      name: 'simulationConflictCount',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Filter`
+  String get courseSearchFilter {
+    return Intl.message(
+      'Filter',
+      name: 'courseSearchFilter',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Filters`
+  String get courseSearchFilterTitle {
+    return Intl.message(
+      'Filters',
+      name: 'courseSearchFilterTitle',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Any program`
+  String get courseSearchLevelAny {
+    return Intl.message(
+      'Any program',
+      name: 'courseSearchLevelAny',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Undergraduate`
+  String get courseSearchLevelUnder {
+    return Intl.message(
+      'Undergraduate',
+      name: 'courseSearchLevelUnder',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Graduate`
+  String get courseSearchLevelMaster {
+    return Intl.message(
+      'Graduate',
+      name: 'courseSearchLevelMaster',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Taught in English`
+  String get courseSearchForeignLanguage {
+    return Intl.message(
+      'Taught in English',
+      name: 'courseSearchForeignLanguage',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `General education`
+  String get courseSearchGeneral {
+    return Intl.message(
+      'General education',
+      name: 'courseSearchGeneral',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Intensive`
+  String get courseSearchIntensive {
+    return Intl.message(
+      'Intensive',
+      name: 'courseSearchIntensive',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Exclude NTU system`
+  String get courseSearchNtustOnly {
+    return Intl.message(
+      'Exclude NTU system',
+      name: 'courseSearchNtustOnly',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `GE dimension`
+  String get courseSearchDimension {
+    return Intl.message(
+      'GE dimension',
+      name: 'courseSearchDimension',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Any dimension`
+  String get courseSearchDimensionAny {
+    return Intl.message(
+      'Any dimension',
+      name: 'courseSearchDimensionAny',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Clear filters`
+  String get courseSearchReset {
+    return Intl.message(
+      'Clear filters',
+      name: 'courseSearchReset',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Required`
+  String get courseRequired {
+    return Intl.message('Required', name: 'courseRequired', desc: '', args: []);
+  }
+
+  /// `Elective`
+  String get courseElective {
+    return Intl.message('Elective', name: 'courseElective', desc: '', args: []);
+  }
+
+  /// `Program`
+  String get courseSearchLevel {
+    return Intl.message(
+      'Program',
+      name: 'courseSearchLevel',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Options`
+  String get courseSearchOptions {
+    return Intl.message(
+      'Options',
+      name: 'courseSearchOptions',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Humanities and Thinking`
+  String get courseDimensionA {
+    return Intl.message(
+      'Humanities and Thinking',
+      name: 'courseDimensionA',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Contemporary Civilization`
+  String get courseDimensionB {
+    return Intl.message(
+      'Contemporary Civilization',
+      name: 'courseDimensionB',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Aesthetics and Life Wisdom`
+  String get courseDimensionC {
+    return Intl.message(
+      'Aesthetics and Life Wisdom',
+      name: 'courseDimensionC',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Social Cultures and History`
+  String get courseDimensionD {
+    return Intl.message(
+      'Social Cultures and History',
+      name: 'courseDimensionD',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Community and Relationships`
+  String get courseDimensionE {
+    return Intl.message(
+      'Community and Relationships',
+      name: 'courseDimensionE',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Nature and Life Science`
+  String get courseDimensionF {
+    return Intl.message(
+      'Nature and Life Science',
+      name: 'courseDimensionF',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Choose a table`
+  String get tableSwitcherTitle {
+    return Intl.message(
+      'Choose a table',
+      name: 'tableSwitcherTitle',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `My tables`
+  String get tableSwitcherMine {
+    return Intl.message(
+      'My tables',
+      name: 'tableSwitcherMine',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Shared with me`
+  String get tableSwitcherShared {
+    return Intl.message(
+      'Shared with me',
+      name: 'tableSwitcherShared',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Draft tables`
+  String get tableSwitcherDrafts {
+    return Intl.message(
+      'Draft tables',
+      name: 'tableSwitcherDrafts',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Manage tables`
+  String get manageTablesTitle {
+    return Intl.message(
+      'Manage tables',
+      name: 'manageTablesTitle',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `My tables, downloaded`
+  String get manageTablesMine {
+    return Intl.message(
+      'My tables, downloaded',
+      name: 'manageTablesMine',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Each semester you open is saved here automatically.`
+  String get manageTablesMineHint {
+    return Intl.message(
+      'Each semester you open is saved here automatically.',
+      name: 'manageTablesMineHint',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Scanned from someone else`
+  String get manageTablesShared {
+    return Intl.message(
+      'Scanned from someone else',
+      name: 'manageTablesShared',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `A scanned table is a snapshot; later add-drops by that person will not sync.`
+  String get manageTablesSharedHint {
+    return Intl.message(
+      'A scanned table is a snapshot; later add-drops by that person will not sync.',
+      name: 'manageTablesSharedHint',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Simulations · your drafts`
+  String get manageTablesDrafts {
+    return Intl.message(
+      'Simulations · your drafts',
+      name: 'manageTablesDrafts',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Simulations are just for planning; they never touch your real timetable.`
+  String get manageTablesDraftsHint {
+    return Intl.message(
+      'Simulations are just for planning; they never touch your real timetable.',
+      name: 'manageTablesDraftsHint',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Current`
+  String get manageTablesCurrent {
+    return Intl.message(
+      'Current',
+      name: 'manageTablesCurrent',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Scan a table`
+  String get scanTableTitle {
+    return Intl.message(
+      'Scan a table',
+      name: 'scanTableTitle',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Imported %s`
+  String get importedOn {
+    return Intl.message('Imported %s', name: 'importedOn', desc: '', args: []);
+  }
+
+  /// `Switch table`
+  String get switchTable {
+    return Intl.message(
+      'Switch table',
+      name: 'switchTable',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Mine, shared, drafts`
+  String get switchTableHint {
+    return Intl.message(
+      'Mine, shared, drafts',
+      name: 'switchTableHint',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Share table`
+  String get shareTableTitle {
+    return Intl.message(
+      'Share table',
+      name: 'shareTableTitle',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Have them use Scan a table`
+  String get shareTableHint {
+    return Intl.message(
+      'Have them use Scan a table',
+      name: 'shareTableHint',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Save as image`
+  String get shareTableSaveImage {
+    return Intl.message(
+      'Save as image',
+      name: 'shareTableSaveImage',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `The QR carries only the student ID, semester and course codes. Nothing is uploaded, and it contains no grades or assignments. Their app fills in course names and rooms itself.`
+  String get shareTableNote {
+    return Intl.message(
+      'The QR carries only the student ID, semester and course codes. Nothing is uploaded, and it contains no grades or assignments. Their app fills in course names and rooms itself.',
+      name: 'shareTableNote',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Copy code`
+  String get shareTableCopyCode {
+    return Intl.message(
+      'Copy code',
+      name: 'shareTableCopyCode',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Code copied`
+  String get shareTableCodeCopied {
+    return Intl.message(
+      'Code copied',
+      name: 'shareTableCodeCopied',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Export image`
+  String get exportImage {
+    return Intl.message(
+      'Export image',
+      name: 'exportImage',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `PNG, whole week`
+  String get exportImageHint {
+    return Intl.message(
+      'PNG, whole week',
+      name: 'exportImageHint',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Line up their QR inside the frame`
+  String get scanTableHint {
+    return Intl.message(
+      'Line up their QR inside the frame',
+      name: 'scanTableHint',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `You will get to confirm whose table it is before it is imported.`
+  String get scanTableNote {
+    return Intl.message(
+      'You will get to confirm whose table it is before it is imported.',
+      name: 'scanTableNote',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Torch`
+  String get scanTableTorch {
+    return Intl.message('Torch', name: 'scanTableTorch', desc: '', args: []);
+  }
+
+  /// `From photos`
+  String get scanTableGallery {
+    return Intl.message(
+      'From photos',
+      name: 'scanTableGallery',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Paste code`
+  String get scanTablePaste {
+    return Intl.message(
+      'Paste code',
+      name: 'scanTablePaste',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Paste the code they sent you`
+  String get scanTablePasteHint {
+    return Intl.message(
+      'Paste the code they sent you',
+      name: 'scanTablePasteHint',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `That is not a TAT table code`
+  String get scanTableInvalid {
+    return Intl.message(
+      'That is not a TAT table code',
+      name: 'scanTableInvalid',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `No camera access. Use From photos or Paste code instead.`
+  String get scanTablePermission {
+    return Intl.message(
+      'No camera access. Use From photos or Paste code instead.',
+      name: 'scanTablePermission',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Import this table?`
+  String get importConfirmTitle {
+    return Intl.message(
+      'Import this table?',
+      name: 'importConfirmTitle',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Import and open`
+  String get importConfirmOpen {
+    return Intl.message(
+      'Import and open',
+      name: 'importConfirmOpen',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `and %s more`
+  String get importMoreCourses {
+    return Intl.message(
+      'and %s more',
+      name: 'importMoreCourses',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Restoring course names (%s/%s)`
+  String get importRestoring {
+    return Intl.message(
+      'Restoring course names (%s/%s)',
+      name: 'importRestoring',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Imported %s's table`
+  String get importDone {
+    return Intl.message(
+      'Imported %s\'s table',
+      name: 'importDone',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Shared`
+  String get sharedTableBadge {
+    return Intl.message('Shared', name: 'sharedTableBadge', desc: '', args: []);
+  }
+
+  /// `Department`
+  String get courseSearchDepartment {
+    return Intl.message(
+      'Department',
+      name: 'courseSearchDepartment',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Any department`
+  String get courseSearchDepartmentAny {
+    return Intl.message(
+      'Any department',
+      name: 'courseSearchDepartmentAny',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `College`
+  String get courseSearchCollege {
+    return Intl.message(
+      'College',
+      name: 'courseSearchCollege',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Apply`
+  String get courseSearchFilterApply {
+    return Intl.message(
+      'Apply',
+      name: 'courseSearchFilterApply',
       desc: '',
       args: [],
     );

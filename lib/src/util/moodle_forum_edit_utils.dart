@@ -69,21 +69,6 @@ class ForumReplyOutcome {
   final String? warning;
 }
 
-/// 新主題送出去之後的結果。語意同 [ForumReplyOutcome]。
-class ForumDiscussionOutcome {
-  const ForumDiscussionOutcome(this.discussionId,
-      {this.subject = '', this.warning});
-
-  final int discussionId;
-
-  /// 使用者剛打的標題。`add_discussion` 只回 `discussionid`，而剛建立的主題
-  /// 還沒有出現在清單裡——沒有這一格，直接進去的那一頁只能拿討論區名字當
-  /// 標題，等於把使用者剛離開的那個名字再顯示一次。
-  final String subject;
-
-  final String? warning;
-}
-
 /// 編輯送出去之後的結果。語意同 [ForumReplyOutcome]：[warning] 非 null 代表
 /// **更新真的發生了**，只是附件那邊有話要說。
 ///

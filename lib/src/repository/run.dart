@@ -28,8 +28,8 @@ Future<Result<T>> run<T>({
   /// 「只在失敗時讀」，畫面才不會先閃一次舊資料再跳成新的。
   bool cacheFirst = false,
 
-  /// 有值就顯示進度框。關掉的必須是 [TaskUiDelegate.beginProgress] 給的 handle，
-  /// 不是全域 hideProgress——那底下是 cleanAll()，會收掉並行分頁的遮罩。
+  /// 有值就顯示進度框。關掉的必須是 [TaskUiDelegate.beginProgress] 給的 handle
+  /// ——並行分頁各開各的，收掉別人的遮罩會讓使用者以為那一邊也載完了。
   String? progressMessage,
 
   /// fetch 回 null 且沒丟 [TaskFailure] 時，錯誤訊息用這個。

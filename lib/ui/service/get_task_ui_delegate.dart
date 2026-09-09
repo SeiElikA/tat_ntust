@@ -1,41 +1,37 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_app/src/R.dart';
-import 'package:flutter_app/ui/pages/course_table/modal/manual_semester_dialog.dart';
 import 'package:flutter_app/src/model/course/course_class_json.dart';
 import 'package:flutter_app/src/service/task_ui_delegate.dart';
-import 'package:flutter_app/src/util/my_toast.dart';
+import 'package:flutter_app/ui/components/tat_progress.dart';
+import 'package:flutter_app/ui/components/sheet/tat_bottom_sheet.dart';
+import 'package:flutter_app/ui/components/toast/tat_toast.dart';
+import 'package:flutter_app/ui/other/theme_context.dart';
 import 'package:flutter_app/ui/other/error_dialog.dart';
+import 'package:flutter_app/ui/pages/course_table/modal/manual_semester_dialog.dart';
 import 'package:flutter_app/ui/routes/route_utils.dart';
-import 'package:flutter_app/ui/other/my_progress_dialog.dart';
 import 'package:get/get.dart';
 
 /// [TaskUiDelegate] 的正式實作，由 main.dart 在啟動時指派。
-///
-/// [beginProgress] 是 `run()` 走的路：每一次顯示都拿得到自己的 handle，關掉時
-/// 不會動到別人的遮罩。[showProgress] / [hideProgress] 是手寫配對的舊路。
 class GetTaskUiDelegate implements TaskUiDelegate {
   const GetTaskUiDelegate();
 
   @override
   ProgressHandle beginProgress(String message) =>
-      _BotToastProgressHandle(MyProgressDialog.beginProgressDialog(message));
-
-  @override
-  void showProgress(String message) => MyProgressDialog.progressDialog(message);
-
-  @override
-  void hideProgress() => MyProgressDialog.hideProgressDialog();
+      _OverlayProgressHandle(message);
 
   @override
   Future<RetryDecision> confirmRetry(ErrorDialogParameter parameter) async {
     // 站台明確拒絕憑證時，把「確定」換成通往登入設定的出口。「登入頁在哪」
     // 是 UI 這一層的責任。
     if (parameter.offerLoginScreen) {
+      // 內文換成「為什麼失敗、下一步做什麼」。呼叫端傳進來的多半是抓取失敗的
+      // 通用訊息，對「帳密被拒」這條路徑幫不上忙。
+      parameter.desc = R.current.credentialRejectedDesc;
       parameter.btnOkText = R.current.setting;
-      parameter.okResult = false;
       parameter.btnOkOnPress = () {
         // 改完帳密回來之後把對話框關掉並回報 retry——使用者剛剛才修正了
-        // 讓它失敗的原因，直接重試才是他預期的。
+        // 讓它失敗的原因，直接重試才是他預期的。okResult 維持預設的 true，
+        // 這條路徑才真的走得到重試。
         RouteUtils.toLoginScreen().then((_) => Get.back<bool>(result: true));
       };
     }
@@ -45,7 +41,7 @@ class GetTaskUiDelegate implements TaskUiDelegate {
   }
 
   @override
-  void toast(String message) => MyToast.show(message);
+  void toast(String message) => TatToast.show(message, kind: TatToastKind.info);
 
   @override
   Future<String?> chooseOne(String title, Map<String, String> options) =>
@@ -59,51 +55,100 @@ class GetTaskUiDelegate implements TaskUiDelegate {
   Future<void> openLoginScreen() => RouteUtils.toLoginScreen();
 }
 
-/// 從幾個選項裡挑一個的對話框；repository 只認得 [TaskUiDelegate.chooseOne]。
+/// 從幾個選項裡挑一個；repository 只認得 [TaskUiDelegate.chooseOne]。
 ///
-/// `barrierDismissible: false` 是刻意的：點外面關掉會讓下載流程拿到 null，
-/// 而呼叫端的 fallback 是「用第一個選項」，使用者會拿到不是自己選的學期。
-Future<String?> selectOneDialog(String title, Map<String, String> options) =>
-    Get.dialog<String>(
-      AlertDialog(
-        title: Text(title),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: options.entries
-              .map((e) => TextButton(
-                    onPressed: () => Get.back<String>(result: e.value),
-                    child: SizedBox(
-                      width: double.infinity,
-                      child: Text(
-                        e.key,
-                        textAlign: TextAlign.center,
-                        style:
-                            TextStyle(color: Get.theme.colorScheme.onSurface),
-                      ),
-                    ),
-                  ))
-              .toList(),
+/// 下滑或點遮罩關掉會回 null，呼叫端必須把 null 當「使用者沒有選」處理，
+/// 不可以自己挑一個頂替——那會給出他沒選過的東西。
+Future<String?> selectOneDialog(String title, Map<String, String> options) {
+  // 這一層沒有畫面自己的 context，借 Navigator 底下的 Overlay：從它往上找得到
+  // Navigator，showModalBottomSheet 才推得出 route。
+  final context = Get.key.currentState?.overlay?.context;
+  if (context == null) return Future<String?>.value();
+  return showTatSingleSelectSheet<String>(
+    context: context,
+    title: title,
+    options: [
+      for (final entry in options.entries)
+        TatSheetOption<String>(label: entry.key, value: entry.value),
+    ],
+  );
+}
+
+/// 一個進度提示＝一個 [OverlayEntry]。關掉時只移除自己那一個，並行載入的
+/// 分頁不會互相收掉對方的提示。
+///
+/// 畫的是**底部一顆小膠囊**而不是全螢幕的載入畫面：整個 App 都不用全屏載入。
+/// 底下那層透明蓋板仍然留著——登入、下載這幾件事進行中不該被亂點，擋住點擊
+/// 的是它，不是視覺上的遮罩。
+class _OverlayProgressHandle implements ProgressHandle {
+  _OverlayProgressHandle(String message) {
+    final overlay = Get.key.currentState?.overlay;
+    if (overlay == null) return;
+    final entry = OverlayEntry(
+      builder: (context) => Positioned.fill(
+        child: Stack(
+          children: [
+            const Positioned.fill(child: AbsorbPointer()),
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: SafeArea(
+                top: false,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                  child: Center(child: _ProgressPill(message: message)),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
-      barrierDismissible: false,
     );
+    _entry = entry;
+    overlay.insert(entry);
+  }
 
-/// 包住 BotToast 的 CancelFunc，只關掉自己那一個進度框。
-class _BotToastProgressHandle implements ProgressHandle {
-  _BotToastProgressHandle(this._cancel);
-
-  /// 型別刻意寫成 `void Function()` 而不是 bot_toast 的 `CancelFunc`，
-  /// 這樣這一層不必把 bot_toast 的型別帶進 import。
-  final void Function() _cancel;
-
-  bool _dismissed = false;
+  OverlayEntry? _entry;
 
   @override
   void dismiss() {
-    // BotToast 重複移除同一個 key 本來就是 no-op；這個旗標把「dismiss 可以
-    // 重複呼叫」變成保證，呼叫端多關一次不必自己記有沒有關過。
-    if (_dismissed) return;
-    _dismissed = true;
-    _cancel();
+    // 欄位先清空再移除：呼叫端多關一次是 no-op，不必自己記有沒有關過。
+    final entry = _entry;
+    _entry = null;
+    if (entry != null && entry.mounted) entry.remove();
+  }
+}
+
+/// 底部那顆小膠囊。用 inverseSurface 撐出對比，不必靠變暗整個畫面。
+class _ProgressPill extends StatelessWidget {
+  const _ProgressPill({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = context.scheme;
+    return Material(
+      color: scheme.inverseSurface,
+      borderRadius: BorderRadius.circular(999),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TatProgress(size: 16, color: scheme.onInverseSurface),
+            const SizedBox(width: 12),
+            Flexible(
+              child: Text(
+                message,
+                style: context.text.bodyMedium
+                    ?.copyWith(color: scheme.onInverseSurface),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

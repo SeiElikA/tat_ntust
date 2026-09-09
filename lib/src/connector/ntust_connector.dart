@@ -15,7 +15,6 @@ import 'package:flutter_app/src/util/language_utils.dart';
 import 'package:html/dom.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 
-
 class NTUSTConnector {
   static const String host = "https://i.ntust.edu.tw";
   static const String subSystemTWUrl = "$host/student";

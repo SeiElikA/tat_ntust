@@ -31,5 +31,4 @@ class ScoreStore {
     score = ScoreRankJson();
     await save();
   }
-
 }

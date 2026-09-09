@@ -47,7 +47,12 @@ void main() {
       table.setCourseDetailByTime(
           Day.monday, SectionNumber.t_1, info('A1', '微積分'));
 
-      expect(table.getCourseDetailByTime(Day.monday, SectionNumber.t_1).main.course.id,
+      expect(
+          table
+              .getCourseDetailByTime(Day.monday, SectionNumber.t_1)
+              .main
+              .course
+              .id,
           'A1');
       expect(table.courseInfoMap[Day.tuesday], isEmpty);
     });
@@ -61,7 +66,12 @@ void main() {
       table.setCourseDetailByTime(
           Day.monday, SectionNumber.t_1, info('B2', '線性代數'));
 
-      expect(table.getCourseDetailByTime(Day.monday, SectionNumber.t_1).main.course.id,
+      expect(
+          table
+              .getCourseDetailByTime(Day.monday, SectionNumber.t_1)
+              .main
+              .course
+              .id,
           'A1');
     });
 
@@ -72,7 +82,12 @@ void main() {
           Day.monday, SectionNumber.t_1, info('A1', '電子學'));
       table.setCourseDetailByTime(
           Day.monday, SectionNumber.t_1, info('A2', '電子學實習'));
-      expect(table.getCourseDetailByTime(Day.monday, SectionNumber.t_1).main.course.id,
+      expect(
+          table
+              .getCourseDetailByTime(Day.monday, SectionNumber.t_1)
+              .main
+              .course
+              .id,
           'A2');
 
       table.setCourseDetailByTime(
@@ -80,7 +95,11 @@ void main() {
       table.setCourseDetailByTime(
           Day.tuesday, SectionNumber.t_3, info('B2', 'Lab for Electronics'));
       expect(
-          table.getCourseDetailByTime(Day.tuesday, SectionNumber.t_3).main.course.id,
+          table
+              .getCourseDetailByTime(Day.tuesday, SectionNumber.t_3)
+              .main
+              .course
+              .id,
           'B2');
     });
 
@@ -95,7 +114,8 @@ void main() {
 
       expect(table.courseInfoMap[Day.unKnown]!.keys.toList(),
           [SectionNumber.t_1, SectionNumber.t_2]);
-      expect(table.courseInfoMap[Day.unKnown]![SectionNumber.t_UnKnown], isNull);
+      expect(
+          table.courseInfoMap[Day.unKnown]![SectionNumber.t_UnKnown], isNull);
     });
 
     test('Day.unKnown 但課號為空字串時完全不寫入', () {
@@ -110,8 +130,8 @@ void main() {
   group('setCourseDetailByTimeString', () {
     test('節次字串以 substring 比對，"12" 同時命中 t_1 與 t_2', () {
       final table = CourseTableJson();
-      final added =
-          table.setCourseDetailByTimeString(Day.monday, '12', info('A1', '微積分'));
+      final added = table.setCourseDetailByTimeString(
+          Day.monday, '12', info('A1', '微積分'));
 
       expect(added, isTrue);
       expect(table.courseInfoMap[Day.monday]!.keys.toList(),
@@ -120,7 +140,8 @@ void main() {
 
     test('空字串代表沒有時間，回傳 false 且不寫入任何節次', () {
       final table = CourseTableJson();
-      expect(table.setCourseDetailByTimeString(Day.monday, '', info('A1', '微積分')),
+      expect(
+          table.setCourseDetailByTimeString(Day.monday, '', info('A1', '微積分')),
           isFalse);
       expect(table.courseInfoMap[Day.monday], isEmpty);
     });
@@ -141,7 +162,12 @@ void main() {
           Day.monday, '1', info('B2', '線性代數'));
 
       expect(added, isTrue);
-      expect(table.getCourseDetailByTime(Day.monday, SectionNumber.t_1).main.course.id,
+      expect(
+          table
+              .getCourseDetailByTime(Day.monday, SectionNumber.t_1)
+              .main
+              .course
+              .id,
           'A1');
     });
   });
@@ -175,8 +201,8 @@ void main() {
       table.addCourseDetailByCourseInfo(
           mainInfo('A1', '微積分', time: {Day.monday: '1'}));
 
-      final ok = table.addCourseDetailByCourseInfo(mainInfo('B2', '線性代數',
-          time: {Day.monday: '1', Day.friday: '5'}));
+      final ok = table.addCourseDetailByCourseInfo(
+          mainInfo('B2', '線性代數', time: {Day.monday: '1', Day.friday: '5'}));
 
       expect(ok, isFalse);
       expect(table.courseInfoMap[Day.friday], isEmpty);
@@ -194,7 +220,12 @@ void main() {
           mainInfo('A2', '電子學實習', time: {Day.monday: '1'}));
 
       expect(ok, isFalse);
-      expect(table.getCourseDetailByTime(Day.monday, SectionNumber.t_1).main.course.id,
+      expect(
+          table
+              .getCourseDetailByTime(Day.monday, SectionNumber.t_1)
+              .main
+              .course
+              .id,
           'A1');
     });
 
@@ -203,9 +234,11 @@ void main() {
       final ok = table.addCourseDetailByCourseInfo(mainInfo('X1', '空白時間課程'));
 
       expect(ok, isTrue);
-      expect(table.courseInfoMap[Day.unKnown]!.keys.toList(), [SectionNumber.t_1]);
       expect(
-          table.courseInfoMap[Day.unKnown]![SectionNumber.t_1]!.main.course.id, 'X1');
+          table.courseInfoMap[Day.unKnown]!.keys.toList(), [SectionNumber.t_1]);
+      expect(
+          table.courseInfoMap[Day.unKnown]![SectionNumber.t_1]!.main.course.id,
+          'X1');
     });
   });
 
@@ -251,8 +284,7 @@ void main() {
   group('查詢與移除', () {
     test('getCourseNameByCourseId 找不到時回傳 null', () {
       final table = CourseTableJson();
-      table.setCourseDetailByTimeString(
-          Day.monday, '1', info('A1', '微積分'));
+      table.setCourseDetailByTimeString(Day.monday, '1', info('A1', '微積分'));
 
       expect(table.getCourseNameByCourseId('A1'), '微積分');
       expect(table.getCourseNameByCourseId('NOPE'), isNull);
@@ -267,7 +299,8 @@ void main() {
 
       table.removeCourseByCourseId('A1');
 
-      expect(table.courseInfoMap[Day.monday]!.keys.toList(), [SectionNumber.t_4]);
+      expect(
+          table.courseInfoMap[Day.monday]!.keys.toList(), [SectionNumber.t_4]);
       expect(table.getCourseIdList(), ['B2']);
       expect(table.getTotalCredit(), 3);
     });
@@ -277,8 +310,8 @@ void main() {
     test('Day 的 JSON key 固定為 monday…unKnown，順序照 enum 宣告', () {
       // 這些字串是已安裝使用者硬碟裡的格式，不可以改名——
       // 見 docs/ARCHITECTURE.md〈不可以改的東西〉。
-      final encoded =
-          jsonDecode(jsonEncode(CourseTableJson().toJson())) as Map<String, dynamic>;
+      final encoded = jsonDecode(jsonEncode(CourseTableJson().toJson()))
+          as Map<String, dynamic>;
       final courseInfoMap = encoded['courseInfoMap'] as Map<String, dynamic>;
 
       expect(courseInfoMap.keys.toList(), [
@@ -303,8 +336,8 @@ void main() {
 
       final encoded =
           jsonDecode(jsonEncode(table.toJson())) as Map<String, dynamic>;
-      final monday =
-          (encoded['courseInfoMap'] as Map<String, dynamic>)['monday'] as Map<String, dynamic>;
+      final monday = (encoded['courseInfoMap']
+          as Map<String, dynamic>)['monday'] as Map<String, dynamic>;
 
       expect(monday.keys.toList(), [
         't_1',
@@ -363,7 +396,8 @@ void main() {
       table.setCourseDetailByTimeString(
           Day.monday, '1', info('A1', '微積分', credits: '3'));
 
-      final json = jsonDecode(jsonEncode(table.toJson())) as Map<String, dynamic>;
+      final json =
+          jsonDecode(jsonEncode(table.toJson())) as Map<String, dynamic>;
       (json['courseInfoMap'] as Map<String, dynamic>).remove('tuesday');
 
       final restored = CourseTableJson.fromJson(json);

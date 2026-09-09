@@ -24,7 +24,6 @@ import 'package:flutter_app/src/model/moodle_webapi/moodle_message_popup_notific
 import 'package:flutter_app/src/model/moodle_webapi/moodle_mod_assign_get_assignments.dart';
 import 'package:flutter_app/src/model/moodle_webapi/moodle_mod_assign_get_submission_status.dart';
 import 'package:flutter_app/src/model/moodle_webapi/moodle_forum_write_status.dart';
-import 'package:flutter_app/src/model/moodle_webapi/moodle_mod_forum_can_add_discussion.dart';
 import 'package:flutter_app/src/model/moodle_webapi/moodle_mod_forum_draft_area.dart';
 import 'package:flutter_app/src/model/moodle_webapi/moodle_mod_forum_get_forum_access_information.dart';
 import 'package:flutter_app/src/model/moodle_webapi/moodle_mod_forum_get_discussion_posts.dart';
@@ -184,12 +183,6 @@ class MoodleWebApiConnector {
   /// 回覆一篇貼文。type=write，capability 是 `mod/forum:replypost`。
   static const String addDiscussionPostFunction =
       "mod_forum_add_discussion_post";
-
-  /// 開一個新主題。type=write，capability 是 `mod/forum:startdiscussion`。
-  static const String addDiscussionFunction = "mod_forum_add_discussion";
-
-  /// 「這個討論區現在能不能開新主題」。不含發文節流。
-  static const String canAddDiscussionFunction = "mod_forum_can_add_discussion";
 
   /// 這個討論區的 capability 快照。type=read。整份回應是
   /// `load_capability_def('mod_forum')` 執行期攤出來的，欄位集合跟著站台版本
@@ -1251,26 +1244,6 @@ class MoodleWebApiConnector {
     }
   }
 
-  /// 形狀不對回 null。`status` 是唯一必要的欄位。
-  @visibleForTesting
-  static MoodleCanAddDiscussion? canAddDiscussionOf(dynamic result) {
-    if (result is! Map || !result.containsKey("status")) return null;
-    return MoodleCanAddDiscussion.fromJson(Map<String, dynamic>.from(result));
-  }
-
-  /// 這個討論區現在能不能開新主題。`groupid` 不送：伺服器預設是使用者目前的
-  /// 群組，與 [addDiscussion] 送 0 之後被正規化成的那一個相同。
-  static Future<MoodleCanAddDiscussion?> canAddDiscussion(int forumId) async {
-    try {
-      return canAddDiscussionOf(await _callWs(canAddDiscussionFunction, {
-        "forumid": forumId.toString(),
-      }));
-    } catch (e, stack) {
-      _reportFailure(canAddDiscussionFunction, e, stack);
-      return null;
-    }
-  }
-
   /// 形狀不對回 null。每一格都是 VALUE_OPTIONAL，缺席就是 null＝不知道。
   @visibleForTesting
   static MoodleForumAccess? accessOf(dynamic result) {
@@ -1294,11 +1267,6 @@ class MoodleWebApiConnector {
   /// 態度與 [wsFunctionBlocked] 一致：第一次送出才會拿到 accessexception。
   static bool get canPostToForum =>
       wsFunctionBlocked(addDiscussionPostFunction) == null;
-
-  /// 同上，但問的是「開新主題」。兩支是各自獨立的外部服務項目，站台可能只開
-  /// 其中一支，所以不共用同一顆旗標。
-  static bool get canCreateDiscussion =>
-      wsFunctionBlocked(addDiscussionFunction) == null;
 
   /// 站台有沒有開放編輯。關掉時不畫編輯，選單只剩刪除。
   static bool get canEditForumPost =>
@@ -1385,55 +1353,6 @@ class MoodleWebApiConnector {
       return post;
     } catch (e, stack) {
       _reportAndRethrow(addDiscussionPostFunction, e, stack);
-    }
-  }
-
-  /// 開一個新主題，回討論串 id。
-  ///
-  /// 這一支**沒有** `messageformat` 參數，伺服器寫死 `FORMAT_HTML`，所以
-  /// [htmlMessage] 必須是呼叫端已經 escape 過的 HTML
-  /// （`MoodleForumUtils.plainTextToHtml`）。
-  ///
-  /// `groupid: 0` 就是「用我目前的群組」：伺服器在群組模式關閉時會改成 -1，
-  /// 否則代入 `groups_get_activity_group`。`discussionsubscribe` 不送，
-  /// 沿用伺服器寫死的 true——送 0 會把學生從自己開的主題退訂。
-  /// [attachmentsId] 的語意與 [addDiscussionPost] 完全相同（含「沒有
-  /// createattachment 時靜靜變 0」）。這一支的回應**沒有 post**，所以事後驗證
-  /// 必須另外打一趟 `get_discussion_posts` 取第一篇比對。
-  static Future<int> addDiscussion({
-    required int forumId,
-    required String subject,
-    required String htmlMessage,
-    int? attachmentsId,
-  }) async {
-    try {
-      final result = await _callWs(
-        addDiscussionFunction,
-        {
-          "forumid": forumId.toString(),
-          "subject": subject,
-          "message": htmlMessage,
-          "groupid": "0",
-          if (attachmentsId != null) ...{
-            "options[0][name]": "attachmentsid",
-            "options[0][value]": attachmentsId.toString(),
-          },
-        },
-        treatWarningsAsError: true,
-      );
-      final id = result is Map ? result["discussionid"] : null;
-      final discussionId = id is num ? id.toInt() : int.tryParse("$id");
-      // 證明不了寫入發生過就是失敗，不可以回一個 0 讓畫面裝作成功。
-      if (discussionId == null || discussionId <= 0) {
-        throw MoodleApiException(
-          wsFunction: addDiscussionFunction,
-          errorcode: "couldnotadd",
-          message: "回應裡沒有 discussionid，無法確認主題真的建立了",
-        );
-      }
-      return discussionId;
-    } catch (e, stack) {
-      _reportAndRethrow(addDiscussionFunction, e, stack);
     }
   }
 

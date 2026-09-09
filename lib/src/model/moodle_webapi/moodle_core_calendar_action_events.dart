@@ -38,6 +38,12 @@ class MoodleActionEvent {
 
   String? modulename;
 
+  /// Moodle 文件說這是模組的 instance id，**但 NTUST 的站台回的是 cmid**：實測
+  /// 「期中報告」這筆事件的 `instance` 是 354220，那是它的 cmid，assign 自己的
+  /// id 是 54556。所以不要直接拿它當 assignId／quizId／forumId 用，一律走
+  /// `UpcomingEventUtils.cmidOf` 再去課程模組表對。站台事件沒有模組，是 null。
+  int? instance;
+
   /// Unix 秒。
   @JsonKey(defaultValue: 0)
   int timesort;
@@ -54,6 +60,7 @@ class MoodleActionEvent {
     this.name = '',
     this.activityname,
     this.modulename,
+    this.instance,
     this.timesort = 0,
     this.url = '',
     this.course,
@@ -94,9 +101,14 @@ class MoodleActionEventCourse {
   @JsonKey(defaultValue: '')
   String shortname;
 
+  /// `<學年3碼><學期1碼><課號>`，例如 `1151CS3039701`；去掉前 4 碼就是課號。
+  @JsonKey(defaultValue: '')
+  String idnumber;
+
   MoodleActionEventCourse({
     this.fullname = '',
     this.shortname = '',
+    this.idnumber = '',
   });
 
   factory MoodleActionEventCourse.fromJson(Map<String, dynamic> json) =>
