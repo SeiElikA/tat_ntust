@@ -65,6 +65,52 @@ class _CourseSearchPageState extends State<CourseSearchPage> {
   /// 這一個是**伺服器**篩的，每一項都對得上 querycourse 真的吃的參數。
   CourseQueryFilter _filter = const CourseQueryFilter();
 
+  final TextEditingController _keyword = TextEditingController();
+
+  /// 一進來就先列出使用者自己系所這學期的課，不要開一張空白頁。
+  ///
+  /// 不能用空條件自動查：`CourseConnector.searchCourse` 對空條件直接回空陣列，
+  /// 而且全校一學期有 4282 門，真的拉下來也不是使用者要的。系所只有幾十門
+  /// （1151 的 CS 是 63 門），剛好。
+  ///
+  /// 課號前兩碼就是系所代碼，所以從使用者現有的課表取眾數就得到系所，不必再問
+  /// 一次伺服器。關鍵字欄位會一起填上那兩碼——不然畫面上會冒出一批沒來由的
+  /// 課，使用者也不知道要清掉什麼才能看到全部。
+  @override
+  void initState() {
+    super.initState();
+    final prefix = _homeDepartmentPrefix();
+    if (prefix == null) return;
+    _keyword.text = prefix;
+    _filter = _filter.copyWith(courseNo: prefix);
+    // 這裡不能走 _run：它開頭就 setState，而 initState 跑在 build 階段裡，
+    // 等於在建構途中標記自己需要重建。欄位直接指定，只有回應回來才 setState。
+    _loading = true;
+    _searched = true;
+    unawaited(_fetch(_filter));
+  }
+
+  @override
+  void dispose() {
+    _keyword.dispose();
+    super.dispose();
+  }
+
+  String? _homeDepartmentPrefix() {
+    final counts = <String, int>{};
+    for (final table in [widget.editor.base, widget.editor.draft]) {
+      for (final id in table?.getCourseIdList() ?? const <String>[]) {
+        if (id.length < 2) continue;
+        final prefix = id.substring(0, 2).toUpperCase();
+        // 數字開頭的不是系所代碼（通識與共同科目就長這樣）。
+        if (!RegExp(r'^[A-Z]{2}$').hasMatch(prefix)) continue;
+        counts[prefix] = (counts[prefix] ?? 0) + 1;
+      }
+    }
+    if (counts.isEmpty) return null;
+    return counts.entries.reduce((a, b) => b.value > a.value ? b : a).key;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -73,7 +119,7 @@ class _CourseSearchPageState extends State<CourseSearchPage> {
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-            child: CourseSearchBar(onSubmit: _onSubmit),
+            child: CourseSearchBar(controller: _keyword, onSubmit: _onSubmit),
           ),
           _filters(),
           Expanded(child: _body()),
@@ -343,6 +389,10 @@ class _CourseSearchPageState extends State<CourseSearchPage> {
       _loading = true;
       _searched = true;
     });
+    await _fetch(filter);
+  }
+
+  Future<void> _fetch(CourseQueryFilter filter) async {
     final results = await widget.search(filter);
     if (!mounted) return;
     setState(() {
