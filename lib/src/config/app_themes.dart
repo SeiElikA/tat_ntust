@@ -17,18 +17,48 @@ import 'package:google_fonts/google_fonts.dart';
 class AppThemes {
   /// 裝置給得出配色就整組直接用。先前是把它塞回 `fromSeed` 的 seedColor，
   /// 等於把 Android 12+ 完整的色調表壓成一個色相再重算一遍。
-  static ThemeData lightTheme(ColorScheme? lightDynamic) =>
-      _build(lightDynamic ??
-          ColorScheme.fromSeed(
-            seedColor: AppColors.fallbackSeed,
-            brightness: Brightness.light,
-          ));
+  static ThemeData lightTheme(ColorScheme? lightDynamic) => _build(
+        lightDynamic == null
+            ? ColorScheme.fromSeed(
+                seedColor: AppColors.fallbackSeed,
+                brightness: Brightness.light,
+              )
+            : _withSurfaceRamp(lightDynamic),
+      );
 
-  static ThemeData darkTheme(ColorScheme? darkDynamic) => _build(darkDynamic ??
-      ColorScheme.fromSeed(
-        seedColor: AppColors.fallbackSeed,
-        brightness: Brightness.dark,
-      ));
+  static ThemeData darkTheme(ColorScheme? darkDynamic) => _build(
+        darkDynamic == null
+            ? ColorScheme.fromSeed(
+                seedColor: AppColors.fallbackSeed,
+                brightness: Brightness.dark,
+              )
+            : _withSurfaceRamp(darkDynamic),
+      );
+
+  /// 補上動態配色缺的 surface 階層。
+  ///
+  /// `dynamic_color` 的 `CorePalette.toColorScheme()`（到 1.8.1 為止）只填
+  /// `surface` 與 `surfaceVariant`，**M3 的 surfaceContainer 那一整組都沒設**。
+  /// Flutter 對沒設定的角色一律退回 `surface`，於是 `TatTokens.page` 與
+  /// `TatTokens.card` 會變成同一個顏色——Android 12+ 上每一張卡片都會消失，
+  /// 整頁看起來只有一塊底色。
+  ///
+  /// 只補這幾階，primary／secondary／tertiary／error 仍然照裝置給的用，不重算。
+  static ColorScheme _withSurfaceRamp(ColorScheme scheme) {
+    final ramp = ColorScheme.fromSeed(
+      seedColor: scheme.primary,
+      brightness: scheme.brightness,
+    );
+    return scheme.copyWith(
+      surfaceDim: ramp.surfaceDim,
+      surfaceBright: ramp.surfaceBright,
+      surfaceContainerLowest: ramp.surfaceContainerLowest,
+      surfaceContainerLow: ramp.surfaceContainerLow,
+      surfaceContainer: ramp.surfaceContainer,
+      surfaceContainerHigh: ramp.surfaceContainerHigh,
+      surfaceContainerHighest: ramp.surfaceContainerHighest,
+    );
+  }
 
   static ThemeData _build(ColorScheme scheme) {
     final textTheme = AppTypography.textTheme(_baseTextTheme(scheme));
