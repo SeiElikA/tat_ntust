@@ -21,6 +21,10 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 ROOT="$(pwd)"
 
+# 產出一律先複製到 dist/。build/ 會被兩個 target 之間的 flutter clean 清掉，
+# 先前 all 打完 Android 再打 iOS，那顆 AAB 就這樣被自己的腳本刪了。
+DIST="$ROOT/dist"
+
 FLUTTER=(puro flutter)
 TARGET="${1:-all}"
 SKIP_CHECKS=0
@@ -40,6 +44,7 @@ die() { printf '\n\033[1;31m!! %s\033[0m\n' "$1" >&2; exit 1; }
 VERSION="$(awk -F'[ +]' '/^version:/{print $2}' pubspec.yaml)"
 BUILD="$(awk -F'+' '/^version:/{print $2}' pubspec.yaml)"
 say "TAT $VERSION (build $BUILD)"
+mkdir -p "$DIST"
 
 command -v puro >/dev/null || die "找不到 puro。"
 
@@ -74,7 +79,9 @@ build_android() {
   "${FLUTTER[@]}" build appbundle --release
   AAB="$ROOT/build/app/outputs/bundle/release/app-release.aab"
   [[ -f "$AAB" ]] || die "AAB 沒有產生出來。"
-  ARTIFACTS+=("$AAB")
+  OUT="$DIST/TAT-$VERSION+$BUILD.aab"
+  cp "$AAB" "$OUT"
+  ARTIFACTS+=("$OUT")
 }
 
 build_ios() {
@@ -95,7 +102,9 @@ build_ios() {
     fi
     die "IPA 沒有產生出來，看上面的 Xcode 訊息。"
   fi
-  ARTIFACTS+=("$IPA")
+  OUT="$DIST/TAT-$VERSION+$BUILD.ipa"
+  cp "$IPA" "$OUT"
+  ARTIFACTS+=("$OUT")
 }
 
 ARTIFACTS=()

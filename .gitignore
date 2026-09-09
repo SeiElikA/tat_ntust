@@ -69,3 +69,6 @@ docs/screenshots/*
 
 # 從設計稿抽出來的暫存畫面。裡面是真的截圖內容（含學號），不進版控。
 .design-notes-tmp/
+
+# release.sh 的產出，不進版控。
+dist/
