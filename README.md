@@ -10,8 +10,9 @@
 </p>
 
 ## 應用程式截圖
-|  ![](https://i.imgur.com/4XG6xLQ.png)  | ![](https://i.imgur.com/3CsDEZ0.png) |![](https://i.imgur.com/xbwfSk6.png) | ![](https://i.imgur.com/Hag21i5.png)   |
-|:--------------------------------------:| ------------------------------------ |:-----------------------------------:| -------------------------------------- |
+| ![課表](docs/screenshots/course-table.png) | ![模擬排課](docs/screenshots/simulation.png) | ![行事曆](docs/screenshots/calendar.png) | ![成績](docs/screenshots/score.png) |
+|:-----------------------------------------:|:--------------------------------------------:|:----------------------------------------:|:-----------------------------------:|
+| 課表 | 模擬排課 | 行事曆 | 成績 |
 
 --------------------------------
 ## 安裝指南
@@ -29,17 +30,6 @@
   <img width="150" alt='Get it on App Store' src='https://developer.apple.com/assets/elements/badges/download-on-the-app-store.svg'/>
 </a>
 <br><br>
-
-也可以點擊[此處](https://drive.google.com/drive/folders/1GDBc_coOp9jR_JzmgEgtOBcka0AkE9cL?usp=sharing)下載IPA安裝檔，第三方安裝的方式請參考下方。
-#### 使用AltStore安裝(推薦)
-利用[此工具](https://altstore.io/)為App簽名後，即可安裝在自己的裝置上。
-
-使用方式請參考
-https://www.gdaily.org/26293/altstore-ipa
-
-#### 其他安裝方式
-亦可使用超級簽名等其他方式安裝。
-若有意願贊助開發者帳號費用，協助我們上架App Store，歡迎聯繫我們。
 
 --------------------------------
 ## 聯絡我們

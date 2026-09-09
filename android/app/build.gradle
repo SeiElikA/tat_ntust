@@ -42,7 +42,23 @@ android {
 
     packagingOptions {
         jniLibs {
-            useLegacyPackaging = true
+            // 16 KB page size 要求 .so 以未壓縮、對齊的形式放進 APK，直接從
+            // APK mmap 進來。legacy packaging 是壓縮後安裝時才解開，兩者互斥。
+            useLegacyPackaging = false
+        }
+    }
+
+    // mobile_scanner 5.2.3 綁的是 CameraX 1.3.3 與 ML Kit barcode 17.2.0，
+    // 這兩包的預編 .so（libimage_processing_util_jni.so、libbarhopper_v3.so）
+    // 只有 4 KB 對齊。Android 15 起裝置以 16 KB page 執行，Play 也已要求。
+    // 外掛本身還沒更新，先在這裡把版本頂上去。
+    configurations.configureEach {
+        resolutionStrategy {
+            force 'androidx.camera:camera-core:1.4.2'
+            force 'androidx.camera:camera-camera2:1.4.2'
+            force 'androidx.camera:camera-lifecycle:1.4.2'
+            force 'androidx.camera:camera-view:1.4.2'
+            force 'com.google.mlkit:barcode-scanning:17.3.0'
         }
     }
 
