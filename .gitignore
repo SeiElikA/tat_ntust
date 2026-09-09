@@ -72,3 +72,5 @@ docs/screenshots/*
 
 # release.sh 的產出，不進版控。
 dist/
+
+TAT-商店圖/

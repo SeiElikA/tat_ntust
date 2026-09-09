@@ -67,13 +67,17 @@ class CourseConnector {
   /// 結果）消失，使用者只看到「取得課表失敗」。會爆的有兩處：`dayString.indexOf`
   /// 找不到時回 -1，以及中午節次 'N' 落在 timeEnum 之外。
   ///
-  /// **數字分支的 `parsed - 1` 是對的，不要「順手修正」成節次代號。** Node 的
-  /// 節次是「第幾格」：querycourse 前端的節次表
-  /// `1 2 3 4 5 6 7 8 9 10 A B C D` 與 timeEnum 的
-  /// `1 2 3 4 N 5 6 7 8 9 A B C D` 都是 14 格、逐格對位，所以 API 的第 5 格
-  /// "5" 就是 timeEnum[4] 的午休 "N"。全量回應的統計也一致——同一天相鄰兩格
-  /// 一起開課，3→4 有 1459 次、6→7 有 1242 次，但 4→5 只有 142 次、5→6 只有
-  /// 161 次，第 5 格明顯是沒人排課的午休。
+  /// **數字分支的 `parsed - 1` 是對的，不要「順手修正」。** Node 的節次是
+  /// 「第幾格」，而 querycourse 前端那張 `1 2 3 4 5 6 7 8 9 10 A B C D` 與
+  /// timeEnum 都是 14 格、逐格對位，所以 API 的 "5" 就是 timeEnum[4]。
+  ///
+  /// timeEnum 第 5 格寫成 `N` **只是內部代號**：`CourseTableJson.string2Time`
+  /// 用 `contains` 逐字比對 [SectionNumber] 的名稱，每一格必須是單一字元，
+  /// 塞得下「10」就會讓第 1 節被誤判。學校自己的叫法是第五節（12:20–13:10），
+  /// 畫面上顯示什麼由 `CourseTableControl.sectionStringList` 決定，不是這裡。
+  ///
+  /// 那一格確實是午休：全量回應裡同一天相鄰兩格一起開課，3→4 有 1459 次、
+  /// 6→7 有 1242 次，但 4→5 只有 142 次、5→6 只有 161 次。
   static void fillCourseTime(CourseMainJson courseMain, String node) {
     for (var t in node.split(",")) {
       // querycourse 真的回過小寫的 Node（課號 CS2028701 是 "w7,w8,w9"）。

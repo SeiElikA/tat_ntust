@@ -38,7 +38,7 @@ class CourseTableControl {
   bool isHideSaturday = false;
   bool isHideSunday = false;
   bool isHideUnKnown = false;
-  bool isHideN = false;
+  bool isHideNoon = false;
   bool isHideA = false;
   bool isHideB = false;
   bool isHideC = false;
@@ -65,25 +65,25 @@ class CourseTableControl {
     "21:00 - 22:00"
   ];
 
-  /// 節次代號。與 [SectionNumber]、`CourseConnector.timeEnum` 和分享碼的
-  /// `1234N56789ABCD` 逐格對位。
+  /// 畫面上顯示的節次名稱，與 [timeList] 逐格對位。
   ///
-  /// 第 5 格是午休 `N` 而不是「5」：querycourse 的 `Node` 用的是「第幾格」，
-  /// 它前端那張 `1…10 A…D` 的表跟這裡逐格對應（理由與統計見
-  /// `CourseConnector.fillCourseTime`）。以前這裡照抄了 querycourse 的格號，
-  /// 於是 15:30 那一列被標成「8」——對照 [timeList] 就知道它是第 7 節，而且
-  /// 臺科根本沒有第 10 節。
+  /// **這是顯示用的，不是內部代號。** 內部那一套（[SectionNumber] 的名稱、
+  /// `CourseConnector.timeEnum`、分享碼的 `1234N56789ABCD`）為了讓
+  /// `CourseTableJson.string2Time` 能逐字比對，每一格必須是單一字元，所以中午
+  /// 那格在內部叫 `N`。但臺科自己不是這樣叫的：中午 12:20–13:10 就是**第五
+  /// 節**，之後依序往下，17:30 那格是第十節——與 querycourse 前端那張
+  /// `1…10 A…D` 的表一致。兩套不會相等，別再把它們斷言成同一個列表。
   List<String> sectionStringList = [
     "1",
     "2",
     "3",
     "4",
-    "N",
     "5",
     "6",
     "7",
     "8",
     "9",
+    "10",
     "A",
     "B",
     "C",
@@ -98,7 +98,8 @@ class CourseTableControl {
     isHideSaturday = !courseTable!.isDayInCourseTable(Day.saturday);
     isHideSunday = !courseTable!.isDayInCourseTable(Day.sunday);
     isHideUnKnown = !courseTable!.isDayInCourseTable(Day.unKnown);
-    isHideN = !courseTable!.isSectionNumberInCourseTable(SectionNumber.t_N);
+    isHideNoon =
+        !courseTable!.isSectionNumberInCourseTable(SectionNumber.t_N);
     isHideA = (!courseTable!.isSectionNumberInCourseTable(SectionNumber.t_A));
     isHideB = (!courseTable!.isSectionNumberInCourseTable(SectionNumber.t_B));
     isHideC = (!courseTable!.isSectionNumberInCourseTable(SectionNumber.t_C));
@@ -154,7 +155,7 @@ class CourseTableControl {
   List<int> get getSectionIntList {
     List<int> intList = [];
     for (int i = 0; i < sectionLength; i++) {
-      if (isHideN && i == 4) continue;
+      if (isHideNoon && i == 4) continue;
       if (isHideA && i == 10) continue;
       if (isHideB && i == 11) continue;
       if (isHideC && i == 12) continue;
