@@ -41,8 +41,25 @@ class FileDownload {
     return name;
   }
 
+  /// 檔案在就開起來回 true，不在回 false。
+  /// [FileUtils.openFile] 對不存在的路徑是 throw，不是回傳失敗。
+  static Future<bool> _openIfExists(String path) async {
+    try {
+      Log.d("try open $path");
+      await FileUtils.openFile(path);
+      return true;
+    } catch (e) {
+      Log.d(e);
+      return false;
+    }
+  }
+
+  /// 下載並開啟。**已經下載過的就直接開，不會再抓一次。**
+  ///
+  /// `withOpen` 參數以前宣告了但整份程式沒有任何地方讀它，也沒有呼叫端傳過，
+  /// 看起來卻像在控制「要不要開檔」——移掉，免得再誤導下一個讀這段的人。
   static Future<void> download(BuildContext context, String url, dirName,
-      {String name = "", String? referer, withOpen = true}) async {
+      {String name = "", String? referer}) async {
     String path;
     try {
       path = await FileStore.getDownloadDir(context, dirName); //取得下載路徑
@@ -62,7 +79,9 @@ class FileDownload {
     referer = referer ?? url;
     String savePath = "$path/$name";
     String realFileName = "";
-    //顯示下載通知窗
+    // 先用呼叫端給的檔名試一次：命中就連 HEAD 都不必送，離線也開得起來。
+    // 下面那次 HEAD 只是為了拿 content-disposition 裡的真實檔名。
+    if (name.isNotEmpty && await _openIfExists(savePath)) return;
     try {
       var downloadReq = await DioConnector.instance.dio.head(url);
       Map<String, List<String>> headers = downloadReq.headers.map;
@@ -71,12 +90,9 @@ class FileDownload {
     } catch (e) {
       Log.d(e);
     }
-    try {
-      Log.d("try open $savePath");
-      await FileUtils.openFile(savePath);
-    } catch (e) {
-      Log.d(e);
-    }
+    // 命中快取就結束。**先前這裡開完沒有 return**，開起來也照樣往下重新下載
+    // 一次，等於整個快取完全沒有作用——使用者每點一次檔案就重抓一次。
+    if (await _openIfExists(savePath)) return;
     if (await Connectivity().checkConnectivity() == ConnectivityResult.none) {
       MyToast.show(R.current.pleaseConnectToNetwork);
       return;
