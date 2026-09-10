@@ -161,6 +161,10 @@ void main() {
           courseOf('AC5012701', '矩陣理論', {Day.thursday: '3 4'})
         ],
       );
+      // 預設是「只看不衝堂」，要先關掉才看得到會撞的那一門。
+      await tester.tap(find.text(R.current.courseSearchHideConflict));
+      await tester.pumpAndSettle();
+
       expect(find.textContaining('與 離散數學'), findsOneWidget);
       // 撞到的節次要全部列出來，只印第一節會讓人以為退一節就排得進去。
       expect(find.textContaining('四 3·4'), findsWidgets);
@@ -194,13 +198,14 @@ void main() {
           courseOf('AC5313701', '嵌入式系統', {Day.monday: '1 2'}),
         ],
       );
-      expect(find.text('矩陣理論'), findsOneWidget);
+      // 預設就是「只看不衝堂」，所以會撞的那一門一開始就不在。
+      expect(find.text('矩陣理論'), findsNothing);
       expect(find.text('嵌入式系統'), findsOneWidget);
 
       await tester.tap(find.text(R.current.courseSearchHideConflict));
       await tester.pumpAndSettle();
 
-      expect(find.text('矩陣理論'), findsNothing);
+      expect(find.text('矩陣理論'), findsOneWidget, reason: '關掉之後全部都要看得到');
       expect(find.text('嵌入式系統'), findsOneWidget);
     });
 

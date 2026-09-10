@@ -58,9 +58,12 @@ class _CourseSearchPageState extends State<CourseSearchPage> {
   bool _loading = false;
   bool _searched = false;
 
-  /// 設計稿的「只看不衝堂」。加退選現場最常問的就是「哪些我排得進去」。
-  /// 這一個是**畫面上**篩的：衝不衝堂伺服器不知道。
-  bool _hideConflict = false;
+  /// 設計稿的「只看不衝堂」。加退選現場最常問的就是「哪些我排得進去」，
+  /// 所以預設就打開——排不進去的課列出來也只是讓人再篩一次。想看全部再關掉。
+  ///
+  /// 這一個是**畫面上**篩的：衝不衝堂伺服器不知道，`OnlyNode` 送 1 會回非
+  /// JSON（見 docs/QUERYCOURSE_API.md），沒有伺服器端的節次篩選可用。
+  bool _hideConflict = true;
 
   /// 這一個是**伺服器**篩的，每一項都對得上 querycourse 真的吃的參數。
   CourseQueryFilter _filter = const CourseQueryFilter();
