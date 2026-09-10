@@ -18,6 +18,7 @@ import 'package:flutter_app/ui/components/page/section_empty_state.dart';
 import 'package:flutter_app/ui/other/lucide_icons.dart';
 import 'package:flutter_app/ui/other/theme_context.dart';
 import 'package:flutter_app/ui/pages/course_table/simulation/course_filter_page.dart';
+import 'package:flutter_app/ui/pages/course_table/simulation/course_slot_picker_page.dart';
 import 'package:flutter_app/ui/pages/course_table/simulation/simulation_page.dart';
 import 'package:sprintf/sprintf.dart';
 
@@ -64,6 +65,13 @@ class _CourseSearchPageState extends State<CourseSearchPage> {
   /// 這一個是**畫面上**篩的：衝不衝堂伺服器不知道，`OnlyNode` 送 1 會回非
   /// JSON（見 docs/QUERYCOURSE_API.md），沒有伺服器端的節次篩選可用。
   bool _hideConflict = true;
+
+  /// 想上的節次。空的就是不篩。
+  ///
+  /// 這一項**不進 [CourseQueryFilter]**：querycourse 的節次篩選不在伺服器端，
+  /// 官方前端也是拿回結果之後自己比對的。混進 filter 會讓 `isEmpty` 誤判成
+  /// 「有條件」而送出一次沒有意義的查詢。
+  Set<CourseSlot> _slots = {};
 
   /// 這一個是**伺服器**篩的，每一項都對得上 querycourse 真的吃的參數。
   CourseQueryFilter _filter = const CourseQueryFilter();
@@ -151,10 +159,24 @@ class _CourseSearchPageState extends State<CourseSearchPage> {
               selected: _hideConflict,
               onTap: () => setState(() => _hideConflict = !_hideConflict),
             ),
+            TatFilterChip(
+              label: R.current.courseSearchSlot,
+              selected: _slots.isNotEmpty,
+              onTap: () => unawaited(_openSlotPicker()),
+            ),
           ],
         ),
       ),
     );
+  }
+
+  Future<void> _openSlotPicker() async {
+    final next = await Navigator.of(context).push<Set<CourseSlot>>(
+        MaterialPageRoute(
+            builder: (context) => CourseSlotPickerPage(selected: _slots)));
+    if (next == null || !mounted) return;
+    // 純本地篩選，不必重查。
+    setState(() => _slots = next);
   }
 
   /// 改完條件就直接重查：篩選是伺服器端的，不重查畫面不會變。
@@ -216,9 +238,28 @@ class _CourseSearchPageState extends State<CourseSearchPage> {
     );
   }
 
-  List<CourseMainInfoJson> _visible() => _hideConflict
-      ? _results.where((c) => _conflictsOf(c).isEmpty).toList()
-      : _results;
+  List<CourseMainInfoJson> _visible() => _results
+      .where((c) => !_hideConflict || _conflictsOf(c).isEmpty)
+      .where(_fitsSlots)
+      .toList();
+
+  /// 這門課的每一格都要落在勾選的節次裡。
+  ///
+  /// 用「完全落在」而不是「有交集」：勾 1、2 是因為那兩節有空，一門橫跨 1–3
+  /// 的課列出來也排不進去。沒有排定時間的課（querycourse 的 `Node` 是 null，
+  /// 例如體育校隊）不算「在某幾節」，一律排除。
+  bool _fitsSlots(CourseMainInfoJson course) {
+    if (_slots.isEmpty) return true;
+    final cells = <CourseSlot>{};
+    for (final day in CourseTableConflict.days) {
+      for (final section
+          in CourseTableConflict.sectionsOf(course.course.time[day])) {
+        cells.add((day, section));
+      }
+    }
+    if (cells.isEmpty) return false;
+    return cells.every(_slots.contains);
+  }
 
   /// 這門課會撞到什麼。實際課表與草稿都要看：草稿裡剛加的課也算數。
   List<ConflictCell> _conflictsOf(CourseMainInfoJson course) {

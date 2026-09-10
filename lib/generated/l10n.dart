@@ -5544,6 +5544,26 @@ class S {
     );
   }
 
+  /// `Periods`
+  String get courseSearchSlot {
+    return Intl.message(
+      'Periods',
+      name: 'courseSearchSlot',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Only shows courses that fit entirely in the selected periods. No selection means no filter.`
+  String get courseSearchSlotHint {
+    return Intl.message(
+      'Only shows courses that fit entirely in the selected periods. No selection means no filter.',
+      name: 'courseSearchSlotHint',
+      desc: '',
+      args: [],
+    );
+  }
+
   /// `Clear filters`
   String get courseSearchReset {
     return Intl.message(

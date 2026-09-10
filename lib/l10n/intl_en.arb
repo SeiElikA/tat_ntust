@@ -610,6 +610,8 @@
   "courseSearchNtustOnly": "Exclude NTU system",
   "courseSearchDimension": "GE dimension",
   "courseSearchDimensionAny": "Any dimension",
+  "courseSearchSlot": "Periods",
+  "courseSearchSlotHint": "Only shows courses that fit entirely in the selected periods. No selection means no filter.",
   "courseSearchReset": "Clear filters",
   "courseRequired": "Required",
   "courseElective": "Elective",

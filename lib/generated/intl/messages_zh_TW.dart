@@ -455,6 +455,10 @@ class MessageLookup extends MessageLookupByLibrary {
     "courseSearchOptions": MessageLookupByLibrary.simpleMessage("其他條件"),
     "courseSearchReset": MessageLookupByLibrary.simpleMessage("清除條件"),
     "courseSearchResultSummary": MessageLookupByLibrary.simpleMessage("%s 門"),
+    "courseSearchSlot": MessageLookupByLibrary.simpleMessage("節次"),
+    "courseSearchSlotHint": MessageLookupByLibrary.simpleMessage(
+      "只顯示完全落在所選節次的課。沒有勾任何格子就是不篩。",
+    ),
     "courseSearchTitle": MessageLookupByLibrary.simpleMessage("搜尋課程"),
     "courseTableOptions": MessageLookupByLibrary.simpleMessage("課表選項"),
     "courseTableSummary": MessageLookupByLibrary.simpleMessage("%s 門 · %s 學分"),

@@ -221,6 +221,72 @@ void main() {
       expect(find.textContaining('四 3·4'), findsOneWidget);
       expect(find.textContaining('_'), findsNothing);
     });
+    group('節次篩選', () {
+      // querycourse 的節次篩選不在伺服器端，官方前端也是拿回結果自己比對的。
+      // 這裡用「完全落在所選節次」的語意：勾 1、2 是因為那兩節有空。
+      Future<void> pickSlots(WidgetTester tester, List<String> labels) async {
+        await tester.tap(find.text(R.current.courseSearchSlot));
+        await tester.pumpAndSettle();
+        for (final l in labels) {
+          await tester.tap(find.text(l).last);
+          await tester.pumpAndSettle();
+        }
+        await tester.tap(find.text(R.current.courseSearchFilterApply));
+        await tester.pumpAndSettle();
+      }
+
+      testWidgets('勾整排第 1 節，只留下完全落在第 1 節的課', (tester) async {
+        await pumpSearch(
+          tester,
+          base: tableOf([]),
+          draft: tableOf([]),
+          results: [
+            courseOf('AA0000001', '只有一節', {Day.monday: '1'}),
+            courseOf('AA0000002', '跨到第二節', {Day.monday: '1 2'}),
+            courseOf('AA0000003', '別的時間', {Day.tuesday: '5'}),
+          ],
+        );
+        expect(find.text('只有一節'), findsOneWidget);
+        expect(find.text('跨到第二節'), findsOneWidget);
+
+        // 節次頁的列標頭「1」點下去＝整排第 1 節全選。
+        await pickSlots(tester, ['1']);
+
+        expect(find.text('只有一節'), findsOneWidget);
+        expect(find.text('跨到第二節'), findsNothing, reason: '橫跨到沒勾的節次');
+        expect(find.text('別的時間'), findsNothing);
+      });
+
+      testWidgets('沒有排定時間的課不算「在某幾節」', (tester) async {
+        await pumpSearch(
+          tester,
+          base: tableOf([]),
+          draft: tableOf([]),
+          results: [courseOf('PE1003701', '體育校隊', {})],
+        );
+        expect(find.text('體育校隊'), findsOneWidget);
+
+        await pickSlots(tester, ['1']);
+
+        expect(find.text('體育校隊'), findsNothing);
+      });
+
+      testWidgets('一格都沒勾就是不篩', (tester) async {
+        await pumpSearch(
+          tester,
+          base: tableOf([]),
+          draft: tableOf([]),
+          results: [courseOf('AA0000003', '別的時間', {Day.tuesday: '5'})],
+        );
+
+        await tester.tap(find.text(R.current.courseSearchSlot));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text(R.current.courseSearchFilterApply));
+        await tester.pumpAndSettle();
+
+        expect(find.text('別的時間'), findsOneWidget);
+      });
+    });
   });
 
   group('草稿清單 sheet', () {
@@ -283,4 +349,5 @@ void main() {
       expect(find.text(R.current.simulationEmptyHint), findsWidgets);
     });
   });
+
 }

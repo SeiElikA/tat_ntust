@@ -610,6 +610,8 @@
   "courseSearchNtustOnly": "排除三校聯盟",
   "courseSearchDimension": "通識向度",
   "courseSearchDimensionAny": "不限向度",
+  "courseSearchSlot": "節次",
+  "courseSearchSlotHint": "只顯示完全落在所選節次的課。沒有勾任何格子就是不篩。",
   "courseSearchReset": "清除條件",
   "courseRequired": "必修",
   "courseElective": "選修",

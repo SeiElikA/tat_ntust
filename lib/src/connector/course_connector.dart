@@ -305,14 +305,33 @@ class CourseConnector {
     }
   }
 
+  /// 不屬於任何學院、但確實開課的課號前綴。
+  ///
+  /// `/api/departments` 把七個學院底下的系所都列了，**就是沒有這些**——體育
+  /// 1151 有 139 門課，卻在系所選單裡永遠選不到。querycourse 官方前端也是這樣
+  /// 繞的：體育是一個獨立分頁，硬寫 `CourseNo: "PE"` 送出去。
+  ///
+  /// 這裡把它們補成一個假的「其他」學院，篩選頁那條既有的兩層路徑就通了，
+  /// 不必為它多做一個入口。
+  static const _extraCollegeNo = '__extra';
+
+  /// 名稱直接寫死，不走 l10n：`DepartmentJson` 的 name/engName 本來就是
+  /// 伺服器給的兩份資料，`displayName` 會依語言挑一份，這裡照同一個形狀補齊。
+  static const _extraDepartments = [
+        DepartmentJson(
+            no: 'PE', name: '體育', engName: 'Physical Education'),
+      ];
+
   /// 學院清單。系所篩選的第一層。
   static Future<List<CollegeJson>?> getColleges() async {
     try {
       final result = await Connector.getDataByGetResponse(
           ConnectorParameter(_collegesUrl));
-      return (result.data as List)
-          .map((e) => CollegeJson.fromJson(e as Map<String, dynamic>))
-          .toList();
+      return [
+        ...(result.data as List)
+            .map((e) => CollegeJson.fromJson(e as Map<String, dynamic>)),
+        const CollegeJson(no: _extraCollegeNo, name: '其他', engName: 'Other'),
+      ];
     } catch (e, stack) {
       Log.eWithStack(e.toString(), stack);
       return null;
@@ -322,6 +341,7 @@ class CourseConnector {
   /// 一個學院底下的系所。`DeptNo` 就是課號前兩碼，所以拿它當 CourseNo 送出去
   /// 就是「這個系開的課」，不需要另一個查詢參數。
   static Future<List<DepartmentJson>?> getDepartments(String collegeNo) async {
+    if (collegeNo == _extraCollegeNo) return _extraDepartments;
     try {
       final parameter = ConnectorParameter(_departmentsUrl)
         ..data = {"collegeNo": collegeNo};
