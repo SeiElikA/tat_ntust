@@ -233,12 +233,26 @@ class _MailSetupPageState extends State<MailSetupPage> {
               // 才不會變成框中框。
               decoration: InputDecoration(
                 filled: false,
+                // **六個 border 都要關掉，不是只有 `border`。** 主題的
+                // `inputTheme` 給的是 1.5px 的 `OutlineInputBorder`，而
+                // `InputDecorator` 是依狀態挑 `enabledBorder` / `focusedBorder`
+                // 的，只覆寫 `border` 的話那幾個仍是主題的描邊框；外框會替內容
+                // 讓出水平內距，密碼的字因此比上面帳號那一列往右 4dp。
                 border: InputBorder.none,
-                isDense: true,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
+                disabledBorder: InputBorder.none,
+                errorBorder: InputBorder.none,
+                focusedErrorBorder: InputBorder.none,
+                isCollapsed: true,
                 constraints: const BoxConstraints(),
                 // 高度由 _row 給，欄位自己不要再撐——那正是兩列不等高的成因。
                 contentPadding: EdgeInsets.zero,
                 hintText: R.current.passwordNull,
+                // 提示字沿用欄位本身的字級：主題的 hintStyle 是 bodyMedium，
+                // 比 bodyLarge 小一號，沒填字時看起來會和帳號那一列不同大小。
+                hintStyle: context.text.bodyLarge
+                    ?.copyWith(color: scheme.onSurfaceVariant),
               ),
             ),
             // 純圖示按鈕沒有 tooltip 的話，螢幕閱讀器只唸得出「按鈕」。
