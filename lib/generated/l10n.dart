@@ -6688,6 +6688,441 @@ class S {
       args: [],
     );
   }
+
+  /// `Free classrooms`
+  String get classroomTitle {
+    return Intl.message(
+      'Free classrooms',
+      name: 'classroomTitle',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Check which classrooms are currently available`
+  String get classroomEntryDescription {
+    return Intl.message(
+      'Check which classrooms are currently available',
+      name: 'classroomEntryDescription',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `From the classroom booking system`
+  String get classroomSubSystemHint {
+    return Intl.message(
+      'From the classroom booking system',
+      name: 'classroomSubSystemHint',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `In app`
+  String get classroomInApp {
+    return Intl.message('In app', name: 'classroomInApp', desc: '', args: []);
+  }
+
+  /// `List`
+  String get classroomViewList {
+    return Intl.message('List', name: 'classroomViewList', desc: '', args: []);
+  }
+
+  /// `Whole day`
+  String get classroomViewDay {
+    return Intl.message(
+      'Whole day',
+      name: 'classroomViewDay',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Change`
+  String get classroomChangeTime {
+    return Intl.message(
+      'Change',
+      name: 'classroomChangeTime',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Back to now`
+  String get classroomBackToNow {
+    return Intl.message(
+      'Back to now',
+      name: 'classroomBackToNow',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Search this period`
+  String get classroomApplyTime {
+    return Intl.message(
+      'Search this period',
+      name: 'classroomApplyTime',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Date`
+  String get classroomDate {
+    return Intl.message('Date', name: 'classroomDate', desc: '', args: []);
+  }
+
+  /// `Period`
+  String get classroomSection {
+    return Intl.message('Period', name: 'classroomSection', desc: '', args: []);
+  }
+
+  /// `Period %s · %s`
+  String get classroomSectionAt {
+    return Intl.message(
+      'Period %s · %s',
+      name: 'classroomSectionAt',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Any`
+  String get classroomRunAny {
+    return Intl.message('Any', name: 'classroomRunAny', desc: '', args: []);
+  }
+
+  /// `≥2 periods`
+  String get classroomRunTwo {
+    return Intl.message(
+      '≥2 periods',
+      name: 'classroomRunTwo',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `≥3 periods`
+  String get classroomRunThree {
+    return Intl.message(
+      '≥3 periods',
+      name: 'classroomRunThree',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `All day`
+  String get classroomRunAllDay {
+    return Intl.message(
+      'All day',
+      name: 'classroomRunAllDay',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Free until %s`
+  String get classroomFreeUntil {
+    return Intl.message(
+      'Free until %s',
+      name: 'classroomFreeUntil',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Free all day`
+  String get classroomFreeAllDay {
+    return Intl.message(
+      'Free all day',
+      name: 'classroomFreeAllDay',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `No class scheduled`
+  String get classroomNoClassToday {
+    return Intl.message(
+      'No class scheduled',
+      name: 'classroomNoClassToday',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Nothing scheduled after this`
+  String get classroomNoMoreClass {
+    return Intl.message(
+      'Nothing scheduled after this',
+      name: 'classroomNoMoreClass',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Next %s %s`
+  String get classroomNextClass {
+    return Intl.message(
+      'Next %s %s',
+      name: 'classroomNextClass',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Booked from %s`
+  String get classroomBookedFrom {
+    return Intl.message(
+      'Booked from %s',
+      name: 'classroomBookedFrom',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `%s of %s rooms are free now`
+  String get classroomFreeSummary {
+    return Intl.message(
+      '%s of %s rooms are free now',
+      name: 'classroomFreeSummary',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Free now · %s`
+  String get classroomFreeGroup {
+    return Intl.message(
+      'Free now · %s',
+      name: 'classroomFreeGroup',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `In use now · %s`
+  String get classroomBusyGroup {
+    return Intl.message(
+      'In use now · %s',
+      name: 'classroomBusyGroup',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Free`
+  String get classroomLegendFree {
+    return Intl.message(
+      'Free',
+      name: 'classroomLegendFree',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Class`
+  String get classroomLegendClass {
+    return Intl.message(
+      'Class',
+      name: 'classroomLegendClass',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Booked`
+  String get classroomLegendBooked {
+    return Intl.message(
+      'Booked',
+      name: 'classroomLegendBooked',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Floor %s`
+  String get classroomFloor {
+    return Intl.message('Floor %s', name: 'classroomFloor', desc: '', args: []);
+  }
+
+  /// `Other buildings`
+  String get classroomOtherBuildings {
+    return Intl.message(
+      'Other buildings',
+      name: 'classroomOtherBuildings',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `The system serves one building at a time; tap to query.`
+  String get classroomOtherBuildingsHint {
+    return Intl.message(
+      'The system serves one building at a time; tap to query.',
+      name: 'classroomOtherBuildingsHint',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `%s`
+  String get classroomLastFetched {
+    return Intl.message('%s', name: 'classroomLastFetched', desc: '', args: []);
+  }
+
+  /// `Loading…`
+  String get classroomFetching {
+    return Intl.message(
+      'Loading…',
+      name: 'classroomFetching',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `%s as of %s`
+  String get classroomFetchedAt {
+    return Intl.message(
+      '%s as of %s',
+      name: 'classroomFetchedAt',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `As of %s · tap a room for its schedule`
+  String get classroomDayFetchedAt {
+    return Intl.message(
+      'As of %s · tap a room for its schedule',
+      name: 'classroomDayFetchedAt',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Refresh`
+  String get classroomRefresh {
+    return Intl.message(
+      'Refresh',
+      name: 'classroomRefresh',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `%s is full this period`
+  String get classroomFullTitle {
+    return Intl.message(
+      '%s is full this period',
+      name: 'classroomFullTitle',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `All %s classrooms are scheduled or booked.`
+  String get classroomFullBody {
+    return Intl.message(
+      'All %s classrooms are scheduled or booked.',
+      name: 'classroomFullBody',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `See period %s`
+  String get classroomSeeSection {
+    return Intl.message(
+      'See period %s',
+      name: 'classroomSeeSection',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Change building`
+  String get classroomChangeBuilding {
+    return Intl.message(
+      'Change building',
+      name: 'classroomChangeBuilding',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Could not load %s (%s). The university system may be temporarily unavailable; please try again later.`
+  String get classroomFetchFailed {
+    return Intl.message(
+      'Could not load %s (%s). The university system may be temporarily unavailable; please try again later.',
+      name: 'classroomFetchFailed',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `No data for %s on this date`
+  String get classroomClosedTitle {
+    return Intl.message(
+      'No data for %s on this date',
+      name: 'classroomClosedTitle',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `The booking system only covers teaching days, so weekends and holidays return no data.`
+  String get classroomClosedBody {
+    return Intl.message(
+      'The booking system only covers teaching days, so weekends and holidays return no data.',
+      name: 'classroomClosedBody',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Pick a building`
+  String get classroomPickBuilding {
+    return Intl.message(
+      'Pick a building',
+      name: 'classroomPickBuilding',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Find free rooms for this period`
+  String get classroomFromCourseTable {
+    return Intl.message(
+      'Find free rooms for this period',
+      name: 'classroomFromCourseTable',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Free period`
+  String get classroomFreeCell {
+    return Intl.message(
+      'Free period',
+      name: 'classroomFreeCell',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Period %s`
+  String get classroomSectionLabel {
+    return Intl.message(
+      'Period %s',
+      name: 'classroomSectionLabel',
+      desc: '',
+      args: [],
+    );
+  }
 }
 
 class AppLocalizationDelegate extends LocalizationsDelegate<S> {

@@ -108,10 +108,12 @@ class LucideIcons {
   /// copy
   static const IconData copy = IconData(0xe09e, fontFamily: _family);
 
+  /// door-open
+  static const IconData doorOpen = IconData(0xe3d6, fontFamily: _family);
+
   /// download
   static const IconData download = IconData(0xe0b2, fontFamily: _family);
 
-  /// ellipsis-vertical
   /// ellipsis
   static const IconData ellipsis = IconData(0xe0b6, fontFamily: _family);
 

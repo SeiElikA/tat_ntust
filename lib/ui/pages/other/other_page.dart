@@ -88,6 +88,18 @@ class _OtherPageState extends State<OtherPage> {
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
         children: [
           _buildAccountTile(),
+          const SizedBox(height: 16),
+          // 空教室自己一組、在「資訊系統」上面，不塞進下面那六個分類裡：
+          // 那六個是校務網站的分類，空教室是 App 自己的頁面，混在一起會讓
+          // 人以為又要開瀏覽器。
+          _group([
+            _Row(
+              icon: LucideIcons.doorOpen,
+              title: R.current.classroomTitle,
+              subtitle: R.current.classroomEntryDescription,
+              onTap: () => unawaited(RouteUtils.toClassroomPage()),
+            ),
+          ]),
           SectionHeader(
             title: R.current.informationSystem,
             trailing: _HeaderLink(
@@ -294,6 +306,7 @@ class _OtherPageState extends State<OtherPage> {
         serviceId: serviceId,
         errorBuilder: (message) => ErrorPage(errorMsg: message),
         openWebView: (title, url) => RouteUtils.toWebViewPage(title, url),
+        openClassroom: () => unawaited(RouteUtils.toClassroomPage()),
       ),
       transition: RouteUtils.transition,
     ));
