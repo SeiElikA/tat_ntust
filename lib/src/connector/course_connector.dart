@@ -67,13 +67,17 @@ class CourseConnector {
   /// 結果）消失，使用者只看到「取得課表失敗」。會爆的有兩處：`dayString.indexOf`
   /// 找不到時回 -1，以及中午節次 'N' 落在 timeEnum 之外。
   ///
-  /// **數字分支的 `parsed - 1` 是對的，不要「順手修正」成節次代號。** Node 的
-  /// 節次是「第幾格」：querycourse 前端的節次表
-  /// `1 2 3 4 5 6 7 8 9 10 A B C D` 與 timeEnum 的
-  /// `1 2 3 4 N 5 6 7 8 9 A B C D` 都是 14 格、逐格對位，所以 API 的第 5 格
-  /// "5" 就是 timeEnum[4] 的午休 "N"。全量回應的統計也一致——同一天相鄰兩格
-  /// 一起開課，3→4 有 1459 次、6→7 有 1242 次，但 4→5 只有 142 次、5→6 只有
-  /// 161 次，第 5 格明顯是沒人排課的午休。
+  /// **數字分支的 `parsed - 1` 是對的，不要「順手修正」。** Node 的節次是
+  /// 「第幾格」，而 querycourse 前端那張 `1 2 3 4 5 6 7 8 9 10 A B C D` 與
+  /// timeEnum 都是 14 格、逐格對位，所以 API 的 "5" 就是 timeEnum[4]。
+  ///
+  /// timeEnum 第 5 格寫成 `N` **只是內部代號**：`CourseTableJson.string2Time`
+  /// 用 `contains` 逐字比對 [SectionNumber] 的名稱，每一格必須是單一字元，
+  /// 塞得下「10」就會讓第 1 節被誤判。學校自己的叫法是第五節（12:20–13:10），
+  /// 畫面上顯示什麼由 `CourseTableControl.sectionStringList` 決定，不是這裡。
+  ///
+  /// 那一格確實是午休：全量回應裡同一天相鄰兩格一起開課，3→4 有 1459 次、
+  /// 6→7 有 1242 次，但 4→5 只有 142 次、5→6 只有 161 次。
   static void fillCourseTime(CourseMainJson courseMain, String node) {
     for (var t in node.split(",")) {
       // querycourse 真的回過小寫的 Node（課號 CS2028701 是 "w7,w8,w9"）。
@@ -301,14 +305,33 @@ class CourseConnector {
     }
   }
 
+  /// 不屬於任何學院、但確實開課的課號前綴。
+  ///
+  /// `/api/departments` 把七個學院底下的系所都列了，**就是沒有這些**——體育
+  /// 1151 有 139 門課，卻在系所選單裡永遠選不到。querycourse 官方前端也是這樣
+  /// 繞的：體育是一個獨立分頁，硬寫 `CourseNo: "PE"` 送出去。
+  ///
+  /// 這裡把它們補成一個假的「其他」學院，篩選頁那條既有的兩層路徑就通了，
+  /// 不必為它多做一個入口。
+  static const _extraCollegeNo = '__extra';
+
+  /// 名稱直接寫死，不走 l10n：`DepartmentJson` 的 name/engName 本來就是
+  /// 伺服器給的兩份資料，`displayName` 會依語言挑一份，這裡照同一個形狀補齊。
+  static const _extraDepartments = [
+        DepartmentJson(
+            no: 'PE', name: '體育', engName: 'Physical Education'),
+      ];
+
   /// 學院清單。系所篩選的第一層。
   static Future<List<CollegeJson>?> getColleges() async {
     try {
       final result = await Connector.getDataByGetResponse(
           ConnectorParameter(_collegesUrl));
-      return (result.data as List)
-          .map((e) => CollegeJson.fromJson(e as Map<String, dynamic>))
-          .toList();
+      return [
+        ...(result.data as List)
+            .map((e) => CollegeJson.fromJson(e as Map<String, dynamic>)),
+        const CollegeJson(no: _extraCollegeNo, name: '其他', engName: 'Other'),
+      ];
     } catch (e, stack) {
       Log.eWithStack(e.toString(), stack);
       return null;
@@ -318,6 +341,7 @@ class CourseConnector {
   /// 一個學院底下的系所。`DeptNo` 就是課號前兩碼，所以拿它當 CourseNo 送出去
   /// 就是「這個系開的課」，不需要另一個查詢參數。
   static Future<List<DepartmentJson>?> getDepartments(String collegeNo) async {
+    if (collegeNo == _extraCollegeNo) return _extraDepartments;
     try {
       final parameter = ConnectorParameter(_departmentsUrl)
         ..data = {"collegeNo": collegeNo};

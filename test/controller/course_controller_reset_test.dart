@@ -20,11 +20,12 @@ void main() {
 
       controller.reset();
 
-      // 登出只 jumpToPage(0) 跳回課表頁，而 Get.put 對已註冊的 controller 是
-      // no-op，onInit 不會再跑，沒有東西會把 loading 推進下一個狀態；重新整理鈕
-      // 與 CourseMenu 又都包在 Visibility(visible: account.isNotEmpty) 裡，
-      // 停在 loading 就是把使用者鎖死在轉圈畫面。
-      // fail 會讓 BasePage 顯示 ErrorPage，未登入時提示登入。
+      // 登出本身已經 Get.offAll 到登入頁，看不到這個狀態；但憑證在其他路徑上
+      // 失效時這個 controller 可能還活著又被顯示。那時 Get.put 對已註冊的
+      // controller 是 no-op，onInit 不會再跑，沒有東西會把 loading 推進下一個
+      // 狀態；重新整理鈕與 CourseMenu 又都包在
+      // Visibility(visible: account.isNotEmpty) 裡，停在 loading 就是把使用者
+      // 鎖死在轉圈畫面。fail 會讓 BasePage 顯示 ErrorPage，未登入時提示登入。
       expect(controller.isLoading.value, CourseTableUIState.fail);
     });
 

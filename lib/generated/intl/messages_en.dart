@@ -627,6 +627,10 @@ class MessageLookup extends MessageLookupByLibrary {
     "courseSearchResultSummary": MessageLookupByLibrary.simpleMessage(
       "%s courses",
     ),
+    "courseSearchSlot": MessageLookupByLibrary.simpleMessage("Periods"),
+    "courseSearchSlotHint": MessageLookupByLibrary.simpleMessage(
+      "Only shows courses that fit entirely in the selected periods. No selection means no filter.",
+    ),
     "courseSearchTitle": MessageLookupByLibrary.simpleMessage("Search courses"),
     "courseTableOptions": MessageLookupByLibrary.simpleMessage(
       "Timetable options",
@@ -1351,6 +1355,9 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "simulationDraftLabel": MessageLookupByLibrary.simpleMessage(
       "%s add-drop draft",
+    ),
+    "simulationDraftListTitle": MessageLookupByLibrary.simpleMessage(
+      "Selected courses",
     ),
     "simulationDraftSummary": MessageLookupByLibrary.simpleMessage(
       "Draft: %s courses, %s credits",

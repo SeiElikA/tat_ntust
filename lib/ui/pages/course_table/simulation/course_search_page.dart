@@ -18,6 +18,7 @@ import 'package:flutter_app/ui/components/page/section_empty_state.dart';
 import 'package:flutter_app/ui/other/lucide_icons.dart';
 import 'package:flutter_app/ui/other/theme_context.dart';
 import 'package:flutter_app/ui/pages/course_table/simulation/course_filter_page.dart';
+import 'package:flutter_app/ui/pages/course_table/simulation/course_slot_picker_page.dart';
 import 'package:flutter_app/ui/pages/course_table/simulation/simulation_page.dart';
 import 'package:sprintf/sprintf.dart';
 
@@ -58,12 +59,68 @@ class _CourseSearchPageState extends State<CourseSearchPage> {
   bool _loading = false;
   bool _searched = false;
 
-  /// 設計稿的「只看不衝堂」。加退選現場最常問的就是「哪些我排得進去」。
-  /// 這一個是**畫面上**篩的：衝不衝堂伺服器不知道。
-  bool _hideConflict = false;
+  /// 設計稿的「只看不衝堂」。加退選現場最常問的就是「哪些我排得進去」，
+  /// 所以預設就打開——排不進去的課列出來也只是讓人再篩一次。想看全部再關掉。
+  ///
+  /// 這一個是**畫面上**篩的：衝不衝堂伺服器不知道，`OnlyNode` 送 1 會回非
+  /// JSON（見 docs/QUERYCOURSE_API.md），沒有伺服器端的節次篩選可用。
+  bool _hideConflict = true;
+
+  /// 想上的節次。空的就是不篩。
+  ///
+  /// 這一項**不進 [CourseQueryFilter]**：querycourse 的節次篩選不在伺服器端，
+  /// 官方前端也是拿回結果之後自己比對的。混進 filter 會讓 `isEmpty` 誤判成
+  /// 「有條件」而送出一次沒有意義的查詢。
+  Set<CourseSlot> _slots = {};
 
   /// 這一個是**伺服器**篩的，每一項都對得上 querycourse 真的吃的參數。
   CourseQueryFilter _filter = const CourseQueryFilter();
+
+  final TextEditingController _keyword = TextEditingController();
+
+  /// 一進來就先列出使用者自己系所這學期的課，不要開一張空白頁。
+  ///
+  /// 不能用空條件自動查：`CourseConnector.searchCourse` 對空條件直接回空陣列，
+  /// 而且全校一學期有 4282 門，真的拉下來也不是使用者要的。系所只有幾十門
+  /// （1151 的 CS 是 63 門），剛好。
+  ///
+  /// 課號前兩碼就是系所代碼，所以從使用者現有的課表取眾數就得到系所，不必再問
+  /// 一次伺服器。關鍵字欄位會一起填上那兩碼——不然畫面上會冒出一批沒來由的
+  /// 課，使用者也不知道要清掉什麼才能看到全部。
+  @override
+  void initState() {
+    super.initState();
+    final prefix = _homeDepartmentPrefix();
+    if (prefix == null) return;
+    _keyword.text = prefix;
+    _filter = _filter.copyWith(courseNo: prefix);
+    // 這裡不能走 _run：它開頭就 setState，而 initState 跑在 build 階段裡，
+    // 等於在建構途中標記自己需要重建。欄位直接指定，只有回應回來才 setState。
+    _loading = true;
+    _searched = true;
+    unawaited(_fetch(_filter));
+  }
+
+  @override
+  void dispose() {
+    _keyword.dispose();
+    super.dispose();
+  }
+
+  String? _homeDepartmentPrefix() {
+    final counts = <String, int>{};
+    for (final table in [widget.editor.base, widget.editor.draft]) {
+      for (final id in table?.getCourseIdList() ?? const <String>[]) {
+        if (id.length < 2) continue;
+        final prefix = id.substring(0, 2).toUpperCase();
+        // 數字開頭的不是系所代碼（通識與共同科目就長這樣）。
+        if (!RegExp(r'^[A-Z]{2}$').hasMatch(prefix)) continue;
+        counts[prefix] = (counts[prefix] ?? 0) + 1;
+      }
+    }
+    if (counts.isEmpty) return null;
+    return counts.entries.reduce((a, b) => b.value > a.value ? b : a).key;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -73,7 +130,7 @@ class _CourseSearchPageState extends State<CourseSearchPage> {
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-            child: CourseSearchBar(onSubmit: _onSubmit),
+            child: CourseSearchBar(controller: _keyword, onSubmit: _onSubmit),
           ),
           _filters(),
           Expanded(child: _body()),
@@ -102,10 +159,24 @@ class _CourseSearchPageState extends State<CourseSearchPage> {
               selected: _hideConflict,
               onTap: () => setState(() => _hideConflict = !_hideConflict),
             ),
+            TatFilterChip(
+              label: R.current.courseSearchSlot,
+              selected: _slots.isNotEmpty,
+              onTap: () => unawaited(_openSlotPicker()),
+            ),
           ],
         ),
       ),
     );
+  }
+
+  Future<void> _openSlotPicker() async {
+    final next = await Navigator.of(context).push<Set<CourseSlot>>(
+        MaterialPageRoute(
+            builder: (context) => CourseSlotPickerPage(selected: _slots)));
+    if (next == null || !mounted) return;
+    // 純本地篩選，不必重查。
+    setState(() => _slots = next);
   }
 
   /// 改完條件就直接重查：篩選是伺服器端的，不重查畫面不會變。
@@ -167,9 +238,28 @@ class _CourseSearchPageState extends State<CourseSearchPage> {
     );
   }
 
-  List<CourseMainInfoJson> _visible() => _hideConflict
-      ? _results.where((c) => _conflictsOf(c).isEmpty).toList()
-      : _results;
+  List<CourseMainInfoJson> _visible() => _results
+      .where((c) => !_hideConflict || _conflictsOf(c).isEmpty)
+      .where(_fitsSlots)
+      .toList();
+
+  /// 這門課的每一格都要落在勾選的節次裡。
+  ///
+  /// 用「完全落在」而不是「有交集」：勾 1、2 是因為那兩節有空，一門橫跨 1–3
+  /// 的課列出來也排不進去。沒有排定時間的課（querycourse 的 `Node` 是 null，
+  /// 例如體育校隊）不算「在某幾節」，一律排除。
+  bool _fitsSlots(CourseMainInfoJson course) {
+    if (_slots.isEmpty) return true;
+    final cells = <CourseSlot>{};
+    for (final day in CourseTableConflict.days) {
+      for (final section
+          in CourseTableConflict.sectionsOf(course.course.time[day])) {
+        cells.add((day, section));
+      }
+    }
+    if (cells.isEmpty) return false;
+    return cells.every(_slots.contains);
+  }
 
   /// 這門課會撞到什麼。實際課表與草稿都要看：草稿裡剛加的課也算數。
   List<ConflictCell> _conflictsOf(CourseMainInfoJson course) {
@@ -263,25 +353,11 @@ class _CourseSearchPageState extends State<CourseSearchPage> {
   String _timeOf(CourseMainInfoJson course) {
     final parts = [
       if (course.getTeacherName().trim().isNotEmpty) course.getTeacherName(),
-      if (_slots(course).isNotEmpty) _slots(course),
+      if (_control.slotLabel(course).isNotEmpty) _control.slotLabel(course),
       if (course.getClassroomName().trim().isNotEmpty)
         course.getClassroomName(),
     ];
     return parts.join(' · ');
-  }
-
-  /// 「三 8　四 3·4」。`courseTimeString` 給的是「三_8 四_34 」那種內部格式，
-  /// 直接印出來會看到底線，而且連在一起的節次分不出是 34 還是 3 跟 4。
-  String _slots(CourseMainInfoJson course) {
-    final days = <String>[];
-    for (final day in CourseTableConflict.days) {
-      final sections = CourseTableConflict.sectionsOf(course.course.time[day]);
-      if (sections.isEmpty) continue;
-      final labels =
-          sections.map((s) => _control.getSectionString(s.index)).join('·');
-      days.add('${_control.getDayString(day.index)} $labels');
-    }
-    return days.join('　');
   }
 
   /// 「與 離散數學（三 9、四 3·4） 衝堂」。
@@ -343,6 +419,10 @@ class _CourseSearchPageState extends State<CourseSearchPage> {
       _loading = true;
       _searched = true;
     });
+    await _fetch(filter);
+  }
+
+  Future<void> _fetch(CourseQueryFilter filter) async {
     final results = await widget.search(filter);
     if (!mounted) return;
     setState(() {

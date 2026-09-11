@@ -289,6 +289,21 @@ class RouteUtils {
     return value ?? false;
   }
 
+  /// 登出後回登入頁。**整個堆疊換掉，不是 push。**
+  ///
+  /// 用 [toLoginScreen] 那種 push 會把已登出的主畫面留在底下，返回鍵一按就
+  /// 回到一張沒有資料的課表。登入成功走的是 [toMainScreen]（同樣是 offAll），
+  /// 所以兩邊都不會留下走得回去的死路。
+  ///
+  /// `Get.offAll` 同時是這個專案重建 controller 的機制（見 `AppBindings` 的
+  /// fenix 註解），登出後那些 controller 會連同殘留狀態一起被丟掉。
+  static Future toLoginScreenAsRoot() async {
+    return await Get.offAll(
+      () => const LoginScreen(),
+      transition: transition,
+    );
+  }
+
   static Future toMainScreen() async {
     return await Get.offAll(
       () => const MainScreen(),

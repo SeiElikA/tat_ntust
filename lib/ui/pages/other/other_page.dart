@@ -369,9 +369,9 @@ class _OtherPageState extends State<OtherPage> {
     // 紅點是 process 級狀態，重設由 SessionCleaner 的呼叫端觸發
     // （auth → controller 是 tool/deps.py 擋死的上行邊）。
     NotificationBadgeController.instance.reset();
-    mainController.pageController.jumpToPage(0);
-    if (!mounted) return;
-    setState(() {});
+    // 直接回登入頁。先前是 jumpToPage(0) 留在主畫面，靠課表頁的錯誤狀態顯示
+    // 「請先登入」——等於登出後還站在一個沒有資料的殼裡。
+    await RouteUtils.toLoginScreenAsRoot();
   }
 
   Widget _buildAccountTile() {

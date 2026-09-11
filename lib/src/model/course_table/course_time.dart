@@ -9,7 +9,9 @@
 /// `setting.course.info` 兩個 SharedPreferences key 裡。改名會讓
 /// $enumDecode 失敗，連帶清空課表與整個 setting blob
 /// （見 docs/ARCHITECTURE.md 的〈不可以改的東西〉）。
-/// t_N 夾在 t_4 與 t_5 之間也是刻意的，那是中午的節次。
+/// t_N 夾在 t_4 與 t_5 之間也是刻意的，那是中午 12:20–13:10 那一格。
+/// `N` 只是內部代號（string2Time 逐字比對，每格必須單一字元），學校
+/// 自己叫它第五節；顯示名稱一律走 `CourseTableControl.sectionStringList`。
 enum Day {
   monday,
   tuesday,

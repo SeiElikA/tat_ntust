@@ -88,14 +88,14 @@ class CourseController extends GetxController {
 
   /// 登出時重設畫面狀態。由 SessionCleaner 的呼叫端觸發。
   ///
-  /// **設成 fail 而不是 loading 是刻意的，別順手改回 loading。** 登出不會 pop
-  /// 回登入頁，而是 jumpToPage(0) 回課表頁，而課表頁的 Get.put 對已註冊的
-  /// controller 是 no-op，onInit/_loadSetting 都不會再跑，沒有東西能把 loading
-  /// 推進下一個狀態，畫面會永遠轉圈；重新整理鈕與 CourseMenu 又都包在
-  /// Visibility(visible: account.isNotEmpty) 裡，逃生口也不見了。
+  /// **設成 fail 而不是 loading 是刻意的，別順手改回 loading。** 登出現在會
+  /// `Get.offAll` 到登入頁，正常情況下沒人會看到這個狀態；但憑證在其他路徑上
+  /// 失效時，這個 controller 可能還活著並且被重新顯示。停在 loading 就沒有
+  /// 東西能把它推進下一個狀態——課表頁的 Get.put 對已註冊的 controller 是
+  /// no-op，onInit/_loadSetting 不會再跑，畫面會永遠轉圈，而重新整理鈕與
+  /// CourseMenu 又都包在 Visibility(visible: account.isNotEmpty) 裡。
   ///
   /// fail 會讓 BasePage 顯示 ErrorPage，帳號為空時它就是「請先登入」加登入鈕。
-  /// （CourseTableUIState 補一個 notLogin 才是真正對稱的解法。）
   void reset() {
     courseTableData = null;
     studentId.value = "";

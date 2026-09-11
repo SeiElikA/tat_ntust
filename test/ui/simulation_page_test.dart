@@ -161,6 +161,10 @@ void main() {
           courseOf('AC5012701', '矩陣理論', {Day.thursday: '3 4'})
         ],
       );
+      // 預設是「只看不衝堂」，要先關掉才看得到會撞的那一門。
+      await tester.tap(find.text(R.current.courseSearchHideConflict));
+      await tester.pumpAndSettle();
+
       expect(find.textContaining('與 離散數學'), findsOneWidget);
       // 撞到的節次要全部列出來，只印第一節會讓人以為退一節就排得進去。
       expect(find.textContaining('四 3·4'), findsWidgets);
@@ -194,13 +198,14 @@ void main() {
           courseOf('AC5313701', '嵌入式系統', {Day.monday: '1 2'}),
         ],
       );
-      expect(find.text('矩陣理論'), findsOneWidget);
+      // 預設就是「只看不衝堂」，所以會撞的那一門一開始就不在。
+      expect(find.text('矩陣理論'), findsNothing);
       expect(find.text('嵌入式系統'), findsOneWidget);
 
       await tester.tap(find.text(R.current.courseSearchHideConflict));
       await tester.pumpAndSettle();
 
-      expect(find.text('矩陣理論'), findsNothing);
+      expect(find.text('矩陣理論'), findsOneWidget, reason: '關掉之後全部都要看得到');
       expect(find.text('嵌入式系統'), findsOneWidget);
     });
 
@@ -216,5 +221,133 @@ void main() {
       expect(find.textContaining('四 3·4'), findsOneWidget);
       expect(find.textContaining('_'), findsNothing);
     });
+    group('節次篩選', () {
+      // querycourse 的節次篩選不在伺服器端，官方前端也是拿回結果自己比對的。
+      // 這裡用「完全落在所選節次」的語意：勾 1、2 是因為那兩節有空。
+      Future<void> pickSlots(WidgetTester tester, List<String> labels) async {
+        await tester.tap(find.text(R.current.courseSearchSlot));
+        await tester.pumpAndSettle();
+        for (final l in labels) {
+          await tester.tap(find.text(l).last);
+          await tester.pumpAndSettle();
+        }
+        await tester.tap(find.text(R.current.courseSearchFilterApply));
+        await tester.pumpAndSettle();
+      }
+
+      testWidgets('勾整排第 1 節，只留下完全落在第 1 節的課', (tester) async {
+        await pumpSearch(
+          tester,
+          base: tableOf([]),
+          draft: tableOf([]),
+          results: [
+            courseOf('AA0000001', '只有一節', {Day.monday: '1'}),
+            courseOf('AA0000002', '跨到第二節', {Day.monday: '1 2'}),
+            courseOf('AA0000003', '別的時間', {Day.tuesday: '5'}),
+          ],
+        );
+        expect(find.text('只有一節'), findsOneWidget);
+        expect(find.text('跨到第二節'), findsOneWidget);
+
+        // 節次頁的列標頭「1」點下去＝整排第 1 節全選。
+        await pickSlots(tester, ['1']);
+
+        expect(find.text('只有一節'), findsOneWidget);
+        expect(find.text('跨到第二節'), findsNothing, reason: '橫跨到沒勾的節次');
+        expect(find.text('別的時間'), findsNothing);
+      });
+
+      testWidgets('沒有排定時間的課不算「在某幾節」', (tester) async {
+        await pumpSearch(
+          tester,
+          base: tableOf([]),
+          draft: tableOf([]),
+          results: [courseOf('PE1003701', '體育校隊', {})],
+        );
+        expect(find.text('體育校隊'), findsOneWidget);
+
+        await pickSlots(tester, ['1']);
+
+        expect(find.text('體育校隊'), findsNothing);
+      });
+
+      testWidgets('一格都沒勾就是不篩', (tester) async {
+        await pumpSearch(
+          tester,
+          base: tableOf([]),
+          draft: tableOf([]),
+          results: [courseOf('AA0000003', '別的時間', {Day.tuesday: '5'})],
+        );
+
+        await tester.tap(find.text(R.current.courseSearchSlot));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text(R.current.courseSearchFilterApply));
+        await tester.pumpAndSettle();
+
+        expect(find.text('別的時間'), findsOneWidget);
+      });
+    });
   });
+
+  group('草稿清單 sheet', () {
+    // 課名在背後的格子裡也會出現（而且跨幾節就出現幾次），所以一律用課號認：
+    // 只有 sheet 的副標會印課號。
+    testWidgets('摘要那一列點下去，攤開目前選的課', (tester) async {
+      final base = tableOf([courseOf('CS1001', '線性代數', {Day.monday: '3 4'})]);
+      final draft = tableOf([
+        courseOf('CS2002', '編譯器設計', {Day.wednesday: '6 7'}),
+        courseOf('CS2003', '機器學習', {Day.thursday: '3'}),
+      ]);
+      await pumpSimulation(tester, base: base, draft: draft);
+
+      expect(find.textContaining('CS2002'), findsNothing, reason: '還沒展開');
+
+      await tester.tap(find.textContaining(RegExp(r'^草稿')));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('CS2002'), findsOneWidget);
+      expect(find.textContaining('CS2003'), findsOneWidget);
+      expect(find.textContaining('CS1001'), findsNothing,
+          reason: '實際課表的課不屬於草稿清單');
+    });
+
+    testWidgets('一門課跨好幾節只列一次', (tester) async {
+      final draft =
+          tableOf([courseOf('CS2002', '編譯器設計', {Day.wednesday: '6 7 8'})]);
+      await pumpSimulation(tester, base: tableOf([]), draft: draft);
+
+      await tester.tap(find.textContaining(RegExp(r'^草稿')));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('CS2002'), findsOneWidget);
+    });
+
+    testWidgets('在清單裡移除，格子上那一門就跟著消失', (tester) async {
+      final draft =
+          tableOf([courseOf('CS2002', '編譯器設計', {Day.wednesday: '6 7'})]);
+      await pumpSimulation(tester, base: tableOf([]), draft: draft);
+
+      await tester.tap(find.textContaining(RegExp(r'^草稿')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip(R.current.simulationRemoveCourse));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('CS2002'), findsNothing, reason: 'sheet 裡先消失');
+
+      await tester.tapAt(const Offset(10, 10));
+      await tester.pumpAndSettle();
+
+      expect(find.text('編譯器設計'), findsNothing, reason: '格子上也要沒有');
+    });
+
+    testWidgets('草稿是空的就顯示空狀態，不是一片空白', (tester) async {
+      await pumpSimulation(tester, base: tableOf([]), draft: tableOf([]));
+
+      await tester.tap(find.textContaining(RegExp(r'^草稿')));
+      await tester.pumpAndSettle();
+
+      expect(find.text(R.current.simulationEmptyHint), findsWidgets);
+    });
+  });
+
 }

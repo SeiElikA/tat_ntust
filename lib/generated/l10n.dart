@@ -5344,6 +5344,16 @@ class S {
     );
   }
 
+  /// `Selected courses`
+  String get simulationDraftListTitle {
+    return Intl.message(
+      'Selected courses',
+      name: 'simulationDraftListTitle',
+      desc: '',
+      args: [],
+    );
+  }
+
   /// `Remove from draft`
   String get simulationRemoveCourse {
     return Intl.message(
@@ -5529,6 +5539,26 @@ class S {
     return Intl.message(
       'Any dimension',
       name: 'courseSearchDimensionAny',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Periods`
+  String get courseSearchSlot {
+    return Intl.message(
+      'Periods',
+      name: 'courseSearchSlot',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Only shows courses that fit entirely in the selected periods. No selection means no filter.`
+  String get courseSearchSlotHint {
+    return Intl.message(
+      'Only shows courses that fit entirely in the selected periods. No selection means no filter.',
+      name: 'courseSearchSlotHint',
       desc: '',
       args: [],
     );
