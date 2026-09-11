@@ -100,8 +100,7 @@ class CourseTableControl {
     isHideSaturday = !courseTable!.isDayInCourseTable(Day.saturday);
     isHideSunday = !courseTable!.isDayInCourseTable(Day.sunday);
     isHideUnKnown = !courseTable!.isDayInCourseTable(Day.unKnown);
-    isHideNoon =
-        !courseTable!.isSectionNumberInCourseTable(SectionNumber.t_N);
+    isHideNoon = !courseTable!.isSectionNumberInCourseTable(SectionNumber.t_N);
     isHideA = (!courseTable!.isSectionNumberInCourseTable(SectionNumber.t_A));
     isHideB = (!courseTable!.isSectionNumberInCourseTable(SectionNumber.t_B));
     isHideC = (!courseTable!.isSectionNumberInCourseTable(SectionNumber.t_C));
@@ -188,8 +187,7 @@ class CourseTableControl {
     for (final day in CourseTableConflict.days) {
       final sections = CourseTableConflict.sectionsOf(course.course.time[day]);
       if (sections.isEmpty) continue;
-      final labels =
-          sections.map((s) => getSectionString(s.index)).join('·');
+      final labels = sections.map((s) => getSectionString(s.index)).join('·');
       days.add('${getDayString(day.index)} $labels');
     }
     return days.join('　');
