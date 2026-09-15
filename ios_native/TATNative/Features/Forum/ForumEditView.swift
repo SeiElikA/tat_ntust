@@ -333,7 +333,6 @@ struct ForumEditView: View {
         .disabled(!model.canSave)
       }
     }
-    .padding(.horizontal, 16)
     .padding(.vertical, 10)
   }
 

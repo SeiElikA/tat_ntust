@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_app/generated/core_api.g.dart' show TransferProgress;
 import 'package:flutter_app/src/R.dart';
 import 'package:flutter_app/src/controller/course_table/course_model.dart';
@@ -46,6 +48,9 @@ List<CourseMainInfoJson> weekdays() => [
 class _FakeNtust extends NtustRepository {
   List<CourseMainInfoJson> courses = const [];
 
+  /// 設了就等它完成才回，模擬補課名跑到一半。
+  Future<void>? gate;
+
   @override
   Future<List<CourseMainInfoJson>> restoreSharedCourses(
     SemesterJson semester,
@@ -55,6 +60,7 @@ class _FakeNtust extends NtustRepository {
     for (var i = 0; i < courseIds.length; i++) {
       onProgress?.call(i + 1, courseIds.length);
     }
+    if (gate != null) await gate;
     return courses;
   }
 }
@@ -198,6 +204,34 @@ void main() {
       ]);
       expect(progress.last.progress, 1.0);
       expect(grid?.cells, hasLength(3));
+    });
+
+    test('他人課表的學分：匯入時是 0，補完課名才有，而且存回去', () async {
+      final info = (await bridge.importShareCode(bridge.share()!.code))!;
+      expect((await bridge.sharedTable(info.id))!.credits, 0);
+
+      NtustRepository.instance = _FakeNtust()..courses = weekdays();
+      addTearDown(() => NtustRepository.instance = NtustRepository());
+
+      expect((await bridge.restoreSharedTable(info.id))!.credits, 6);
+      expect((await bridge.sharedTable(info.id))!.credits, 6);
+    });
+
+    test('補課名途中被刪掉，補完不會寫回來', () async {
+      final info = (await bridge.importShareCode(bridge.share()!.code))!;
+      final gate = Completer<void>();
+      NtustRepository.instance = _FakeNtust()
+        ..courses = weekdays()
+        ..gate = gate.future;
+      addTearDown(() => NtustRepository.instance = NtustRepository());
+
+      final pending = bridge.restoreSharedTable(info.id);
+      await Future<void>.delayed(Duration.zero);
+      await bridge.deleteSharedTable(info.id);
+      gate.complete();
+      await pending;
+
+      expect(await bridge.sharedTables(), isEmpty);
     });
 
     test('我的課表：列得出來、套用得回來、刪得掉', () async {

@@ -50,6 +50,12 @@ void main() {
         [SectionNumber.t_3, SectionNumber.t_4]);
   });
 
+  test('QR 沒帶學分，補課名之前總學分是 0', () {
+    final table = SharedTableBuilder.build(
+        payloadOf('TAT21151B10000000AA1000001.434-AA1000002.29'));
+    expect(table.getTotalCredit(), 0);
+  });
+
   test('沒有時間的課不會佔到格子', () {
     final table =
         SharedTableBuilder.build(payloadOf('TAT21151B10000000AA100B003'));
@@ -78,6 +84,13 @@ void main() {
         expect(cell.main.getClassroomName().trim(), 'AA-101');
         expect(cell.main.getTeacherName().trim(), '某某某');
       }
+    });
+
+    test('學分跟著補上，總學分照查到的算', () {
+      final table =
+          SharedTableBuilder.build(payloadOf('TAT21151B10000000AA1000001.434'));
+      SharedTableBuilder.enrich(table, [courseOf('AA1000001', '離散數學')]);
+      expect(table.getTotalCredit(), 3);
     });
 
     test('查不到的課保持原樣，不會整張表變空白', () {

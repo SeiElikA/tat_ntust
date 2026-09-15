@@ -21,7 +21,7 @@ struct PrivacyAgreementView: View {
               .foregroundStyle(.secondary)
               .multilineTextAlignment(.center)
           }
-          .padding(EdgeInsets(top: 12, leading: 24, bottom: 12, trailing: 24))
+          .padding(.vertical, 12)
         }
         .navigationTitle(L10n.PrivacyPolicy)
         .navigationBarTitleDisplayMode(.inline)

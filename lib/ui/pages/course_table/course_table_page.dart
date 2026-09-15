@@ -306,7 +306,7 @@ class CourseTablePage extends GetView<CourseController> {
                     ),
                     onPressed: () {
                       unawaited(_showCourseDetailDialog(
-                          context, section, courseInfo!));
+                          context, day, section, courseInfo!));
                     },
                   ),
                 ),
@@ -368,16 +368,15 @@ class CourseTablePage extends GetView<CourseController> {
     await RouteUtils.toClassroomPage(date: date, section: section);
   }
 
-  Future<void> _showCourseDetailDialog(
-      BuildContext context, int section, CourseInfoJson courseInfo) async {
+  Future<void> _showCourseDetailDialog(BuildContext context, int day,
+      int section, CourseInfoJson courseInfo) async {
     // 選單只回報使用者選了什麼，動作等它關掉之後才做：同一時間只允許一個
     // 浮層，導頁與移除都會再開一層。
     final action = await showCourseCellSheet(
       context: context,
       courseInfo: courseInfo,
       time: controller.courseTableControl.getTimeString(section),
-      color: controller.courseTableControl
-          .getCourseInfoColor(section ~/ 100, section % 100),
+      color: controller.courseTableControl.getCourseInfoColor(day, section),
     );
     if (action == null) return;
 
@@ -467,7 +466,11 @@ class CourseTablePage extends GetView<CourseController> {
       case DraftChoice(:final draft):
         await _openSimulation(context, draft: draft);
       case SharedChoice(:final shared):
-        unawaited(Get.to(() => SharedTablePage(shared: shared)));
+        unawaited(Get.to(() => SharedTablePage(
+              shared: shared,
+              onOpenDetail: (course) => unawaited(RouteUtils.toCourseDetailPage(
+                  shared.table.courseSemester, course)),
+            )));
       case NewDraftChoice():
         await _openSimulation(context);
       case ManageTablesChoice():
@@ -585,6 +588,8 @@ class CourseTablePage extends GetView<CourseController> {
             table.getCourseIdList(),
             onProgress: onProgress,
           ),
+          onOpenDetail: (course) => unawaited(
+              RouteUtils.toCourseDetailPage(table.courseSemester, course)),
         )));
   }
 

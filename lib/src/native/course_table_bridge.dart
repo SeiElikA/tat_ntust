@@ -210,7 +210,7 @@ class CourseTableBridge implements TatCourseTableApi {
       onProgress: (done, _) => report(done),
     );
     SharedTableBuilder.enrich(shared.table, courses);
-    await _store.upsertShared(shared);
+    await _store.updateSharedIfPresent(shared);
     return toGrid(shared.table);
   }
 

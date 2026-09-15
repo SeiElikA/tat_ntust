@@ -1,9 +1,11 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_app/src/R.dart';
 import 'package:flutter_app/src/config/app_tokens.dart';
 import 'package:flutter_app/src/config/app_typography.dart';
+import 'package:flutter_app/src/config/course_config.dart';
 import 'package:flutter_app/src/model/course/course_class_json.dart';
 import 'package:flutter_app/src/model/course/course_main_extra_json.dart';
 import 'package:flutter_app/src/model/course_table/course_table_json.dart';
@@ -70,8 +72,8 @@ class SimulationEditor {
 }
 
 class _SimulationPageState extends State<SimulationPage> {
-  /// 固定列高：這一頁是整週捲動看的，不像主課表要塞滿一屏。
-  static const double _rowHeight = 56;
+  /// 列高的下限：衝堂格要上下擺兩門課，小螢幕不縮到比這矮。
+  static const double _minRowHeight = 56;
 
   final CourseTableControl _control = CourseTableControl();
 
@@ -117,14 +119,19 @@ class _SimulationPageState extends State<SimulationPage> {
     );
   }
 
+  /// 同課表頁：九節剛好一屏，多的往下捲。
   Widget _table() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(8, 8, 8, 16),
-      child: SimulationTable(
-        control: _control,
-        rowHeight: _rowHeight,
-        cellOf: _cellOf,
-        onTapCourse: _onTapCourse,
+    return LayoutBuilder(
+      builder: (context, constraints) => SingleChildScrollView(
+        child: SimulationTable(
+          control: _control,
+          rowHeight: math.max(
+              _minRowHeight,
+              (constraints.maxHeight - CourseConfig.dayHeight) /
+                  CourseConfig.showCourseTableNum),
+          cellOf: _cellOf,
+          onTapCourse: _onTapCourse,
+        ),
       ),
     );
   }

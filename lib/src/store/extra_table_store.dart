@@ -133,6 +133,12 @@ class ExtraTableStore {
     await saveShared();
   }
 
+  /// 只更新還在的那一份：補課名跑完之前被刪掉或登出清掉，就不要寫回去。
+  Future<void> updateSharedIfPresent(ExtraTable table) async {
+    if (findShared(table.id) == null) return;
+    await upsertShared(table);
+  }
+
   Future<void> removeDraft(String id) async {
     _drafts.removeWhere((e) => e.id == id);
     await saveDrafts();

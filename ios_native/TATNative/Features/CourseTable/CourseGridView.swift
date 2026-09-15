@@ -13,17 +13,34 @@ struct CourseGridView: View {
   @State private var appeared = false
 
   var body: some View {
+    CourseGridScroll { rowHeight in
+      CourseGridContent(
+        grid: grid, rowHeight: rowHeight, appeared: appeared, onSelect: onSelect, onSelectEmpty: onSelectEmpty,
+        emptyPrompt: emptyPrompt, onDismissPrompt: onDismissPrompt)
+    }
+    .task { appeared = true }
+  }
+}
+
+/// 課表格線的捲動框：九節剛好一屏，超過就捲動。課表頁、他人課表與模擬排課共用。
+struct CourseGridScroll<Content: View>: View {
+  private let minRowHeight: CGFloat
+  private let content: (CGFloat) -> Content
+
+  init(minRowHeight: CGFloat = 44, @ViewBuilder content: @escaping (_ rowHeight: CGFloat) -> Content) {
+    self.minRowHeight = minRowHeight
+    self.content = content
+  }
+
+  var body: some View {
     GeometryReader { proxy in
       let rowHeight = max(
-        44, (proxy.size.height - CourseGridContent.headerHeight) / CourseGridContent.visibleRows)
+        minRowHeight, (proxy.size.height - CourseGridContent.headerHeight) / CourseGridContent.visibleRows)
       ScrollView {
-        CourseGridContent(
-          grid: grid, rowHeight: rowHeight, appeared: appeared, onSelect: onSelect, onSelectEmpty: onSelectEmpty,
-          emptyPrompt: emptyPrompt, onDismissPrompt: onDismissPrompt)
+        content(rowHeight)
       }
       .scrollBounceBehavior(.basedOnSize)
     }
-    .task { appeared = true }
   }
 }
 
@@ -33,7 +50,7 @@ struct CourseGridContent: View {
   let rowHeight: CGFloat
   /// false 時每一列都藏著，變成 true 時照 Flutter 版的 staggeredList 一列接一列進場。
   var appeared = true
-  /// nil 代表唯讀（他人課表、匯出圖片）。
+  /// nil 代表唯讀（匯出圖片）。
   var onSelect: ((CourseGridCell) -> Void)?
   /// 空堂格點下去做什麼；nil 代表空堂不能點。
   var onSelectEmpty: ((Int64, Int64) -> Void)?

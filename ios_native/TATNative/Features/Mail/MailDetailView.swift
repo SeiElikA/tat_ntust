@@ -253,7 +253,6 @@ struct MailDetailView: View {
       secondary(L10n.mailForward, Lucide.forward) { compose(.forward) }
     }
     .disabled(model.header == nil)
-    .padding(.horizontal, 16)
     .padding(.vertical, 10)
   }
 

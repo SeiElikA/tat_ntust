@@ -24,11 +24,14 @@ enum CourseCellAction {
 ///
 /// 動作只回報、不執行。導頁與移除都會再開一層畫面，而同一時間只允許一個
 /// 浮層，所以要先讓這個選單關掉。
+///
+/// [readOnly] 給他人課表：只有詳細內容，沒有 Moodle、移除與改課號。
 Future<CourseCellAction?> showCourseCellSheet({
   required BuildContext context,
   required CourseInfoJson courseInfo,
   required String time,
   required Color color,
+  bool readOnly = false,
 }) =>
     showTatContentSheet<CourseCellAction>(
       context: context,
@@ -36,6 +39,7 @@ Future<CourseCellAction?> showCourseCellSheet({
         courseInfo: courseInfo,
         time: time,
         color: color,
+        readOnly: readOnly,
       ),
     );
 
@@ -79,11 +83,13 @@ class _CourseCellContent extends StatelessWidget {
     required this.courseInfo,
     required this.time,
     required this.color,
+    required this.readOnly,
   });
 
   final CourseInfoJson courseInfo;
   final String time;
   final Color color;
+  final bool readOnly;
 
   @override
   Widget build(BuildContext context) {
@@ -167,12 +173,13 @@ class _CourseCellContent extends StatelessWidget {
                         tooltip: R.current.copy,
                         onPressed: () => _copy(course.id),
                       ),
-                      _RowAction(
-                        icon: LucideIcons.squarePen,
-                        tooltip: R.current.edit,
-                        onPressed: () => Navigator.pop(
-                            context, CourseCellAction.editCourseId),
-                      ),
+                      if (!readOnly)
+                        _RowAction(
+                          icon: LucideIcons.squarePen,
+                          tooltip: R.current.edit,
+                          onPressed: () => Navigator.pop(
+                              context, CourseCellAction.editCourseId),
+                        ),
                     ],
                   ),
               ],
@@ -183,26 +190,29 @@ class _CourseCellContent extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
           child: Column(
             children: [
-              if (course.select)
-                _SheetButton(
-                  icon: LucideIcons.graduationCap,
-                  label: R.current.courseData,
-                  isPrimary: true,
-                  onPressed: () =>
-                      Navigator.pop(context, CourseCellAction.moodle),
-                )
-              else
-                _SheetButton(
-                  icon: LucideIcons.trash2,
-                  label: R.current.remove,
-                  destructive: true,
-                  onPressed: () =>
-                      Navigator.pop(context, CourseCellAction.remove),
-                ),
-              const SizedBox(height: 10),
+              if (!readOnly) ...[
+                if (course.select)
+                  _SheetButton(
+                    icon: LucideIcons.graduationCap,
+                    label: R.current.courseData,
+                    isPrimary: true,
+                    onPressed: () =>
+                        Navigator.pop(context, CourseCellAction.moodle),
+                  )
+                else
+                  _SheetButton(
+                    icon: LucideIcons.trash2,
+                    label: R.current.remove,
+                    destructive: true,
+                    onPressed: () =>
+                        Navigator.pop(context, CourseCellAction.remove),
+                  ),
+                const SizedBox(height: 10),
+              ],
               _SheetButton(
                 icon: LucideIcons.fileText,
                 label: R.current.details,
+                isPrimary: readOnly,
                 onPressed: () =>
                     Navigator.pop(context, CourseCellAction.detail),
               ),

@@ -81,6 +81,8 @@ struct CourseSearchView: View {
     // 籤可以左右捲到螢幕邊，靜止時跟下面的字對齊。
     .contentMargins(.horizontal, 16, for: .scrollContent)
     .scrollIndicators(.hidden)
+    // 按住籤時玻璃會往外長，這一排上下沒有留白，不裁才看得完整。
+    .scrollClipDisabled()
   }
 
   private func row(_ course: SearchCourse) -> some View {
@@ -197,6 +199,7 @@ struct CourseSearchSheet: View {
       CourseSearchView(model: model)
         .toolbar { SheetCloseButton(label: L10n.close) { dismiss() } }
     }
+    .overFloatingTabBar(false)
     .overlay(ToastOverlay(presenter: app.presenter, inSheet: true))
   }
 }

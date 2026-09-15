@@ -11,6 +11,8 @@ enum CourseCellAction {
 struct CourseCellSheet: View {
   let cell: CourseGridCell
   let time: String
+  /// 他人課表：只有詳細內容，沒有 Moodle、移除與改課號。
+  var readOnly = false
   let onAction: (CourseCellAction) -> Void
   @Environment(\.dismiss) private var dismiss
   @State private var copied = false
@@ -77,7 +79,9 @@ struct CourseCellSheet: View {
           copied = true
         }
         .sensoryFeedback(.success, trigger: copied) { _, now in now }
-        rowButton(Lucide.squarePen, L10n.edit) { choose(.editCourseId) }
+        if !readOnly {
+          rowButton(Lucide.squarePen, L10n.edit) { choose(.editCourseId) }
+        }
       }
     }
   }
@@ -85,10 +89,12 @@ struct CourseCellSheet: View {
   /// 並排的兩顆按鈕，不做成清單的列：列看起來不像點得下去。
   private var actions: some View {
     HStack(spacing: 12) {
-      if cell.selected {
-        actionButton(Lucide.graduationCap, L10n.courseData) { choose(.moodle) }
-      } else {
-        actionButton(Lucide.trash2, L10n.remove, role: .destructive) { choose(.remove) }
+      if !readOnly {
+        if cell.selected {
+          actionButton(Lucide.graduationCap, L10n.courseData) { choose(.moodle) }
+        } else {
+          actionButton(Lucide.trash2, L10n.remove, role: .destructive) { choose(.remove) }
+        }
       }
       actionButton(Lucide.fileText, L10n.details) { choose(.detail) }
     }
@@ -135,5 +141,12 @@ struct CourseCellSheet: View {
     }
     .buttonStyle(.borderless)
     .accessibilityLabel(label)
+  }
+}
+
+extension CourseGrid {
+  /// 格子那一節的「08:10 - 09:00」。
+  func time(of cell: CourseGridCell) -> String {
+    sections.first { $0.index == cell.section }?.time ?? ""
   }
 }

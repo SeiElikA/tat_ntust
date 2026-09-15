@@ -237,7 +237,6 @@ struct ForumThreadView: View {
             .font(.footnote.weight(.semibold))
             .frame(maxWidth: .infinity, alignment: .trailing)
         }
-        .padding(.horizontal, 16)
         .padding(.vertical, 10)
       case .reply:
         composer(thread)
@@ -339,7 +338,6 @@ struct ForumThreadView: View {
         sendSlot(progress)
       }
     }
-    .padding(.horizontal, 16)
     .padding(.top, 10)
     .padding(.bottom, 10)
   }

@@ -2,7 +2,7 @@ import SwiftUI
 
 extension View {
   /// 釘在底部的一列（回覆列、動作列）。iOS 26 用 `safeAreaBar`：內容捲到它後面時由系統淡出，
-  /// 不墊一塊不透明的底；之前的系統照舊墊 `.bar`。
+  /// 不墊一塊不透明的底；之前的系統照舊墊 `.bar`。左右留白由這裡給，列本身不要再加。
   func pinnedBottomBar<Bar: View>(@ViewBuilder _ bar: @escaping () -> Bar) -> some View {
     modifier(PinnedBar(edge: .bottom, bar: bar))
   }
@@ -23,18 +23,41 @@ extension View {
   func pageScrollInset() -> some View {
     modifier(PageScrollInset())
   }
+
+  /// 這一層底下的頁面浮在分頁列上方：`MainTabView` 打開；sheet 會繼承 environment，最外層要關掉（`SheetStack` 已經關了）。
+  func overFloatingTabBar(_ on: Bool = true) -> some View {
+    environment(\.overFloatingTabBar, on)
+  }
+}
+
+private enum BarEdge {
+  static let content: CGFloat = 16
+  /// iOS 26 浮動分頁列離螢幕邊的距離，系統沒有提供這個值。
+  static let tabBar: CGFloat = 21
 }
 
 private struct PinnedBar<Bar: View>: ViewModifier {
   let edge: VerticalEdge
   let bar: () -> Bar
+  @Environment(\.overFloatingTabBar) private var overTabBar
+  @Environment(\.horizontalSizeClass) private var horizontal
+  @Environment(\.verticalSizeClass) private var vertical
 
   func body(content: Content) -> some View {
     if #available(iOS 26, *) {
-      content.safeAreaBar(edge: edge, spacing: 0) { bar() }
+      content.safeAreaBar(edge: edge, spacing: 0) { bar().padding(.horizontal, sideInset) }
     } else {
-      content.safeAreaInset(edge: edge, spacing: 0) { bar().background(.bar) }
+      content.safeAreaInset(edge: edge, spacing: 0) { bar().padding(.horizontal, sideInset).background(.bar) }
     }
+  }
+
+  /// 上方的列各自跟內容切齊，這裡不加。iPad 的分頁列在上方（寬的視窗兩個方向都是 regular），底部列跟內容切齊。
+  private var sideInset: CGFloat {
+    guard edge == .bottom else { return 0 }
+    if #available(iOS 26, *), overTabBar, horizontal == .compact || vertical == .compact {
+      return BarEdge.tabBar
+    }
+    return BarEdge.content
   }
 }
 
@@ -73,9 +96,18 @@ private struct PageInsetsKey: EnvironmentKey {
   static let defaultValue = EdgeInsets()
 }
 
+private struct OverFloatingTabBarKey: EnvironmentKey {
+  static let defaultValue = false
+}
+
 private extension EnvironmentValues {
   var pageInsets: EdgeInsets {
     get { self[PageInsetsKey.self] }
     set { self[PageInsetsKey.self] = newValue }
+  }
+
+  var overFloatingTabBar: Bool {
+    get { self[OverFloatingTabBarKey.self] }
+    set { self[OverFloatingTabBarKey.self] = newValue }
   }
 }

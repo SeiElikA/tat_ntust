@@ -118,7 +118,6 @@ struct AnnouncementView: View {
       .controlSize(.large)
       .disabled(isLast && waiting)
     }
-    .padding(.horizontal, 16)
     .padding(.vertical, 12)
   }
 }

@@ -255,7 +255,7 @@ WebMail（`mail.ntust.edu.tw`）與舊版 SSO 頁（`ssoam.ntust.edu.tw/nidp/app
   真相而不是 App 的推測。
 - 新頁面**不可以** import `route_utils.dart` / `error_page.dart` / `base_page.dart`
   （lib/ui 那個環已經卡在 `MAX_SCC` 的門檻上）：錯誤畫面與 WebView 開啟器由
-  在環裡的呼叫端注入，公告分頁、討論串頁（`CourseForumThreadPage`，公告與一般討論區共用）、討論區主題清單頁（`CourseForumPage`）、發文頁（`CourseForumComposePage`，送出的動作由呼叫端以 closure 注入，所以它連 repository 都不碰）、作業分頁、作業詳情頁、測驗詳情頁、公告與通知頁與「Moodle 目前成績」頁就是這樣接的（公告與通知頁的兩半、以及「Moodle 目前成績」的清單都是頁面中段的區塊，所以它們只注入開啟器／導頁，錯誤畫面一律 `InlineErrorView`）。嵌在頁面中段、周圍
+  在環裡的呼叫端注入，公告分頁、討論串頁（`CourseForumThreadPage`，公告與一般討論區共用）、討論區主題清單頁（`CourseForumPage`）、發文頁（`CourseForumComposePage`，送出的動作由呼叫端以 closure 注入，所以它連 repository 都不碰）、作業分頁、作業詳情頁、測驗詳情頁、公告與通知頁、「Moodle 目前成績」頁與他人課表頁（課程選單的「詳細內容」由課表頁以 `onOpenDetail` 注入）就是這樣接的（公告與通知頁的兩半、以及「Moodle 目前成績」的清單都是頁面中段的區塊，所以它們只注入開啟器／導頁，錯誤畫面一律 `InlineErrorView`）。嵌在頁面中段、周圍
   畫面還在的區塊（行事曆的待辦、作業詳情的狀態卡）失敗時用 `InlineErrorView`
   （`lib/ui/components/page/`，不在環裡）：它有就地重試的鈕，`ErrorPage` 沒有。
   同一批區塊「空」的時候用 `SectionEmptyState`（同一個目錄）而不是整頁級的
