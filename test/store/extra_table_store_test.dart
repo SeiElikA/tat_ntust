@@ -93,6 +93,20 @@ void main() {
           reloaded.findShared('s1')?.payload, 'TAT21151B10000000CS3003302.434');
     });
 
+    test('updateSharedIfPresent 只更新還在的那一份：補課名途中被刪掉就不寫回去', () async {
+      final shared = draftOf('s1', label: '舊');
+      await subject.upsertShared(shared);
+      shared.label = '新';
+      await subject.updateSharedIfPresent(shared);
+      expect(subject.findShared('s1')?.label, '新');
+
+      await subject.removeShared('s1');
+      await subject.updateSharedIfPresent(shared);
+      final reloaded = ExtraTableStore(store);
+      await reloaded.load();
+      expect(reloaded.findShared('s1'), isNull);
+    });
+
     test('草稿與他人課表是兩份清單，不會互相污染', () async {
       await subject.upsertDraft(draftOf('d1'));
       await subject.upsertShared(draftOf('s1'));

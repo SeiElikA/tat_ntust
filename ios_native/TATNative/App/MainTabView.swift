@@ -40,6 +40,7 @@ struct MainTabView: View {
         .tabItem { label(L10n.titleMore, Lucide.menu) }
         .tag(Tab.more)
     }
+    .overFloatingTabBar()
     .onChange(of: tab) { _, tab in AppAnalytics.screen(tab.analyticsName) }
     // 分頁內容的安全區域比整個 TabView 多出來的那一段就是分頁列，提示要浮在它上面。
     .onGeometryChange(for: CGFloat.self) { $0.safeAreaInsets.bottom } action: { windowBottom = $0 }
@@ -105,32 +106,33 @@ extension MainTabView.Tab {
 
 /// SwiftUI 的分頁沒有「選到時的圖」可以設；選到才換圖的話，Liquid Glass 拖曳經過的那一格還是線條版。
 /// 直接把實心圖設成 `UITabBarItem.selectedImage`，什麼時候用哪一張交給系統。
-private struct TabBarSelectedImages: UIViewControllerRepresentable {
+/// 用 UIView 沿著 responder 往上找分頁列：包成子 view controller 的話，iPad 那一頁的導覽列會在分頁列底下自己多一列。
+private struct TabBarSelectedImages: UIViewRepresentable {
   let images: [UIImage]
 
-  func makeUIViewController(context: Context) -> Controller { Controller() }
+  func makeUIView(context: Context) -> Anchor { Anchor() }
 
-  func updateUIViewController(_ controller: Controller, context: Context) {
-    controller.images = images
-    controller.apply()
+  func updateUIView(_ view: Anchor, context: Context) {
+    view.images = images
+    view.apply()
   }
 
-  final class Controller: UIViewController {
+  final class Anchor: UIView {
     var images: [UIImage] = []
 
-    override func didMove(toParent parent: UIViewController?) {
-      super.didMove(toParent: parent)
+    override func didMoveToWindow() {
+      super.didMoveToWindow()
       apply()
     }
 
-    override func viewDidAppear(_ animated: Bool) {
-      super.viewDidAppear(animated)
+    override func layoutSubviews() {
+      super.layoutSubviews()
       apply()
     }
 
     func apply() {
-      var node: UIViewController? = parent
-      while let current = node, !(current is UITabBarController) { node = current.parent }
+      var node: UIResponder? = self
+      while let current = node, !(current is UITabBarController) { node = current.next }
       guard let items = (node as? UITabBarController)?.tabBar.items else { return }
       for (item, image) in zip(items, images) where item.selectedImage !== image {
         item.selectedImage = image

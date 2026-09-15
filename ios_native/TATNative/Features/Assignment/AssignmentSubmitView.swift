@@ -370,7 +370,6 @@ struct AssignmentSubmitView: View {
         .disabled(!model.state.canSave)
       }
     }
-    .padding(.horizontal, 16)
     .padding(.vertical, 10)
   }
 

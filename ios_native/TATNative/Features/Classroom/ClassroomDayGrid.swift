@@ -21,6 +21,16 @@ struct ClassroomDayGrid: View {
     let rooms: [ClassroomRoom]
   }
 
+  private enum CellKind {
+    case free, lesson, booked
+  }
+
+  private struct CellFills {
+    let free: Color
+    let lesson: Color
+    let booked: Color
+  }
+
   private var groups: [RoomGroup] {
     var groups: [RoomGroup] = []
     if !day.free.isEmpty {
@@ -32,9 +42,20 @@ struct ClassroomDayGrid: View {
     return groups
   }
 
+  private var gridWidth: CGFloat {
+    CGFloat(sections.count) * cellWidth + CGFloat(max(sections.count - 1, 0)) * gap
+  }
+
   var body: some View {
+    let groups = self.groups
+    // 空格用頁面底色，在卡片上才看得見；借出與排課分兩色，看得出「沒課但也去不了」。
+    // 品牌色是 Observation 的值，一次 body 讀一次就好，不必每一格各讀一次。
+    let fills = CellFills(
+      free: Color(.systemGroupedBackground),
+      lesson: Color.tatBrand.opacity(0.5),
+      booked: Color(.systemOrange).opacity(0.5))
     HStack(alignment: .top, spacing: 0) {
-      names
+      names(groups)
         .frame(width: nameWidth, alignment: .leading)
         .zIndex(1)
       ScrollView(.horizontal) {
@@ -44,11 +65,11 @@ struct ClassroomDayGrid: View {
             ForEach(Array(groups.enumerated()), id: \.offset) { _, group in
               Color.clear.frame(height: groupHeight)
               ForEach(group.rooms, id: \.name) { room in
-                cells(room)
+                cells(room, fills)
               }
             }
           }
-          nowLine
+          nowLine(groups)
         }
         .padding(.trailing, 14)
       }
@@ -60,7 +81,7 @@ struct ClassroomDayGrid: View {
   }
 
   /// 釘住的那一欄。分段標題比這一欄寬，但它右邊本來就沒有格子，讓它畫出去即可。
-  private var names: some View {
+  private func names(_ groups: [RoomGroup]) -> some View {
     VStack(alignment: .leading, spacing: 0) {
       Color.clear.frame(height: headerHeight)
       ForEach(Array(groups.enumerated()), id: \.offset) { _, group in
@@ -98,31 +119,40 @@ struct ClassroomDayGrid: View {
   }
 
   /// 整條格子也點得開：捲到後面幾節時，手指落在格子上。
-  private func cells(_ room: ClassroomRoom) -> some View {
-    Button {
+  /// 同一種顏色的格子合成一個形狀，一列最多三個：一格一個的話，教室多的大樓切到一整天要一次建五百多個，會卡一下。
+  private func cells(_ room: ClassroomRoom, _ fills: CellFills) -> some View {
+    let kinds = sections.indices.map { kind(room, $0) }
+    func columns(_ target: CellKind) -> [Int] {
+      kinds.indices.filter { kinds[$0] == target }
+    }
+    return Button {
       onTap(room)
     } label: {
-      HStack(spacing: gap) {
-        ForEach(0..<sections.count, id: \.self) { index in
-          RoundedRectangle(cornerRadius: 4, style: .continuous)
-            .fill(color(room, index))
-            .frame(width: cellWidth, height: cellHeight)
-        }
+      ZStack {
+        layer(columns(.free), fills.free)
+        layer(columns(.lesson), fills.lesson)
+        layer(columns(.booked), fills.booked)
       }
-      .frame(height: rowHeight)
+      .frame(width: gridWidth, height: rowHeight)
       .contentShape(Rectangle())
     }
     .buttonStyle(.plain)
   }
 
-  /// 空格用頁面底色，在卡片上才看得見；借出與排課分兩色，看得出「沒課但也去不了」。
-  private func color(_ room: ClassroomRoom, _ index: Int) -> Color {
-    guard index < room.slots.count, !room.slots[index].free else { return Color(.systemGroupedBackground) }
-    return room.slots[index].booked ? Color(.systemOrange).opacity(0.5) : Color.tatBrand.opacity(0.5)
+  @ViewBuilder private func layer(_ columns: [Int], _ fill: Color) -> some View {
+    if !columns.isEmpty {
+      CellsShape(columns: columns, cellWidth: cellWidth, cellHeight: cellHeight, gap: gap)
+        .fill(fill)
+    }
+  }
+
+  private func kind(_ room: ClassroomRoom, _ index: Int) -> CellKind {
+    guard index < room.slots.count, !room.slots[index].free else { return .free }
+    return room.slots[index].booked ? .booked : .lesson
   }
 
   /// 「現在」那一條線，從節次標題底下才開始畫，跟著格子一起左右移動。
-  @ViewBuilder private var nowLine: some View {
+  @ViewBuilder private func nowLine(_ groups: [RoomGroup]) -> some View {
     if section >= 0, section < sections.count {
       let rows = groups.reduce(CGFloat(0)) { $0 + groupHeight + CGFloat($1.rooms.count) * rowHeight }
       Rectangle()
@@ -131,5 +161,25 @@ struct ClassroomDayGrid: View {
         .offset(x: CGFloat(section) * (cellWidth + gap) + cellWidth / 2 - 1, y: headerHeight)
         .allowsHitTesting(false)
     }
+  }
+}
+
+/// 一列裡同一種顏色的格子，每一格的位置與圓角跟一格一個 `RoundedRectangle` 時一樣。
+private struct CellsShape: Shape {
+  let columns: [Int]
+  let cellWidth: CGFloat
+  let cellHeight: CGFloat
+  let gap: CGFloat
+
+  func path(in rect: CGRect) -> Path {
+    var path = Path()
+    for column in columns {
+      path.addRoundedRect(
+        in: CGRect(
+          x: rect.minX + CGFloat(column) * (cellWidth + gap), y: rect.midY - cellHeight / 2,
+          width: cellWidth, height: cellHeight),
+        cornerSize: CGSize(width: 4, height: 4), style: .continuous)
+    }
+    return path
   }
 }

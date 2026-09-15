@@ -168,6 +168,28 @@ void main() {
     expect(repo.usageCalls, callsBefore, reason: '換檢視不該重抓');
   });
 
+  testWidgets('一整天：點格子那一列或教室編號，都打開那一間的明細', (tester) async {
+    await pump(
+        tester, usageResult: Ok(usage([room('IB-501', busy: [6])])));
+    await tester.tap(find.text('一整天'));
+    await tester.pumpAndSettle();
+    // 課名只寫在明細裡，格子上不寫。
+    expect(find.text('微積分（上）'), findsNothing);
+
+    await tester.tapAt(
+        tester.getTopLeft(find.text('IB-501')) + const Offset(120, 10));
+    await tester.pumpAndSettle();
+    expect(find.text('微積分（上）'), findsOneWidget, reason: '點格子那一列');
+
+    Navigator.of(tester.element(find.text('微積分（上）'))).pop();
+    await tester.pumpAndSettle();
+    expect(find.text('微積分（上）'), findsNothing);
+
+    await tester.tap(find.text('IB-501'));
+    await tester.pumpAndSettle();
+    expect(find.text('微積分（上）'), findsOneWidget, reason: '點教室編號');
+  });
+
   testWidgets('上次用的檢視會被記住', (tester) async {
     final stores = resetAppStatics();
     await SettingsStore.instance.setClassroomView(ClassroomView.day);

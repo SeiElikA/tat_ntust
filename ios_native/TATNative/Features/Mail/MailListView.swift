@@ -26,6 +26,21 @@ struct MailListView: View {
   }
 
   var body: some View {
+    withToolbar(list)
+      .sheet(item: $sheet, onDismiss: runAfterDismiss) { sheetContent($0) }
+      .alert(
+        L10n.mailDraftDiscard,
+        isPresented: Binding(get: { discarding != nil }, set: { if !$0 { discarding = nil } }),
+        presenting: discarding
+      ) { item in
+        Button(L10n.cancel, role: .cancel) {}
+        Button(L10n.mailDiscard, role: .destructive) { Task { _ = await model.recall(item) } }
+      } message: { item in
+        Text(item.subject)
+      }
+  }
+
+  private var list: some View {
     List {
       if model.state?.keyword == nil { outboxSection }
       if let state = model.state { content(state) }
@@ -54,36 +69,38 @@ struct MailListView: View {
     }
     .navigationTitle(model.state?.folderTitle ?? L10n.mailTab)
     .navigationBarTitleDisplayMode(.inline)
-    .toolbar { toolbar }
-    .sheet(item: $sheet, onDismiss: runAfterDismiss) { sheetContent($0) }
-    .alert(
-      L10n.mailDraftDiscard,
-      isPresented: Binding(get: { discarding != nil }, set: { if !$0 { discarding = nil } }),
-      presenting: discarding
-    ) { item in
-      Button(L10n.cancel, role: .cancel) {}
-      Button(L10n.mailDiscard, role: .destructive) { Task { _ = await model.recall(item) } }
-    } message: { item in
-      Text(item.subject)
+  }
+
+  /// 資料夾與寫信各自一塊：iOS 26 的導覽列會把相鄰的鈕併成同一塊玻璃，要用間隔分開。
+  @ViewBuilder private func withToolbar<Content: View>(_ view: Content) -> some View {
+    if #available(iOS 26, *) {
+      view.toolbar {
+        ToolbarItem(placement: .topBarTrailing) { foldersButton.toolbarButtonTint() }
+        ToolbarSpacer(.fixed, placement: .topBarTrailing)
+        ToolbarItem(placement: .topBarTrailing) { composeButton.toolbarButtonTint() }
+      }
+    } else {
+      view.toolbar {
+        ToolbarItem(placement: .topBarTrailing) { foldersButton.toolbarButtonTint() }
+        ToolbarItem(placement: .topBarTrailing) { composeButton.toolbarButtonTint() }
+      }
     }
   }
 
-  @ToolbarContentBuilder private var toolbar: some ToolbarContent {
-    ToolbarItemGroup(placement: .topBarTrailing) {
-      Button {
-        showFolders(.folders)
-      } label: {
-        LucideImage(Lucide.folder, size: 20)
-      }
-      .accessibilityLabel(L10n.mailFolders)
-      .toolbarButtonTint()
-
-      Button(action: onCompose) {
-        LucideImage(Lucide.penLine, size: 20)
-      }
-      .accessibilityLabel(L10n.mailCompose)
-      .toolbarButtonTint()
+  private var foldersButton: some View {
+    Button {
+      showFolders(.folders)
+    } label: {
+      LucideImage(Lucide.folder, size: 20)
     }
+    .accessibilityLabel(L10n.mailFolders)
+  }
+
+  private var composeButton: some View {
+    Button(action: onCompose) {
+      LucideImage(Lucide.penLine, size: 20)
+    }
+    .accessibilityLabel(L10n.mailCompose)
   }
 
   @ViewBuilder private func content(_ state: MailListState) -> some View {
@@ -400,7 +417,7 @@ struct MailRowView: View {
           Circle()
             .fill(Color.tatBrand)
             .frame(width: 7, height: 7)
-            .alignmentGuide(.firstTextBaseline) { $0.height / 2 + 5 }
+            .alignedToFirstTextLine(.body)
             .accessibilityLabel(L10n.mailUnread)
         }
         Text(subject)

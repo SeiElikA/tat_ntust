@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_app/src/R.dart';
 import 'package:flutter_app/src/config/app_tokens.dart';
@@ -121,6 +122,7 @@ class ClassroomDayGrid extends StatelessWidget {
   }
 
   /// 釘住的那一欄。畫在捲動內容上面，所以要自己帶卡片底色把後面擋掉。
+  /// 底色用 Material 而不是 Container：整欄的名稱共用這一張畫點擊水波，不必每一列各開一張。
   Widget _frozenNames(
       BuildContext context, List<(String, List<ClassroomVacancy>)> groups) {
     return Positioned(
@@ -128,7 +130,7 @@ class ClassroomDayGrid extends StatelessWidget {
       top: 0,
       bottom: 0,
       width: _nameWidth,
-      child: Container(
+      child: Material(
         color: context.tokens.card,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -162,15 +164,12 @@ class ClassroomDayGrid extends StatelessWidget {
   Widget _nameCell(BuildContext context, ClassroomVacancy vacancy) {
     return SizedBox(
       height: _rowHeight,
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onTapRoom == null ? null : () => onTapRoom!(vacancy),
-          child: Align(
-            alignment: Alignment.centerLeft,
-            child: Text(vacancy.room.name,
-                style: context.text.bodySmall?.copyWith(height: 1.3)),
-          ),
+      child: InkWell(
+        onTap: onTapRoom == null ? null : () => onTapRoom!(vacancy),
+        child: Align(
+          alignment: Alignment.centerLeft,
+          child: Text(vacancy.room.name,
+              style: context.text.bodySmall?.copyWith(height: 1.3)),
         ),
       ),
     );
@@ -204,23 +203,18 @@ class ClassroomDayGrid extends StatelessWidget {
   Widget _cellsRow(BuildContext context, ClassroomVacancy vacancy) {
     // 整條格子也要點得開，不是只有左邊的教室編號——捲到後面幾節時使用者
     // 看的是格子，手指也落在格子上。
+    // 一列畫成一張：一格一個 Container 的話，教室多的大樓切到一整天要一次
+    // 建五百多個，會卡一下。
     return InkWell(
       onTap: onTapRoom == null ? null : () => onTapRoom!(vacancy),
       child: SizedBox(
         height: _rowHeight,
-        child: Row(
-          children: [
+        width: sectionTimes.length * (_cellWidth + _gap),
+        child: CustomPaint(
+          painter: _RowCellsPainter([
             for (var i = 0; i < sectionTimes.length; i++)
-              Container(
-                width: _cellWidth,
-                height: _cellHeight,
-                margin: const EdgeInsets.only(right: _gap),
-                decoration: BoxDecoration(
-                  color: _cellColor(context, vacancy, i),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-              ),
-          ],
+              _cellColor(context, vacancy, i),
+          ]),
         ),
       ),
     );
@@ -240,4 +234,36 @@ class ClassroomDayGrid extends StatelessWidget {
         ? tokens.warningContainer
         : scheme.primaryContainer;
   }
+}
+
+/// 一列的格子，位置與圓角照原本一格一個 Container 時的樣子。
+class _RowCellsPainter extends CustomPainter {
+  _RowCellsPainter(this.colors);
+
+  final List<Color> colors;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint();
+    final top = (size.height - ClassroomDayGrid._cellHeight) / 2;
+    for (var i = 0; i < colors.length; i++) {
+      paint.color = colors[i];
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromLTWH(
+            i * (ClassroomDayGrid._cellWidth + ClassroomDayGrid._gap),
+            top,
+            ClassroomDayGrid._cellWidth,
+            ClassroomDayGrid._cellHeight,
+          ),
+          const Radius.circular(4),
+        ),
+        paint,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(_RowCellsPainter oldDelegate) =>
+      !listEquals(oldDelegate.colors, colors);
 }

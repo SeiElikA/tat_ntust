@@ -19,16 +19,17 @@ struct AssignmentDetailView: View {
   }
 
   var body: some View {
-    ScrollView {
-      content
-        .padding(EdgeInsets(top: 12, leading: 16, bottom: 32, trailing: 16))
-    }
-    .background(Color(.systemGroupedBackground))
-    .refreshable { await model.load(refresh: true) }
-    .navigationTitle(model.detail?.name ?? model.name)
-    .analyticsScreen("/CourseAssignmentDetailPage")
-    .navigationBarTitleDisplayMode(.inline)
-    .toolbar { toolbar }
+    withToolbar(
+      ScrollView {
+        content
+          .padding(EdgeInsets(top: 12, leading: 16, bottom: 32, trailing: 16))
+      }
+      .background(Color(.systemGroupedBackground))
+      .refreshable { await model.load(refresh: true) }
+      .navigationTitle(model.detail?.name ?? model.name)
+      .analyticsScreen("/CourseAssignmentDetailPage")
+      .navigationBarTitleDisplayMode(.inline)
+    )
     .moodleLinks(
       client: model.moodle, folder: model.course.name,
       web: Binding(get: { model.web }, set: { model.web = $0 }))
@@ -67,43 +68,67 @@ struct AssignmentDetailView: View {
     }
   }
 
-  @ToolbarContentBuilder private var toolbar: some ToolbarContent {
-    ToolbarItemGroup(placement: .topBarTrailing) {
-      if model.writing {
-        ProgressView()
-      }
-      // 導網頁是最後手段，不是常見任務的答案，所以在這裡而不是頁面底部的一顆大鈕。
-      Button {
-        Task { await model.openInWeb() }
-      } label: {
-        LucideImage(Lucide.externalLink, size: 18)
-      }
-      .accessibilityLabel(L10n.assignOpenInWeb)
-      .disabled(model.detail == nil)
-      .toolbarButtonTint()
-      if let detail = model.detail, detail.canCopyPrevious || detail.canRemove {
-        Menu {
-          if detail.canCopyPrevious {
-            Button {
-              confirm = .copy
-            } label: {
-              Label { Text(L10n.assignCopyPrevious) } icon: { Image(uiImage: Lucide.copy.uiImage()) }
-            }
+  /// 開網頁與「沿用」「移除」的選單各自一塊：iOS 26 的導覽列會把相鄰的鈕併成同一塊玻璃，要用間隔分開。
+  @ViewBuilder private func withToolbar<Content: View>(_ view: Content) -> some View {
+    if #available(iOS 26, *) {
+      view.toolbar {
+        ToolbarItemGroup(placement: .topBarTrailing) {
+          if model.writing {
+            ProgressView()
           }
-          if detail.canRemove {
-            Button(role: .destructive) {
-              confirm = .remove
-            } label: {
-              Label { Text(L10n.assignRemoveSubmission) } icon: { Image(uiImage: Lucide.trash2.destructiveUIImage()) }
-            }
-          }
-        } label: {
-          LucideImage(Lucide.ellipsis, size: 20)
+          openInWebButton.toolbarButtonTint()
         }
-        .disabled(model.writing)
-        .toolbarButtonTint()
+        if let detail = model.detail, detail.canCopyPrevious || detail.canRemove {
+          ToolbarSpacer(.fixed, placement: .topBarTrailing)
+          ToolbarItem(placement: .topBarTrailing) { submissionMenu(detail).toolbarButtonTint() }
+        }
+      }
+    } else {
+      view.toolbar {
+        ToolbarItemGroup(placement: .topBarTrailing) {
+          if model.writing {
+            ProgressView()
+          }
+          openInWebButton.toolbarButtonTint()
+          if let detail = model.detail, detail.canCopyPrevious || detail.canRemove {
+            submissionMenu(detail).toolbarButtonTint()
+          }
+        }
       }
     }
+  }
+
+  /// 導網頁是最後手段，不是常見任務的答案，所以在這裡而不是頁面底部的一顆大鈕。
+  private var openInWebButton: some View {
+    Button {
+      Task { await model.openInWeb() }
+    } label: {
+      LucideImage(Lucide.externalLink, size: 18)
+    }
+    .accessibilityLabel(L10n.assignOpenInWeb)
+    .disabled(model.detail == nil)
+  }
+
+  private func submissionMenu(_ detail: AssignmentDetail) -> some View {
+    Menu {
+      if detail.canCopyPrevious {
+        Button {
+          confirm = .copy
+        } label: {
+          Label { Text(L10n.assignCopyPrevious) } icon: { Image(uiImage: Lucide.copy.uiImage()) }
+        }
+      }
+      if detail.canRemove {
+        Button(role: .destructive) {
+          confirm = .remove
+        } label: {
+          Label { Text(L10n.assignRemoveSubmission) } icon: { Image(uiImage: Lucide.trash2.destructiveUIImage()) }
+        }
+      }
+    } label: {
+      LucideImage(Lucide.ellipsis, size: 20)
+    }
+    .disabled(model.writing)
   }
 
   @ViewBuilder private var content: some View {

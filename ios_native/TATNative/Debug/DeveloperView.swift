@@ -35,6 +35,7 @@ struct DeveloperView: View {
         NavigationStack {
           AnnouncementView(notices: launch.notices, countDown: Int(launch.countDown), showClose: true)
         }
+        .overFloatingTabBar(false)
       }
     }
     .analyticsScreen("/DevPage")

@@ -267,7 +267,9 @@ struct CourseTableView: View {
     case .manage:
       ManageTablesView(model: model) { sheet = .scan }
     case .shared(let info, let restore):
-      SharedTableView(model: SharedTableModel(client: model.client, info: info, restore: restore))
+      SharedTableView(model: SharedTableModel(client: model.client, info: info, restore: restore)) {
+        path.append(.detail($0))
+      }
     case .detail(let course):
       CourseDetailView(model: CourseDetailModel(client: app.courseDetail, course: course))
     case .moodle(let course):
@@ -411,7 +413,7 @@ struct CourseTableView: View {
   }
 
   private func time(of cell: CourseGridCell) -> String {
-    model.grid?.sections.first { $0.index == cell.section }?.time ?? ""
+    model.grid?.time(of: cell) ?? ""
   }
 }
 

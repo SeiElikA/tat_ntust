@@ -18,15 +18,16 @@ struct SimulationView: View {
       if let banner = model.state.conflictBanner {
         NoticeBar(message: banner, kind: .error)
       }
-      ScrollView {
+      // 衝堂格上下擺兩門課，小螢幕的列不縮到比 56 矮。
+      CourseGridScroll(minRowHeight: 56) { rowHeight in
         SimulationGrid(
           state: model.state,
+          rowHeight: rowHeight,
           removing: removing,
           onRemove: { course in Task { await model.remove(courseId: course.id) } },
           onDismissRemove: { removing = nil },
           onTapDraft: { removing = $0 }
         )
-          .padding(EdgeInsets(top: 8, leading: 8, bottom: 16, trailing: 8))
       }
     }
     .pinnedBottomBar { summaryBar }
@@ -82,7 +83,8 @@ struct SimulationView: View {
       .prominentButtonStyle()
       .controlSize(.large)
     }
-    .padding(EdgeInsets(top: 10, leading: 16, bottom: 12, trailing: 16))
+    .padding(.top, 10)
+    .padding(.bottom, 12)
   }
 }
 
@@ -90,14 +92,12 @@ struct SimulationView: View {
 /// 衝堂的格子紅框上下擺兩門——只畫一門的話看不出是跟誰撞。
 struct SimulationGrid: View {
   let state: SimulationState
+  let rowHeight: CGFloat
   /// 等著確認要不要移除的那一格。
   var removing: DraftTap?
   var onRemove: (SimCourse) -> Void = { _ in }
   var onDismissRemove: () -> Void = {}
   let onTapDraft: (DraftTap) -> Void
-
-  /// 固定列高：這一頁是整週捲動看的，不像主課表要塞滿一屏。
-  private static let rowHeight: CGFloat = 56
 
   private struct Slot: Hashable {
     let day: Int64
@@ -129,7 +129,7 @@ struct SimulationGrid: View {
               .padding(1.5)
           }
         }
-        .frame(height: Self.rowHeight)
+        .frame(height: rowHeight)
         .background(offset.isMultiple(of: 2) ? Color(.systemBackground) : Color(.secondarySystemBackground))
       }
     }

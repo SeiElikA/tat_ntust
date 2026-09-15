@@ -75,18 +75,21 @@ TATNative/
    - sheet 用 `SheetStack`（系統的導覽列、把手與圓角，內容通常是 `List`）：高度跟著內容，上下留白也由它給，
      內容本身不要再加上下 padding。幾個動作的選單用 `Menu` 或 `confirmationDialog`，不做成 sheet。
      相鄰但無關的導覽列按鈕在 iOS 26 用 `ToolbarSpacer` 分成兩塊玻璃。
+     分塊要在 View 層用 `if #available` 寫兩份 `.toolbar`（見 `CourseTableView`、`MailListView` 的 `withToolbar`）：部署目標是 17.0，`ToolbarContentBuilder` 裡的 `if #available` 在 17.5 以前會當掉。
      `confirmationDialog` 掛在被點的那個 view 上：iOS 26 從掛的地方跳出來，掛在整頁會指到別處。
    - 字級照 HIG 的文字樣式分工，不照 Flutter 版的字級：列的主文字 Body、第二行 Subheadline、補充說明 Footnote、
      Caption 只給籤、圖例與密集格線；不在 `List` 裡的段標題用 `Font.sectionHeader`（和清單段標題一樣大）。
    - 圖示不要淡到看不清：不用細筆畫，列首圖示用品牌色、說明性的小圖示用 secondary，不用 tertiary。
    - 分組的圓角一律用 `ListGroupShape`（iOS 26 是 26pt，和系統分組清單同一種圓）：自製的分組列 `GroupedRowShape`、
      卡片與內容裡裁成卡片的 `NoticeBar` 用 `ListGroupShape.card`。輸入框、籤、按鈕與格線的格子不算。
+   - 篩選籤與成績的學期籤一律用 `FilterChip` 或 `chipSurface`，按鈕樣式用 `chipButtonStyle()`，同一排不包 `GlassEffectContainer`（水平捲動列裡隔著 `if #available` 包容器，選中時多出打勾的籤會截字），放進水平捲動列要加 `.scrollClipDisabled()`（玻璃陰影被裁會在籤下留一條直線）：iOS 26 是 Liquid Glass，選中是淡淡帶品牌色的玻璃配品牌色字。不在 DesignSystem 外自己畫籤的底色。
    - 導覽列上的按鈕（圖示與文字）一律 `toolbarButtonTint()`：iOS 26 的系統返回鍵是單色的，整條導覽列跟著用文字主色；
      有字的主要動作用 `prominentButtonStyle()`。
    - 返回鍵一律是同一張 Lucide 箭頭：系統返回鍵在啟動時換掉（`BackIndicator`）；要先攔下返回的頁面隱藏系統返回鍵、
      改放 `BackButton`，不要自己畫箭頭。
    - 分頁列選到的分頁用實心圖示：`LucideIcon.filledUIImage()`（Lucide 沒有實心版，從字形推出來）設成
      `UITabBarItem.selectedImage`，Liquid Glass 拖曳經過的那一格也是實心的。
+     找分頁列用 `UIViewRepresentable` 沿 responder 往上找，不要包成子 view controller：分頁裡多一個子 view controller，iPad 那一頁的導覽列會在分頁列底下自己多一列。
    - 推進來的頁面要搜尋時用 `SystemSearchBar`，以 `pinnedTopBar` 釘在內容頂端；導覽列的 `.searchable` 只用在分頁的根頁面與 sheet：
      推頁時系統搜尋列的背景要等動畫結束才出現。`.searchable` 一律 `placement: .navigationBarDrawer(displayMode: .always)`，
      不指定會跟著清單捲走。兩種搜尋列都不墊底色，內容捲到後面時由系統淡出；開始打字時旁邊都有關閉鈕，按了清空關鍵字。
@@ -97,6 +100,7 @@ TATNative/
      `TabView` 上方要釘一列（成績的學期籤）時，`pinnedTopBar` 掛在 `extendsUnderBars` 外面，不要用 `safeAreaInset` 疊上去：
      每一頁量不到那段高度，內容會被蓋住。Moodle 課程頁的分頁鈕照舊和 `TabView` 排進同一個 `VStack`（檔案頁自己有釘住的搜尋列），
      內容不會透到分頁鈕後面。
+   - 底部列的左右留白由 `pinnedBottomBar` 給，列本身不要再加：浮在分頁列上方時（iOS 26 手機版面）和分頁列同一條邊（21pt，照截圖量的），其他地方跟內容切齊 16。`MainTabView` 用 `overFloatingTabBar()` 標出分頁列上方的頁面；sheet 會繼承 environment，自己包 `NavigationStack` 的 sheet 最外層要 `overFloatingTabBar(false)`（`SheetStack` 已經做了）。
 5. **文字一律走 `L10n`，不寫字面值。** key 與翻譯就是 `lib/l10n/*.arb`，名稱與 `R.current.<key>` 相同。
    新字串加進兩個 ARB，兩邊一起重產。語言跟著核心的設定走，不跟系統。
 6. **圖示一律用 Lucide**（`LucideImage(Lucide.eyeOff)`），和 Flutter 同一份字體與碼位，不用 SF Symbols。

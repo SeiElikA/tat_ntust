@@ -15,6 +15,7 @@ import 'package:flutter_app/src/util/shared_table_builder.dart';
 import 'package:flutter_app/src/util/ui_utils.dart';
 import 'package:flutter_app/ui/components/custom_appbar.dart';
 import 'package:flutter_app/ui/other/theme_context.dart';
+import 'package:flutter_app/ui/pages/course_table/modal/course_cell_sheet.dart';
 import 'package:sprintf/sprintf.dart';
 
 /// 掃進來的他人課表。唯讀。
@@ -22,7 +23,8 @@ import 'package:sprintf/sprintf.dart';
 /// 標題掛一個「他人」的記號：這張表跟自己的課表長得一樣，沒有記號會看錯成
 /// 自己的。它也是掃描當下的快照，對方之後加退選不會同步。
 class SharedTablePage extends StatefulWidget {
-  const SharedTablePage({super.key, required this.shared, this.onRestore});
+  const SharedTablePage(
+      {super.key, required this.shared, this.onRestore, this.onOpenDetail});
 
   final ExtraTable shared;
 
@@ -30,6 +32,9 @@ class SharedTablePage extends StatefulWidget {
   /// 之後才跑的，不是進頁之前。回傳補完的課程清單。
   final Future<List<CourseMainInfoJson>> Function(
       void Function(int done, int total) onProgress)? onRestore;
+
+  /// 課程選單的「詳細內容」，導頁由呼叫端注入。
+  final void Function(CourseInfoJson course)? onOpenDetail;
 
   @override
   State<SharedTablePage> createState() => _SharedTablePageState();
@@ -42,6 +47,9 @@ class _SharedTablePageState extends State<SharedTablePage> {
 
   /// 還原進度。null 代表沒在跑。
   (int, int)? _progress;
+
+  /// 配色第一次算好就留著：每次建新的會重新洗牌，補課名進度一跳，格子和課程選單的色帶就換色。
+  late final CourseTableControl _control = CourseTableControl()..set(_table);
 
   @override
   void initState() {
@@ -56,15 +64,16 @@ class _SharedTablePageState extends State<SharedTablePage> {
     final courses = await restore((done, total) {
       if (mounted) setState(() => _progress = (done, total));
     });
-    if (!mounted) return;
+    // 補完就存，不管頁面還在不在：中途離開的話，從切換器再進來就永遠是課號。這段時間被刪掉的不寫回去。
     SharedTableBuilder.enrich(_table, courses);
+    unawaited(ExtraTableStore.instance.updateSharedIfPresent(shared));
+    if (!mounted) return;
     setState(() => _progress = null);
-    unawaited(ExtraTableStore.instance.upsertShared(shared));
   }
 
   @override
   Widget build(BuildContext context) {
-    final control = CourseTableControl()..set(_table);
+    final control = _control;
     return Scaffold(
       appBar: mainAppbar(
         title: shared.label,
@@ -105,9 +114,18 @@ class _SharedTablePageState extends State<SharedTablePage> {
     );
   }
 
-  String _summary() =>
-      '${_table.courseSemester.year}-${_table.courseSemester.semester}'
-      ' · ${sprintf(R.current.courseCount, [_table.getCourseIdList().length])}';
+  String _summary() {
+    final semester =
+        '${_table.courseSemester.year}-${_table.courseSemester.semester}';
+    final count = _table.getCourseIdList().length;
+    final credits = _table.getTotalCredit();
+    // 補課名時學分還沒回來、沒補過的快照沒有學分：兩種都只顯示門數，不顯示 0 學分。
+    if (_progress != null || credits == 0) {
+      return '$semester · ${sprintf(R.current.courseCount, [count])}';
+    }
+    final summary = sprintf(R.current.courseTableSummary, [count, credits]);
+    return '$semester · $summary';
+  }
 
   Widget _badge(BuildContext context) {
     final scheme = context.scheme;
@@ -205,25 +223,42 @@ class _SharedTablePageState extends State<SharedTablePage> {
     final color = control.getCourseInfoColor(day, section);
     return Padding(
       padding: const EdgeInsets.all(1),
-      child: Container(
-        decoration: BoxDecoration(
-          color: color,
-          borderRadius: BorderRadius.circular(TatTokens.radiusButton),
-        ),
-        child: Center(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 2),
-            child: AutoSizeText(
-              course.main.course.name,
-              style: TextStyle(
-                  color: UIUtils.getOnColor(color), fontSize: 12, height: 1.2),
-              minFontSize: 8,
-              maxLines: 3,
-              textAlign: TextAlign.center,
+      child: Material(
+        color: color,
+        borderRadius: BorderRadius.circular(TatTokens.radiusButton),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: () => unawaited(_openCourse(control, day, section, course)),
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 2),
+              child: AutoSizeText(
+                course.main.course.name,
+                style: TextStyle(
+                    color: UIUtils.getOnColor(color),
+                    fontSize: 12,
+                    height: 1.2),
+                minFontSize: 8,
+                maxLines: 3,
+                textAlign: TextAlign.center,
+              ),
             ),
           ),
         ),
       ),
     );
+  }
+
+  Future<void> _openCourse(CourseTableControl control, int day, int section,
+      CourseInfoJson course) async {
+    final action = await showCourseCellSheet(
+      context: context,
+      courseInfo: course,
+      time: control.getTimeString(section),
+      color: control.getCourseInfoColor(day, section),
+      readOnly: true,
+    );
+    if (!mounted || action != CourseCellAction.detail) return;
+    widget.onOpenDetail?.call(course);
   }
 }

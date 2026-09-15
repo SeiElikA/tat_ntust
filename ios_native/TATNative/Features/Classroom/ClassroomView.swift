@@ -139,6 +139,7 @@ struct ClassroomView: View {
         .padding(.vertical, 8)
       }
       .scrollIndicators(.hidden)
+      .scrollClipDisabled()
     }
   }
 
@@ -386,9 +387,13 @@ struct ClassroomView: View {
     }
   }
 
-  static func clock(_ date: Date) -> String {
+  private static let clockFormatter: DateFormatter = {
     let formatter = DateFormatter()
     formatter.dateFormat = "HH:mm"
-    return formatter.string(from: date)
+    return formatter
+  }()
+
+  static func clock(_ date: Date) -> String {
+    clockFormatter.string(from: date)
   }
 }

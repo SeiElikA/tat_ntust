@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_app/src/R.dart';
+import 'package:flutter_app/src/config/course_config.dart';
 import 'package:flutter_app/src/model/course/course_class_json.dart';
 import 'package:flutter_app/src/model/course/course_main_extra_json.dart';
 import 'package:flutter_app/src/model/course_table/course_table_json.dart';
 import 'package:flutter_app/src/store/extra_table_store.dart';
 import 'package:flutter_app/src/store/key_value_store.dart';
+import 'package:flutter_app/src/util/course_table_control.dart';
 import 'package:flutter_app/ui/pages/course_table/simulation/course_search_page.dart';
 import 'package:flutter_app/ui/pages/course_table/simulation/simulation_page.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -118,6 +120,59 @@ void main() {
       expect(find.textContaining('處衝堂'), findsNothing);
       expect(find.textContaining('沒有衝堂'), findsOneWidget);
       expect(find.textContaining('草稿 1 門'), findsOneWidget);
+    });
+  });
+
+  // 以前每一列寫死 56，螢幕高一點底下就空一截；現在跟課表頁一樣九節剛好一屏。
+  group('格線高度', () {
+    Finder rowOf(String section) => find
+        .ancestor(of: find.text(section), matching: find.byType(Container))
+        .first;
+
+    Future<CourseTableControl> pumpAt(WidgetTester tester, Size size) async {
+      await tester.binding.setSurfaceSize(size);
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      final base = tableOf([
+        courseOf('CS3003302', '離散數學', {Day.thursday: '3 4'})
+      ]);
+      await pumpSimulation(tester, base: base, draft: tableOf([]));
+      return CourseTableControl()..set(base);
+    }
+
+    Rect viewportOf(WidgetTester tester, Finder row) => tester.getRect(find
+        .ancestor(of: row, matching: find.byType(SingleChildScrollView))
+        .first);
+
+    testWidgets('畫面夠高時九節剛好一屏，第九節接到底部摘要', (tester) async {
+      final control = await pumpAt(tester, const Size(400, 900));
+      final sections = control.getSectionIntList;
+      final first = rowOf(control.getSectionString(sections.first));
+      final ninth = rowOf(control
+          .getSectionString(sections[CourseConfig.showCourseTableNum - 1]));
+      final viewport = viewportOf(tester, first);
+      final rowHeight = tester.getSize(first).height;
+
+      expect(
+          rowHeight,
+          closeTo(
+              (viewport.height - CourseConfig.dayHeight) /
+                  CourseConfig.showCourseTableNum,
+              0.5));
+      expect(rowHeight, greaterThan(56));
+      expect(tester.getBottomLeft(ninth).dy, closeTo(viewport.bottom, 0.5));
+    });
+
+    testWidgets('畫面矮的時候列高不比 56 矮，多的往下捲', (tester) async {
+      final control = await pumpAt(tester, const Size(400, 600));
+      final first =
+          rowOf(control.getSectionString(control.getSectionIntList.first));
+      final viewport = viewportOf(tester, first);
+
+      expect(
+          (viewport.height - CourseConfig.dayHeight) /
+              CourseConfig.showCourseTableNum,
+          lessThan(56));
+      expect(tester.getSize(first).height, 56);
     });
   });
 

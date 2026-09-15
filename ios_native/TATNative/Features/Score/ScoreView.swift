@@ -101,13 +101,12 @@ struct ScoreView: View {
             } label: {
               Text(semester.semester)
                 .font(.subheadline.weight(.medium).monospacedDigit())
-                .foregroundStyle(isOn ? Color.tatBrand : Color.secondary)
                 .padding(.horizontal, 14)
                 .frame(minHeight: 34)
-                .background(isOn ? Color.tatBrand.opacity(0.14) : Color.clear, in: Capsule())
+                .chipSurface(isOn: isOn, outlined: false, offColor: .secondary)
                 .contentShape(Capsule())
             }
-            .buttonStyle(.plain)
+            .chipButtonStyle()
             .id(semester.semester)
             .accessibilityAddTraits(isOn ? .isSelected : [])
           }
@@ -116,6 +115,7 @@ struct ScoreView: View {
         .padding(.vertical, 6)
       }
       .scrollIndicators(.hidden)
+      .scrollClipDisabled()
       .onChange(of: model.selection) { _, selection in
         withAnimation { proxy.scrollTo(selection, anchor: .center) }
       }
