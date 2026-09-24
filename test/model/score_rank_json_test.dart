@@ -224,7 +224,7 @@ void main() {
     });
   });
 
-  group('二次退選不進歷年課表', () {
+  group('沒實際在上的課不進歷年課表', () {
     ScoreItemJson withdrawn(String courseId) => ScoreItemJson(
           courseId: courseId,
           name: '課程 $courseId',
@@ -262,7 +262,53 @@ void main() {
           await scoreRank.getCourseIdBySemester(semester('113', '1')), isEmpty);
     });
 
-    test('不及格與免修照樣留著——那些課真的上過', () async {
+    test('免修的課不會進歷年課表', () async {
+      final scoreRank = ScoreRankJson();
+      scoreRank.addScoreBySemester(
+          semester('113', '1'), scoreItem('CS3009302'));
+      scoreRank.addScoreBySemester(
+          semester('113', '1'),
+          ScoreItemJson(
+              courseId: 'LE1001301',
+              name: '大一英文',
+              credit: '2',
+              score: '',
+              generalDimension: '',
+              // 學生回報：免修只標在備註欄。
+              remark: '免修'));
+
+      expect(await scoreRank.getCourseIdBySemester(semester('113', '1')),
+          ['CS3009302']);
+    });
+
+    test('英文版成績頁的 Withdrawal 與 Exemption 也不會進歷年課表', () async {
+      final scoreRank = ScoreRankJson();
+      scoreRank.addScoreBySemester(
+          semester('113', '1'), scoreItem('CS3009302'));
+      scoreRank.addScoreBySemester(
+          semester('113', '1'),
+          ScoreItemJson(
+              courseId: 'CS1012701',
+              name: 'x',
+              credit: '3',
+              score: 'Withdrawal',
+              generalDimension: '',
+              remark: 'Withdrawal'));
+      scoreRank.addScoreBySemester(
+          semester('113', '1'),
+          ScoreItemJson(
+              courseId: 'LE1001301',
+              name: 'x',
+              credit: '2',
+              score: '',
+              generalDimension: '',
+              remark: 'Exemption'));
+
+      expect(await scoreRank.getCourseIdBySemester(semester('113', '1')),
+          ['CS3009302']);
+    });
+
+    test('不及格照樣留著——那門課真的上過', () async {
       final scoreRank = ScoreRankJson();
       scoreRank.addScoreBySemester(
           semester('113', '1'),
