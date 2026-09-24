@@ -150,7 +150,8 @@ void main() {
   });
 
   group('MoodleLoginFlow', () {
-    MoodleLoginFlow flow() => MoodleLoginFlow(account: 'B11234567', password: 'pw');
+    MoodleLoginFlow flow() => MoodleLoginFlow(
+        account: 'B11234567', password: 'pw', settle: Duration.zero);
 
     test('不是 ssoam2 登入頁就繼續等，也不碰頁面', () async {
       final page = _FakePage();
@@ -167,13 +168,36 @@ void main() {
       expect(finished.notice, '帳號或密碼輸入錯誤');
     });
 
-    test('送出兩次之後交給使用者', () async {
+    test('送出後等不到 token 就把頁面還給使用者：只提示一次，最多再自動填一次', () async {
       final f = flow();
       final page = _FakePage();
 
+      final step = await f.onLoadStop(page, loginPage);
+      expect((step as LoginNeedsHuman<MoodleTokenEntity?>).reason,
+          LoginHumanReason.stalled);
       expect(await f.onLoadStop(page, loginPage), isA<LoginContinue<MoodleTokenEntity?>>());
       expect(await f.onLoadStop(page, loginPage), isA<LoginContinue<MoodleTokenEntity?>>());
-      expect(await f.onLoadStop(page, loginPage), isA<LoginNeedsHuman<MoodleTokenEntity?>>());
+      expect(page.fills, 2);
+    });
+
+    test('等待期間 token 先到：不提示', () async {
+      final f = flow();
+      final pending = f.onLoadStop(_FakePage(), loginPage);
+      f.onCallback('moodlemobile://token=not-base64');
+
+      expect(await pending, isA<LoginContinue<MoodleTokenEntity?>>());
+    });
+
+    test('Moodle 的多因素驗證頁：收起遮罩交給使用者，同一頁不重複提示，也不碰頁面', () async {
+      final f = flow();
+      final page = _FakePage();
+      const mfa = 'https://moodle2.ntust.edu.tw/admin/tool/mfa/auth.php';
+
+      final step = await f.onLoadStop(page, mfa);
+      expect((step as LoginNeedsHuman<MoodleTokenEntity?>).reason,
+          LoginHumanReason.mfa);
+      expect(await f.onLoadStop(page, mfa), isA<LoginContinue<MoodleTokenEntity?>>());
+      expect(page.scripts, isEmpty);
     });
 
     test('回呼帶著壞掉的 token 也只結束一次', () {

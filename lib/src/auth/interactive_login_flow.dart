@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:cookie_jar/cookie_jar.dart';
 import 'package:flutter_app/debug/log/log.dart';
+import 'package:flutter_app/src/R.dart';
 import 'package:flutter_app/src/connector/core/dio_connector.dart';
 import 'package:flutter_app/src/connector/moodle_webapi_connector.dart';
 import 'package:flutter_app/src/connector/ntust_connector.dart';
@@ -25,9 +26,29 @@ final class LoginContinue<T> extends LoginStep<T> {
   const LoginContinue();
 }
 
-/// 自動填表放棄了：收起遮罩，提示使用者自己操作（多半是驗證碼）。
+/// 自動填表放棄了：收起遮罩，提示使用者自己操作。[reason] 決定提示的字。
 final class LoginNeedsHuman<T> extends LoginStep<T> {
-  const LoginNeedsHuman();
+  const LoginNeedsHuman([this.reason = LoginHumanReason.captcha]);
+
+  final LoginHumanReason reason;
+}
+
+enum LoginHumanReason {
+  /// 表單找不到、驗證碼沒過，或已經送出太多次。
+  captcha,
+
+  /// Moodle 的多因素驗證頁，要使用者自己完成。
+  mfa,
+
+  /// 送出之後過了 [MoodleLoginFlow.settle] 還沒拿到 token：不知道卡在哪一頁。
+  stalled;
+
+  /// 收起遮罩時的提示。
+  String get hint => switch (this) {
+        captcha => R.current.needValidateCaptcha,
+        mfa => R.current.loginMoodleMfa,
+        stalled => R.current.loginContinueOnPage,
+      };
 }
 
 /// 結束：關掉頁面、交回 [result]。[notice] 非 null 時要先提示使用者。
@@ -117,21 +138,35 @@ class NtustLoginFlow {
 
 /// 可見的 Moodle 登入頁：走 ssoam2 登入之後，Moodle 以 `moodlemobile://` 把 token 交回來。
 class MoodleLoginFlow {
-  MoodleLoginFlow({required this.account, required this.password})
-      : _launch = MoodleWebApiConnector.buildLoginLaunch();
+  MoodleLoginFlow({
+    required this.account,
+    required this.password,
+    this.settle = const Duration(seconds: 8),
+  }) : _launch = MoodleWebApiConnector.buildLoginLaunch();
 
   final String account;
   final String password;
   final ({String url, String passport}) _launch;
+
+  /// 送出之後等多久還沒拿到 token 就收起遮罩，把頁面還給使用者。
+  final Duration settle;
 
   String get startUrl => _launch.url;
 
   /// 要在導航時攔下來的 scheme。
   static const String callbackScheme = "moodlemobile";
 
+  /// Moodle 的多因素驗證（tool_mfa）：`require_login` 之後被導到這底下的 `auth.php`。
+  static const String mfaPathPrefix = "/admin/tool/mfa/";
+
+  static bool isMfaPage(String? url) =>
+      url != null &&
+      (Uri.tryParse(url)?.path.startsWith(mfaPathPrefix) ?? false);
+
   static const int _maxSubmits = 2;
   int _submits = 0;
   bool _finished = false;
+  bool _handedOver = false;
 
   /// 導到 [callbackScheme] 時呼叫。
   LoginStep<MoodleTokenEntity?> onCallback(String url) =>
@@ -139,14 +174,14 @@ class MoodleLoginFlow {
 
   Future<LoginStep<MoodleTokenEntity?>> onLoadStop(
       WebViewDriver web, String? url) async {
-    if (_finished || !Ssoam2Login.isLoginPage(url)) {
-      return const LoginContinue();
-    }
+    if (_finished) return const LoginContinue();
+    if (isMfaPage(url)) return _handOver(LoginHumanReason.mfa);
+    if (!Ssoam2Login.isLoginPage(url)) return const LoginContinue();
     // 先問有沒有錯誤再決定要不要送出：密碼錯時站台是把登入頁連同錯誤訊息重新吐回來，
     // 先送出就會變成拿同一組錯帳密無限重送。
     final error = await Ssoam2Login.credentialError(web);
     if (error != null) return _finish(null, notice: error);
-    if (_submits >= _maxSubmits) return const LoginNeedsHuman();
+    if (_submits >= _maxSubmits) return _handOver(LoginHumanReason.captcha);
     _submits++;
     final outcome = await Ssoam2Login.submit(
       web,
@@ -154,9 +189,20 @@ class MoodleLoginFlow {
       password: password,
     );
     // 找不到表單與 Turnstile 逾時在畫面上是同一件事：收起遮罩讓使用者自己操作。
-    return outcome == Ssoam2LoginOutcome.submitted
+    if (outcome != Ssoam2LoginOutcome.submitted) {
+      return _handOver(LoginHumanReason.captcha);
+    }
+    await Future<void>.delayed(settle);
+    return _finished
         ? const LoginContinue()
-        : const LoginNeedsHuman();
+        : _handOver(LoginHumanReason.stalled);
+  }
+
+  /// 遮罩只收一次：同一頁再觸發 onLoadStop（輸錯驗證碼、client-side 導向）不重複提示。
+  LoginStep<MoodleTokenEntity?> _handOver(LoginHumanReason reason) {
+    if (_handedOver) return const LoginContinue();
+    _handedOver = true;
+    return LoginNeedsHuman(reason);
   }
 
   LoginStep<MoodleTokenEntity?> _finish(MoodleTokenEntity? token,

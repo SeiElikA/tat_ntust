@@ -1101,12 +1101,18 @@ class MessageLookup extends MessageLookupByLibrary {
       "Could not fetch the latest data; showing the last successful result.",
     ),
     "login": MessageLookupByLibrary.simpleMessage("Login"),
+    "loginContinueOnPage": MessageLookupByLibrary.simpleMessage(
+      "Continue signing in on the page",
+    ),
     "loginDescription": MessageLookupByLibrary.simpleMessage(
       "A campus app designed for students of National Taiwan University of Science and Technology. Moodle, semester timetable, grades, enrollment certificates and more, all in one app.",
     ),
     "loginMoodle": MessageLookupByLibrary.simpleMessage("Login Moodle..."),
     "loginMoodleError": MessageLookupByLibrary.simpleMessage(
       "Login Moodle error",
+    ),
+    "loginMoodleMfa": MessageLookupByLibrary.simpleMessage(
+      "Complete Moodle\'s two-step verification",
     ),
     "loginMoodleWebApi": MessageLookupByLibrary.simpleMessage(
       "Login Moodle...",

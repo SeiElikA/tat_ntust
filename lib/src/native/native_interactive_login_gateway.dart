@@ -65,12 +65,14 @@ class NativeInteractiveLoginGateway implements InteractiveLoginGateway {
     final done = Completer<T?>();
 
     void apply(LoginStep<T> step) {
+      // 使用者關掉 sheet 之後 settle 才到期：不要對著已經不在的頁面提示。
+      if (done.isCompleted) return;
       switch (step) {
         case LoginContinue():
           break;
-        case LoginNeedsHuman():
+        case LoginNeedsHuman(:final reason):
           unawaited(session.setProgress(null));
-          TaskUiDelegate.instance.toast(R.current.needValidateCaptcha);
+          TaskUiDelegate.instance.toast(reason.hint);
         case LoginFinished(:final result, :final notice):
           if (notice != null) TaskUiDelegate.instance.toast(notice);
           if (!done.isCompleted) done.complete(result);

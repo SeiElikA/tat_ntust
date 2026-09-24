@@ -264,6 +264,26 @@ class S {
     );
   }
 
+  /// `Complete Moodle's two-step verification`
+  String get loginMoodleMfa {
+    return Intl.message(
+      'Complete Moodle\'s two-step verification',
+      name: 'loginMoodleMfa',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Continue signing in on the page`
+  String get loginContinueOnPage {
+    return Intl.message(
+      'Continue signing in on the page',
+      name: 'loginContinueOnPage',
+      desc: '',
+      args: [],
+    );
+  }
+
   /// `An unknown error occurred`
   String get unknownError {
     return Intl.message(

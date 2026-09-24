@@ -30,6 +30,8 @@
   "loginNTUST": "login NTUST",
   "networkError": "Network error",
   "needValidateCaptcha": "Need validate captcha",
+  "loginMoodleMfa": "Complete Moodle's two-step verification",
+  "loginContinueOnPage": "Continue signing in on the page",
   "unknownError": "An unknown error occurred",
   "accountPasswordError": "Account password error",
   "getCourse": "Get schedule...",

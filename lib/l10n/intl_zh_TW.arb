@@ -30,6 +30,8 @@
   "loginNTUST": "登入台科大系統...",
   "networkError": "網路發生錯誤",
   "needValidateCaptcha": "如果出現驗證碼，請手動通過驗證碼",
+  "loginMoodleMfa": "請完成 Moodle 的二步驟驗證",
+  "loginContinueOnPage": "請在頁面上繼續完成登入",
   "unknownError": "發生未知錯誤",
   "accountPasswordError": "帳號密碼錯誤",
   "getCourse": "取得課表...",

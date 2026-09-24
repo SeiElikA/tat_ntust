@@ -501,9 +501,11 @@
 "loading" = "Loading...";
 "loadingCache" = "Could not fetch the latest data; showing the last successful result.";
 "login" = "Login";
+"loginContinueOnPage" = "Continue signing in on the page";
 "loginDescription" = "A campus app designed for students of National Taiwan University of Science and Technology. Moodle, semester timetable, grades, enrollment certificates and more, all in one app.";
 "loginMoodle" = "Login Moodle...";
 "loginMoodleError" = "Login Moodle error";
+"loginMoodleMfa" = "Complete Moodle's two-step verification";
 "loginMoodleWebApi" = "Login Moodle...";
 "loginNTUST" = "login NTUST";
 "loginSave" = "Account password has been saved";

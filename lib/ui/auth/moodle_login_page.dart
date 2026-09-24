@@ -36,9 +36,9 @@ class _LoginMoodlePageState extends State<LoginMoodlePage> {
     switch (step) {
       case LoginContinue():
         break;
-      case LoginNeedsHuman():
+      case LoginNeedsHuman(:final reason):
         setState(() => showDialog = false);
-        TatToast.show(R.current.needValidateCaptcha, kind: TatToastKind.info);
+        TatToast.show(reason.hint, kind: TatToastKind.info);
       case LoginFinished(:final result, :final notice):
         if (notice != null) TatToast.show(notice, kind: TatToastKind.info);
         Get.back<MoodleTokenEntity>(result: result);
