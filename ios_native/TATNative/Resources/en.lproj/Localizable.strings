@@ -507,7 +507,7 @@
 "loginMoodleError" = "Login Moodle error";
 "loginMoodleMfa" = "Complete Moodle's two-step verification";
 "loginMoodleWebApi" = "Login Moodle...";
-"loginNTUST" = "login NTUST";
+"loginNTUST" = "Login NTUST...";
 "loginSave" = "Account password has been saved";
 "loginTitle" = "NTUST TAT";
 "login_hint" = "Your login information will be stored only on this device and will not be uploaded to any server.";
@@ -772,6 +772,7 @@
 "tableSwitcherMine" = "My tables";
 "tableSwitcherShared" = "Shared with me";
 "tableSwitcherTitle" = "Choose a table";
+"teachersAndAssistants" = "Teachers and TAs";
 "themeColor" = "Theme color";
 "themeColorBlue" = "Blue";
 "themeColorCustom" = "Custom color";

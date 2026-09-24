@@ -87,7 +87,14 @@ class _OverlayProgressHandle implements ProgressHandle {
     final overlay = Get.key.currentState?.overlay;
     if (overlay == null) return;
     final entry = OverlayEntry(
-      builder: (context) => const Positioned.fill(child: AbsorbPointer()),
+      builder: (context) => Positioned.fill(
+        child: ValueListenableBuilder<bool>(
+          valueListenable: TatToast.loginPageOpen,
+          // 蓋板疊在所有 route 之上：登入頁開著時要讓路，否則按不到驗證碼。
+          builder: (context, loginPageOpen, _) =>
+              AbsorbPointer(absorbing: !loginPageOpen),
+        ),
+      ),
     );
     _blocker = entry;
     overlay.insert(entry);

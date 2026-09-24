@@ -239,9 +239,14 @@ class S {
     );
   }
 
-  /// `login NTUST`
+  /// `Login NTUST...`
   String get loginNTUST {
-    return Intl.message('login NTUST', name: 'loginNTUST', desc: '', args: []);
+    return Intl.message(
+      'Login NTUST...',
+      name: 'loginNTUST',
+      desc: '',
+      args: [],
+    );
   }
 
   /// `Network error`
@@ -5059,6 +5064,16 @@ class S {
     return Intl.message(
       'Enrolled students',
       name: 'enrolledStudents',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Teachers and TAs`
+  String get teachersAndAssistants {
+    return Intl.message(
+      'Teachers and TAs',
+      name: 'teachersAndAssistants',
       desc: '',
       args: [],
     );

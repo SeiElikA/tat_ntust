@@ -31,12 +31,21 @@ enum TatToastKind { success, info, error }
 
 /// 掛著的那一顆。呼叫端拿它來收。
 class TatToastHandle {
-  TatToastHandle._(this._pill);
+  TatToastHandle._(this._entry);
 
-  final _Pill? _pill;
+  final _ProgressEntry? _entry;
 
   /// 收掉。多呼叫幾次是安全的。
-  void dismiss() => _pill?.dismiss();
+  void dismiss() {
+    final entry = _entry;
+    if (entry != null) TatToast._endProgress(entry);
+  }
+}
+
+class _ProgressEntry {
+  _ProgressEntry(this.message);
+
+  final String message;
 }
 
 class TatToast {
@@ -49,6 +58,30 @@ class TatToast {
 
   /// 目前畫面上的膠囊，由下往上。
   static final List<_Pill> _pills = [];
+
+  /// 掛著的進度，由外到內。**同時只畫一顆**：裡面那一步（登入 → 取資料）換掉
+  /// 文字，收掉時換回外面那一步。登入時三顆各自往上堆，看起來像三件事在搶。
+  static final List<_ProgressEntry> _progressStack = [];
+  static _Pill? _progressPill;
+
+  /// 可見的登入頁開著時為真：進度膠囊不畫、進度蓋板不擋點擊。那一頁自己有
+  /// 指示器；而且蓋板插在 Navigator 所有 route 之上，會讓人按不到 Turnstile 與
+  /// 二步驟驗證的輸入框。
+  static final ValueNotifier<bool> loginPageOpen = ValueNotifier<bool>(false)
+    ..addListener(_reflow);
+  static int _loginPages = 0;
+
+  /// [body] 是推出登入頁到它關掉為止。
+  static Future<T> whileLoginPage<T>(Future<T> Function() body) async {
+    _loginPages++;
+    loginPageOpen.value = true;
+    try {
+      return await body();
+    } finally {
+      _loginPages--;
+      loginPageOpen.value = _loginPages > 0;
+    }
+  }
 
   /// 講一句話，時間到自己收。新的一句直接蓋掉上一句。
   static void show(String message, {TatToastKind kind = TatToastKind.success}) {
@@ -104,14 +137,38 @@ class TatToast {
     if (Get.key.currentState?.overlay == null) {
       return TatToastHandle._(null);
     }
-    final pill = _Pill(
+    final entry = _ProgressEntry(message);
+    _progressStack.add(entry);
+    _showTopProgress();
+    return TatToastHandle._(entry);
+  }
+
+  static void _endProgress(_ProgressEntry entry) {
+    if (!_progressStack.remove(entry)) return;
+    _showTopProgress();
+  }
+
+  static void _showTopProgress() {
+    if (_progressStack.isEmpty) {
+      final pill = _progressPill;
+      _progressPill = null;
+      pill?.dismiss();
+      return;
+    }
+    final message = _progressStack.last.message;
+    final pill = _progressPill;
+    if (pill != null && !pill._gone) {
+      pill.message.value = message;
+      return;
+    }
+    final fresh = _Pill(
       leadingBuilder: (context) =>
           TatProgress(size: 16, color: context.scheme.onInverseSurface),
       message: message,
       autoClose: null,
     );
-    _insert(pill);
-    return TatToastHandle._(pill);
+    _progressPill = fresh;
+    _insert(fresh);
   }
 
   /// 測試用：把畫面上的膠囊全部收掉。
@@ -121,6 +178,10 @@ class TatToast {
       pill.removeNow();
     }
     _pills.clear();
+    _progressStack.clear();
+    _progressPill = null;
+    _loginPages = 0;
+    loginPageOpen.value = false;
   }
 
   /// 目前有幾顆膠囊。測試用。
@@ -151,8 +212,11 @@ class TatToast {
 
   /// 重算每一顆離底部多遠。同時有進度與提示時往上堆，不要疊在一起。
   static void _reflow() {
-    for (var i = 0; i < _pills.length; i++) {
-      _pills[i].setIndex(i);
+    var index = 0;
+    for (final pill in _pills) {
+      // 登入頁開著時進度膠囊藏起來，不佔位。
+      if (pill.sticky && loginPageOpen.value) continue;
+      pill.setIndex(index++);
     }
   }
 }
@@ -161,14 +225,16 @@ class TatToast {
 class _Pill {
   _Pill({
     required this.leadingBuilder,
-    required this.message,
+    required String message,
     required this.autoClose,
     this.actionLabel,
     this.onAction,
-  });
+  }) : message = ValueNotifier<String>(message);
 
   final WidgetBuilder leadingBuilder;
-  final String message;
+
+  /// 進度提示會在原地換字，所以是 notifier。
+  final ValueNotifier<String> message;
 
   /// null 代表不自動收——那是進度提示。
   final Duration? autoClose;
@@ -213,6 +279,7 @@ class _Pill {
     _entry = null;
     if (entry != null && entry.mounted) entry.remove();
     _index.dispose();
+    message.dispose();
     _onGone?.call(this);
   }
 }
@@ -262,24 +329,56 @@ class _PillViewState extends State<_PillView>
     widget.onDismissed();
   }
 
+  Widget _pill(BuildContext context, String message) => TatBottomPill(
+        leading: widget.pill.leadingBuilder(context),
+        message: message,
+        trailing: widget.pill.actionLabel == null
+            ? null
+            : TextButton(
+                onPressed: widget.pill.onAction,
+                style: TextButton.styleFrom(
+                  foregroundColor: context.scheme.inversePrimary,
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                child: Text(widget.pill.actionLabel!),
+              ),
+      );
+
   @override
   Widget build(BuildContext context) {
-    final pill = TatBottomPill(
-      leading: widget.pill.leadingBuilder(context),
-      message: widget.pill.message,
-      trailing: widget.pill.actionLabel == null
-          ? null
-          : TextButton(
-              onPressed: widget.pill.onAction,
-              style: TextButton.styleFrom(
-                foregroundColor: context.scheme.inversePrimary,
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                minimumSize: Size.zero,
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              ),
-              child: Text(widget.pill.actionLabel!),
-            ),
+    Widget body = FadeTransition(
+      opacity: _controller,
+      child: AnimatedBuilder(
+        animation: _controller,
+        builder: (context, child) => Transform.translate(
+          offset: Offset(0, 8 * (1 - _controller.value)),
+          child: child,
+        ),
+        // 沒有按鈕的那些不吃點擊：底下的內容照樣能操作。
+        child: Center(
+          child: ValueListenableBuilder<String>(
+            valueListenable: widget.pill.message,
+            builder: (context, message, _) {
+              final pill = _pill(context, message);
+              return widget.pill.actionLabel == null
+                  ? IgnorePointer(child: pill)
+                  : pill;
+            },
+          ),
+        ),
+      ),
     );
+    if (widget.pill.sticky) {
+      // 要包在 Positioned 裡面：Positioned 必須直接掛在 Overlay 的 Stack 下。
+      body = ValueListenableBuilder<bool>(
+        valueListenable: TatToast.loginPageOpen,
+        builder: (context, loginPageOpen, child) => Visibility(
+            visible: !loginPageOpen, maintainState: true, child: child!),
+        child: body,
+      );
+    }
     return ValueListenableBuilder<int>(
       valueListenable: widget.pill.index,
       builder: (context, index, child) => Positioned(
@@ -292,22 +391,7 @@ class _PillViewState extends State<_PillView>
             index * (TatBottomPill.height + 8),
         child: child!,
       ),
-      child: FadeTransition(
-        opacity: _controller,
-        child: AnimatedBuilder(
-          animation: _controller,
-          builder: (context, child) => Transform.translate(
-            offset: Offset(0, 8 * (1 - _controller.value)),
-            child: child,
-          ),
-          // 沒有按鈕的那些不吃點擊：底下的內容照樣能操作。
-          child: Center(
-            child: widget.pill.actionLabel == null
-                ? IgnorePointer(child: pill)
-                : pill,
-          ),
-        ),
-      ),
+      child: body,
     );
   }
 }

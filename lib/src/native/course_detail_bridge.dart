@@ -40,7 +40,8 @@ class CourseDetailBridge implements TatCourseDetailApi {
     await controller.load(force: refresh);
     final result = controller.members.value;
     return CourseMembers(
-      members: [for (final m in controller.filter('')) _member(m)],
+      staff: [for (final m in controller.staff('')) _member(m)],
+      students: [for (final m in controller.students('')) _member(m)],
       error: result == null ? null : BridgeResults.errorOf(result),
       notice: result == null ? null : BridgeResults.noticeOf(result),
       signedIn: AuthSession.instance.isSignedIn,
@@ -48,11 +49,17 @@ class CourseDetailBridge implements TatCourseDetailApi {
   }
 
   @override
-  List<CourseMember> filterMembers(String courseId, String query) => [
-        for (final m in _members[courseId]?.filter(query) ??
-            const <MoodleCoreEnrolGetUsers>[])
-          _member(m),
-      ];
+  CourseMembers filterMembers(String courseId, String query) {
+    final controller = _members[courseId];
+    const none = <MoodleCoreEnrolGetUsers>[];
+    return CourseMembers(
+      staff: [for (final m in controller?.staff(query) ?? none) _member(m)],
+      students: [
+        for (final m in controller?.students(query) ?? none) _member(m)
+      ],
+      signedIn: AuthSession.instance.isSignedIn,
+    );
+  }
 
   @visibleForTesting
   static CourseDetailInfo toInfo(CourseExtraInfoJson info) {
@@ -92,10 +99,14 @@ class CourseDetailBridge implements TatCourseDetailApi {
 
   static CourseMember _member(MoodleCoreEnrolGetUsers member) {
     final url = member.profileImageUrlSmall.trim();
+    final role = member.roleLabel;
+    final email = member.email.trim();
     return CourseMember(
-      name: member.name.toString(),
-      studentId: member.studentId.toString(),
+      name: member.name,
+      studentId: member.studentId,
       avatarUrl: url.isEmpty ? null : url,
+      role: member.isStaff && role.isNotEmpty ? role : null,
+      email: member.isStaff && email.isNotEmpty ? email : null,
     );
   }
 }

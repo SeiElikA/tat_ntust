@@ -22,7 +22,10 @@ final class UiPresenter {
   /// 核心開的可見 WebView（登入頁）。
   var webSession: WebSession?
 
-  private var progress: [Int64: UUID] = [:]
+  /// 掛著的進度，由外到內。**同時只畫一顆**：裡面那一步換掉文字，收掉時換回外面那一步；
+  /// 照 Flutter 版的 `TatToast.progress`。
+  private var progressStack: [(handle: Int64, message: String)] = []
+  private var progressItemId: UUID?
   private var nextHandle: Int64 = 1
 
   // MARK: - Toast
@@ -92,18 +95,35 @@ final class UiPresenter {
   func beginProgress(_ message: String) -> Int64 {
     let handle = nextHandle
     nextHandle += 1
-    let item = ToastItem(message: message, kind: .info, autoClose: nil)
-    progress[handle] = item.id
+    progressStack.append((handle: handle, message: message))
     blockingCount += 1
-    withAnimation(.easeOut(duration: 0.16)) { toasts.append(item) }
+    showTopProgress()
     return handle
   }
 
   /// 只關掉這一個，重複呼叫是 no-op。
   func dismissProgress(_ handle: Int64) {
-    guard let id = progress.removeValue(forKey: handle) else { return }
+    guard let index = progressStack.firstIndex(where: { $0.handle == handle }) else { return }
+    progressStack.remove(at: index)
     blockingCount = max(0, blockingCount - 1)
-    remove(id)
+    showTopProgress()
+  }
+
+  private func showTopProgress() {
+    guard let top = progressStack.last else {
+      if let id = progressItemId {
+        progressItemId = nil
+        remove(id)
+      }
+      return
+    }
+    if let id = progressItemId, let index = toasts.firstIndex(where: { $0.id == id }) {
+      toasts[index].message = top.message
+      return
+    }
+    let item = ToastItem(message: top.message, kind: .info, autoClose: nil)
+    progressItemId = item.id
+    withAnimation(.easeOut(duration: 0.16)) { toasts.append(item) }
   }
 
   // MARK: - 對話框

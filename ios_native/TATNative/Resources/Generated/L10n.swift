@@ -1546,6 +1546,8 @@ extension L10n {
   static var tableSwitcherShared: String { tr("tableSwitcherShared") }
   /// 選擇課表
   static var tableSwitcherTitle: String { tr("tableSwitcherTitle") }
+  /// 老師與助教
+  static var teachersAndAssistants: String { tr("teachersAndAssistants") }
   /// 主題顏色
   static var themeColor: String { tr("themeColor") }
   /// 藍

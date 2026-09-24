@@ -133,35 +133,51 @@ void main() {
   group('修課學生', () {
     final roster = [
       MoodleCoreEnrolGetUsers(
+          fullName: '陳大文',
+          email: 'dawen@mail.ntust.edu.tw',
+          roles: [Roles(shortname: 'editingteacher', name: '教師')]),
+      MoodleCoreEnrolGetUsers(
           fullName: 'B11230223 @ 王小明', profileImageUrlSmall: 'https://img/1'),
       MoodleCoreEnrolGetUsers(fullName: 'B11230224 @ 李大華'),
     ];
 
-    test('姓名與學號拆開；抓過就不重打，重新整理才重打', () async {
+    test('老師帶角色與 email 列在前面，學生拆姓名與學號；抓過就不重打，重新整理才重打',
+        () async {
       moodle.next = Ok(roster);
 
       final first = await bridge.members('CS3039701', false);
       await bridge.members('CS3039701', false);
 
-      expect(first.members.map((m) => (m.name, m.studentId, m.avatarUrl)), [
+      expect(first.staff.map((m) => (m.name, m.studentId, m.role, m.email)), [
+        ('陳大文', '', '教師', 'dawen@mail.ntust.edu.tw'),
+      ]);
+      expect(first.students.map((m) => (m.name, m.studentId, m.avatarUrl)), [
         ('王小明', 'B11230223', 'https://img/1'),
         ('李大華', 'B11230224', null),
       ]);
+      expect(first.students.map((m) => m.email), [null, null]);
       expect(moodle.calls, 1);
 
       await bridge.members('CS3039701', true);
       expect(moodle.calls, 2);
     });
 
-    test('搜尋姓名或學號在本機做，不分大小寫', () async {
+    test('搜尋姓名或學號在本機做，不分大小寫，老師也找得到', () async {
       moodle.next = Ok(roster);
       await bridge.members('CS3039701', false);
 
-      expect(bridge.filterMembers('CS3039701', '李').map((m) => m.name),
+      expect(bridge.filterMembers('CS3039701', '李').students.map((m) => m.name),
           ['李大華']);
-      expect(bridge.filterMembers('CS3039701', 'b11230223').map((m) => m.name),
+      expect(
+          bridge
+              .filterMembers('CS3039701', 'b11230223')
+              .students
+              .map((m) => m.name),
           ['王小明']);
-      expect(bridge.filterMembers('CS0000000', '王'), isEmpty);
+      expect(bridge.filterMembers('CS3039701', '陳').staff.map((m) => m.name),
+          ['陳大文']);
+      expect(bridge.filterMembers('CS3039701', '陳').students, isEmpty);
+      expect(bridge.filterMembers('CS0000000', '王').students, isEmpty);
     });
 
     test('抓不到時帶原因與登入狀態，原生版才知道要給重試還是登入', () async {
@@ -170,7 +186,7 @@ void main() {
 
       final result = await bridge.members('CS3039701', false);
 
-      expect(result.members, isEmpty);
+      expect(result.students, isEmpty);
       expect(result.error, '名單抓不到');
       expect(result.signedIn, isFalse);
     });

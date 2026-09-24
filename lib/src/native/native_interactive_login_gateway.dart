@@ -38,7 +38,7 @@ class NativeInteractiveLoginGateway implements InteractiveLoginGateway {
     final flow = MoodleLoginFlow(account: account, password: password);
     return _run<MoodleTokenEntity?>(
       url: flow.startUrl,
-      title: "${R.current.loginMoodle}...",
+      title: R.current.loginMoodle,
       progressMessage: R.current.loginMoodle,
       interceptSchemes: const [MoodleLoginFlow.callbackScheme],
       onLoadStop: flow.onLoadStop,

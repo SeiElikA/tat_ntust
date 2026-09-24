@@ -1117,7 +1117,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "loginMoodleWebApi": MessageLookupByLibrary.simpleMessage(
       "Login Moodle...",
     ),
-    "loginNTUST": MessageLookupByLibrary.simpleMessage("login NTUST"),
+    "loginNTUST": MessageLookupByLibrary.simpleMessage("Login NTUST..."),
     "loginSave": MessageLookupByLibrary.simpleMessage(
       "Account password has been saved",
     ),
@@ -1625,6 +1625,9 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "tableSwitcherTitle": MessageLookupByLibrary.simpleMessage(
       "Choose a table",
+    ),
+    "teachersAndAssistants": MessageLookupByLibrary.simpleMessage(
+      "Teachers and TAs",
     ),
     "themeColor": MessageLookupByLibrary.simpleMessage("Theme color"),
     "themeColorBlue": MessageLookupByLibrary.simpleMessage("Blue"),

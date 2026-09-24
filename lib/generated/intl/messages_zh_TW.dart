@@ -1146,6 +1146,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "tableSwitcherMine": MessageLookupByLibrary.simpleMessage("我的課表"),
     "tableSwitcherShared": MessageLookupByLibrary.simpleMessage("他人課表"),
     "tableSwitcherTitle": MessageLookupByLibrary.simpleMessage("選擇課表"),
+    "teachersAndAssistants": MessageLookupByLibrary.simpleMessage("老師與助教"),
     "themeColor": MessageLookupByLibrary.simpleMessage("主題顏色"),
     "themeColorBlue": MessageLookupByLibrary.simpleMessage("藍"),
     "themeColorCustom": MessageLookupByLibrary.simpleMessage("自訂顏色"),

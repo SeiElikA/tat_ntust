@@ -559,6 +559,7 @@
   "enrolledCountValue": "%s 人（%s / %s）",
   "enrollmentLimitSummary": "上限 %s · 本校 %s · 校際 %s",
   "enrolledStudents": "修課學生",
+  "teachersAndAssistants": "老師與助教",
   "peopleCount": "%s 人",
   "courseTextbookAndRefbook": "教科書與參考書目",
   "searchStudent": "搜尋姓名或系級",

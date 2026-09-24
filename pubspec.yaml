@@ -5,7 +5,7 @@ description: NTUST Life TAT, convenient, concise, fast, powerful, enrich your NT
 # flutter clean && flutter build ios --split-debug-info=build/app/outputs/symbols --obfuscate && flutter build appbundle --split-debug-info=build/app/outputs/symbols --obfuscate --shrink
 # follow the google play new policy in 2021, do not build apk but aab.
 # CHECK THE BUILD CODE BEFORE DISTRIBUTION!!
-version: 2.2.1+126
+version: 2.2.2+127
 publish_to: none
 
 environment:
@@ -159,7 +159,7 @@ dependencies:
   # 掃描 QR。**卡在 ^5**：6.x 與 7.x 的 podspec 要求 iOS 15.5，而本專案的
   # Podfile 是 13.0（Xcode 專案裡還混著 14.0 與 15.0）。5.2.3 只要 iOS 12，
   # 換句話說它是唯一不必動平台設定的版本。
-  mobile_scanner: ^5.0.0
+  mobile_scanner: ^7.4.2
   # 匯出圖片與存成 QR 圖片：交給系統的分享面板，不寫進相簿——寫相簿要
   # NSPhotoLibraryAddUsageDescription，那是本專案刻意沒有的權限。
   share_plus: ^11.1.0

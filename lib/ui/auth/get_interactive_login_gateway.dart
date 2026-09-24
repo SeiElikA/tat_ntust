@@ -2,6 +2,7 @@ import 'package:flutter_app/src/model/moodle_token_entity.dart';
 import 'package:flutter_app/src/service/interactive_login_gateway.dart';
 import 'package:flutter_app/ui/auth/moodle_login_page.dart';
 import 'package:flutter_app/ui/auth/ntust_login_page.dart';
+import 'package:flutter_app/ui/components/toast/tat_toast.dart';
 import 'package:get/get.dart';
 
 /// 用 GetX 導航把登入頁推到最前面的 [InteractiveLoginGateway] 實作。
@@ -15,20 +16,20 @@ class GetInteractiveLoginGateway implements InteractiveLoginGateway {
   Future<NtustInteractiveLoginResult?> signInNtust({
     required String account,
     required String password,
-  }) async =>
+  }) =>
       // 使用者按返回鍵時沒有 result。
-      await Get.to<NtustInteractiveLoginResult>(
-        () => LoginNTUSTPage(username: account, password: password),
-      );
+      TatToast.whileLoginPage(() async => await Get.to<NtustInteractiveLoginResult>(
+            () => LoginNTUSTPage(username: account, password: password),
+          ));
 
   @override
   Future<MoodleTokenEntity?> signInMoodle({
     required String account,
     required String password,
-  }) async =>
+  }) =>
       // Get.to 回 Future<T?>?：導航尚未就緒時是 null 而不是 Future，
       // 所以要 await 而非直接回傳。
-      await Get.to<MoodleTokenEntity>(
-        () => LoginMoodlePage(username: account, password: password),
-      );
+      TatToast.whileLoginPage(() async => await Get.to<MoodleTokenEntity>(
+            () => LoginMoodlePage(username: account, password: password),
+          ));
 }

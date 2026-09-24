@@ -1589,21 +1589,8 @@ class MoodleWebApiConnector {
     );
   }
 
-  /// manager、coursecreator 是站台層級角色、不是這門課的老師，刻意不列：
-  /// 這份名單的用途是找同學，寧可多顯示一個人也不要藏起真的同學。
-  static const Set<String> teacherRoleShortNames = {
-    'editingteacher',
-    'teacher',
-  };
-
-  /// 以 roles 判斷，不要退回比對名字裡有沒有「老師」。roles 為空時回 true：
-  /// 規格沒保證拿得到，全部藏起來會讓名單變空而上層對空名單直接報錯。
-  static bool isCourseMember(MoodleCoreEnrolGetUsers user) {
-    if (user.roles.isEmpty) return true;
-    return !user.roles
-        .any((role) => teacherRoleShortNames.contains(role.shortname));
-  }
-
+  /// 整份名單連老師與助教一起回；誰是老師由 [MoodleCoreEnrolGetUsers.isStaff]
+  /// 在顯示時分，名單頁要列老師的 email。
   static Future<List<MoodleCoreEnrolGetUsers>?> getMember(String id) async {
     const wsFunction = "core_enrol_get_enrolled_users";
     List<MoodleCoreEnrolGetUsers> userinfo = [];
@@ -1620,8 +1607,7 @@ class MoodleWebApiConnector {
         "options[2][value]": "siteorder",
       });
       for (var i in (result as List)) {
-        var user = MoodleCoreEnrolGetUsers.fromJson(i as Map<String, dynamic>);
-        if (isCourseMember(user)) userinfo.add(user);
+        userinfo.add(MoodleCoreEnrolGetUsers.fromJson(i as Map<String, dynamic>));
       }
       return userinfo;
     } catch (e, stack) {

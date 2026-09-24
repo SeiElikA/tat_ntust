@@ -153,10 +153,11 @@ void main() {
     MoodleLoginFlow flow() => MoodleLoginFlow(
         account: 'B11234567', password: 'pw', settle: Duration.zero);
 
-    test('不是 ssoam2 登入頁就繼續等，也不碰頁面', () async {
+    test('不是 ssoam2 登入頁：不碰頁面，等到 settle 還沒拿到 token 就交給使用者', () async {
       final page = _FakePage();
-      expect(await flow().onLoadStop(page, 'https://moodle.ntust.edu.tw/'),
-          isA<LoginContinue<MoodleTokenEntity?>>());
+      final step = await flow().onLoadStop(page, 'https://moodle.ntust.edu.tw/');
+      expect((step as LoginNeedsHuman<MoodleTokenEntity?>).reason,
+          LoginHumanReason.stalled);
       expect(page.scripts, isEmpty);
     });
 
@@ -178,6 +179,22 @@ void main() {
       expect(await f.onLoadStop(page, loginPage), isA<LoginContinue<MoodleTokenEntity?>>());
       expect(await f.onLoadStop(page, loginPage), isA<LoginContinue<MoodleTokenEntity?>>());
       expect(page.fills, 2);
+    });
+
+    test('通過驗證後被丟回首頁：再走一次 launch 網址拿 token，只做一次', () async {
+      final f = flow();
+      final page = _FakePage();
+      await f.onLoadStop(
+          page, 'https://moodle2.ntust.edu.tw/admin/tool/mfa/auth.php');
+
+      expect(await f.onLoadStop(page, 'https://moodle2.ntust.edu.tw/'),
+          isA<LoginContinue<MoodleTokenEntity?>>());
+      expect(page.loaded, [f.startUrl]);
+
+      expect(await f.onLoadStop(page, 'https://moodle2.ntust.edu.tw/my/'),
+          isA<LoginContinue<MoodleTokenEntity?>>());
+      expect(page.loaded, [f.startUrl], reason: '只重載一次，不然會無限打轉');
+      expect(page.scripts, isEmpty);
     });
 
     test('等待期間 token 先到：不提示', () async {

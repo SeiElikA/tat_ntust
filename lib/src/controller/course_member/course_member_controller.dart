@@ -33,12 +33,18 @@ class CourseMemberController {
     final keyword = query.trim().toLowerCase();
     if (keyword.isEmpty) return all;
     return all.where((member) {
-      // name／studentId 是 model 上沒有標型別的 getter。
-      final name = member.name.toString().toLowerCase();
-      final studentId = member.studentId.toString().toLowerCase();
+      final name = member.name.toLowerCase();
+      final studentId = member.studentId.toLowerCase();
       return name.contains(keyword) || studentId.contains(keyword);
     }).toList();
   }
+
+  /// 老師與助教，列在學生前面；各自照 Moodle 給的順序。
+  List<MoodleCoreEnrolGetUsers> staff(String query) =>
+      filter(query).where((member) => member.isStaff).toList();
+
+  List<MoodleCoreEnrolGetUsers> students(String query) =>
+      filter(query).where((member) => !member.isStaff).toList();
 
   void dispose() {
     members.close();

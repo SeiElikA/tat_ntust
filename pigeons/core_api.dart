@@ -643,10 +643,16 @@ class CourseMember {
   late String name;
   late String studentId;
   String? avatarUrl;
+
+  /// 老師與助教才有：角色名稱照 Moodle 給的字，email 給使用者複製。
+  String? role;
+  String? email;
 }
 
 class CourseMembers {
-  late List<CourseMember> members;
+  /// 老師與助教，列在學生前面。
+  late List<CourseMember> staff;
+  late List<CourseMember> students;
   String? error;
   String? notice;
   late bool signedIn;
@@ -1906,8 +1912,8 @@ abstract class TatCourseDetailApi {
   @async
   CourseMembers members(String courseId, bool refresh);
 
-  /// 在上一次抓回來的名單裡找姓名或學號，不打網路。
-  List<CourseMember> filterMembers(String courseId, String query);
+  /// 在上一次抓回來的名單裡找姓名或學號，不打網路。只填 staff 與 students。
+  CourseMembers filterMembers(String courseId, String query);
 }
 
 /// **Dart 實作、Swift 呼叫。** 一門課的 Moodle：檔案、公告、作業三個分頁與檔案分頁點進去的東西，

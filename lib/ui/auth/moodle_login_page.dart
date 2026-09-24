@@ -49,7 +49,7 @@ class _LoginMoodlePageState extends State<LoginMoodlePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text("${R.current.loginMoodle}..."),
+        title: Text(R.current.loginMoodle),
       ),
       body: SafeArea(
         child: Stack(

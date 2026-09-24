@@ -1,6 +1,5 @@
 import 'package:flutter_app/src/connector/moodle_webapi_connector.dart';
 import 'package:flutter_app/src/model/course/course_class_json.dart';
-import 'package:flutter_app/src/model/moodle_webapi/moodle_core_enrol_get_users.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// `core_enrol_get_users_courses` 這一份回應的本機判讀規格。
@@ -178,50 +177,6 @@ void main() {
       expect(
         MoodleWebApiConnector.currentSemesterOf([course(id: 1, idnumber: '')]),
         isNull,
-      );
-    });
-  });
-
-  group('isCourseMember：用 roles 篩老師', () {
-    MoodleCoreEnrolGetUsers user(String fullName, List<String> roles) =>
-        MoodleCoreEnrolGetUsers(
-          fullName: fullName,
-          roles: roles.map((e) => Roles(shortname: e)).toList(),
-        );
-
-    test('名字裡有「老師」兩個字的學生不再被藏起來（舊行為會藏）', () {
-      expect(
-        MoodleWebApiConnector.isCourseMember(
-            user('B11012345@王老師', ['student'])),
-        isTrue,
-      );
-    });
-
-    test('名字裡沒有「老師」的老師會被藏起來（舊行為會留著）', () {
-      expect(
-        MoodleWebApiConnector.isCourseMember(
-            user('teacher@陳大文', ['editingteacher'])),
-        isFalse,
-      );
-      expect(
-        MoodleWebApiConnector.isCourseMember(user('ta@助教', ['teacher'])),
-        isFalse,
-      );
-    });
-
-    test('roles 為空時保守地顯示，不是全部藏起來', () {
-      // roles 拿不拿得到取決於權限。全部藏起來會讓名單變空，
-      // 而 MoodleMemberTask 對空名單是直接報錯。
-      expect(
-        MoodleWebApiConnector.isCourseMember(user('B11012345@王小明', [])),
-        isTrue,
-      );
-    });
-
-    test('manager 這種站台管理角色刻意不篩掉', () {
-      expect(
-        MoodleWebApiConnector.isCourseMember(user('admin@管理員', ['manager'])),
-        isTrue,
       );
     });
   });

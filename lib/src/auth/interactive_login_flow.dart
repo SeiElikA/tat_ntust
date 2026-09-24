@@ -167,6 +167,7 @@ class MoodleLoginFlow {
   int _submits = 0;
   bool _finished = false;
   bool _handedOver = false;
+  bool _relaunched = false;
 
   /// 導到 [callbackScheme] 時呼叫。
   LoginStep<MoodleTokenEntity?> onCallback(String url) =>
@@ -175,8 +176,12 @@ class MoodleLoginFlow {
   Future<LoginStep<MoodleTokenEntity?>> onLoadStop(
       WebViewDriver web, String? url) async {
     if (_finished) return const LoginContinue();
+    Log.d('[moodle-login] onLoadStop ${_describe(url)}');
     if (isMfaPage(url)) return _handOver(LoginHumanReason.mfa);
-    if (!Ssoam2Login.isLoginPage(url)) return const LoginContinue();
+    if (isLandingPage(url)) return _relaunch(web);
+    // SSO session 還在時 ssoam2 不會再出現登入頁，中間每一頁都得掛著看門狗，
+    // 否則遮罩會一直蓋著一頁我們認不得的東西。
+    if (!Ssoam2Login.isLoginPage(url)) return _watch();
     // 先問有沒有錯誤再決定要不要送出：密碼錯時站台是把登入頁連同錯誤訊息重新吐回來，
     // 先送出就會變成拿同一組錯帳密無限重送。
     final error = await Ssoam2Login.credentialError(web);
@@ -188,20 +193,55 @@ class MoodleLoginFlow {
       account: account,
       password: password,
     );
-    // 找不到表單與 Turnstile 逾時在畫面上是同一件事：收起遮罩讓使用者自己操作。
-    if (outcome != Ssoam2LoginOutcome.submitted) {
-      return _handOver(LoginHumanReason.captcha);
+    return switch (outcome) {
+      Ssoam2LoginOutcome.submitted => await _watch(),
+      Ssoam2LoginOutcome.turnstileTimeout =>
+        _handOver(LoginHumanReason.captcha),
+      // 表單不在：這一頁不是我們以為的登入頁，提示不要猜是驗證碼。
+      Ssoam2LoginOutcome.formNotFound => _handOver(LoginHumanReason.stalled),
+    };
+  }
+
+  /// Moodle 登入後的首頁或儀表板。通過多因素驗證之後 Moodle 沒把人送回
+  /// launch 網址（wantsurl 沒留住），而是丟到這裡，token 就永遠不會來。
+  static bool isLandingPage(String? url) {
+    final uri = url == null ? null : Uri.tryParse(url);
+    if (uri == null || '${uri.scheme}://${uri.host}' != MoodleWebApiConnector.host) {
+      return false;
     }
+    final path = uri.path;
+    return path == '/' || path == '/index.php' || path.startsWith('/my/');
+  }
+
+  /// 再走一次 launch 網址：session 已登入、驗證也過了，這次會直接回 token。
+  /// 只做一次，免得打轉。
+  Future<LoginStep<MoodleTokenEntity?>> _relaunch(WebViewDriver web) async {
+    if (_relaunched) return _watch();
+    _relaunched = true;
+    Log.d('[moodle-login] landed on home, relaunch');
+    await web.loadUrl(startUrl);
+    return const LoginContinue();
+  }
+
+  /// 等 [settle] 還沒拿到 token 就把頁面還給使用者。
+  Future<LoginStep<MoodleTokenEntity?>> _watch() async {
     await Future<void>.delayed(settle);
     return _finished
         ? const LoginContinue()
         : _handOver(LoginHumanReason.stalled);
   }
 
+  /// log 用：只留主機與路徑，query 裡有 OIDC 的 code 與 state。
+  static String _describe(String? url) {
+    final uri = url == null ? null : Uri.tryParse(url);
+    return uri == null ? '$url' : '${uri.host}${uri.path}';
+  }
+
   /// 遮罩只收一次：同一頁再觸發 onLoadStop（輸錯驗證碼、client-side 導向）不重複提示。
   LoginStep<MoodleTokenEntity?> _handOver(LoginHumanReason reason) {
     if (_handedOver) return const LoginContinue();
     _handedOver = true;
+    Log.d('[moodle-login] hand over: ${reason.name}');
     return LoginNeedsHuman(reason);
   }
 
