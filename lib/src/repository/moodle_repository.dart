@@ -160,12 +160,12 @@ class MoodleRepository {
         debugLabel: 'moodleAnnouncement',
       );
 
-  /// 這一門課的修課學生。
+  /// 這一門課的名單：老師、助教與學生。key 換過一次：舊快取只存學生。
   Future<Result<List<MoodleCoreEnrolGetUsers>>> getMembers(String courseId) =>
       _withCourse<List<MoodleCoreEnrolGetUsers>>(
         courseId: courseId,
         cache: CacheKey<List<MoodleCoreEnrolGetUsers>>(
-          "cache_moodle_member",
+          "cache_moodle_members",
           courseId,
           decode: (json) => (json as List)
               .map((e) => MoodleCoreEnrolGetUsers.fromJson(e))

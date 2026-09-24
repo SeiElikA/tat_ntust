@@ -4244,6 +4244,8 @@ class CourseMember {
     required this.name,
     required this.studentId,
     this.avatarUrl,
+    this.role,
+    this.email,
   });
 
   String name;
@@ -4252,11 +4254,18 @@ class CourseMember {
 
   String? avatarUrl;
 
+  /// 老師與助教才有：角色名稱照 Moodle 給的字，email 給使用者複製。
+  String? role;
+
+  String? email;
+
   List<Object?> _toList() {
     return <Object?>[
       name,
       studentId,
       avatarUrl,
+      role,
+      email,
     ];
   }
 
@@ -4269,6 +4278,8 @@ class CourseMember {
       name: result[0]! as String,
       studentId: result[1]! as String,
       avatarUrl: result[2] as String?,
+      role: result[3] as String?,
+      email: result[4] as String?,
     );
   }
 
@@ -4281,7 +4292,7 @@ class CourseMember {
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(name, other.name) && _deepEquals(studentId, other.studentId) && _deepEquals(avatarUrl, other.avatarUrl);
+    return _deepEquals(name, other.name) && _deepEquals(studentId, other.studentId) && _deepEquals(avatarUrl, other.avatarUrl) && _deepEquals(role, other.role) && _deepEquals(email, other.email);
   }
 
   @override
@@ -4290,19 +4301,23 @@ class CourseMember {
 
   @override
   String toString() {
-    return 'CourseMember(name: $name, studentId: $studentId, avatarUrl: $avatarUrl)';
+    return 'CourseMember(name: $name, studentId: $studentId, avatarUrl: $avatarUrl, role: $role, email: $email)';
   }
 }
 
 class CourseMembers {
   CourseMembers({
-    required this.members,
+    required this.staff,
+    required this.students,
     this.error,
     this.notice,
     required this.signedIn,
   });
 
-  List<CourseMember> members;
+  /// 老師與助教，列在學生前面。
+  List<CourseMember> staff;
+
+  List<CourseMember> students;
 
   String? error;
 
@@ -4312,7 +4327,8 @@ class CourseMembers {
 
   List<Object?> _toList() {
     return <Object?>[
-      members,
+      staff,
+      students,
       error,
       notice,
       signedIn,
@@ -4325,10 +4341,11 @@ class CourseMembers {
   static CourseMembers decode(Object result) {
     result as List<Object?>;
     return CourseMembers(
-      members: (result[0]! as List<Object?>).cast<CourseMember>(),
-      error: result[1] as String?,
-      notice: result[2] as String?,
-      signedIn: result[3]! as bool,
+      staff: (result[0]! as List<Object?>).cast<CourseMember>(),
+      students: (result[1]! as List<Object?>).cast<CourseMember>(),
+      error: result[2] as String?,
+      notice: result[3] as String?,
+      signedIn: result[4]! as bool,
     );
   }
 
@@ -4341,7 +4358,7 @@ class CourseMembers {
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(members, other.members) && _deepEquals(error, other.error) && _deepEquals(notice, other.notice) && _deepEquals(signedIn, other.signedIn);
+    return _deepEquals(staff, other.staff) && _deepEquals(students, other.students) && _deepEquals(error, other.error) && _deepEquals(notice, other.notice) && _deepEquals(signedIn, other.signedIn);
   }
 
   @override
@@ -4350,7 +4367,7 @@ class CourseMembers {
 
   @override
   String toString() {
-    return 'CourseMembers(members: $members, error: $error, notice: $notice, signedIn: $signedIn)';
+    return 'CourseMembers(staff: $staff, students: $students, error: $error, notice: $notice, signedIn: $signedIn)';
   }
 }
 
@@ -12904,8 +12921,8 @@ abstract class TatCourseDetailApi {
   /// 名單那支 API 很慢：[refresh] 為 false 時手上已經有就不重打。
   Future<CourseMembers> members(String courseId, bool refresh);
 
-  /// 在上一次抓回來的名單裡找姓名或學號，不打網路。
-  List<CourseMember> filterMembers(String courseId, String query);
+  /// 在上一次抓回來的名單裡找姓名或學號，不打網路。只填 staff 與 students。
+  CourseMembers filterMembers(String courseId, String query);
 
   static void setUp(TatCourseDetailApi? api, {BinaryMessenger? binaryMessenger, String messageChannelSuffix = '',}) {
     messageChannelSuffix = messageChannelSuffix.isNotEmpty ? '.$messageChannelSuffix' : '';
@@ -12965,7 +12982,7 @@ abstract class TatCourseDetailApi {
           final String arg_courseId = args[0]! as String;
           final String arg_query = args[1]! as String;
           try {
-            final List<CourseMember> output = api.filterMembers(arg_courseId, arg_query);
+            final CourseMembers output = api.filterMembers(arg_courseId, arg_query);
             return wrapResponse(result: output);
           } on PlatformException catch (e) {
             return wrapResponse(error: e);

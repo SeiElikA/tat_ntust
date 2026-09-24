@@ -239,9 +239,14 @@ class S {
     );
   }
 
-  /// `login NTUST`
+  /// `Login NTUST...`
   String get loginNTUST {
-    return Intl.message('login NTUST', name: 'loginNTUST', desc: '', args: []);
+    return Intl.message(
+      'Login NTUST...',
+      name: 'loginNTUST',
+      desc: '',
+      args: [],
+    );
   }
 
   /// `Network error`
@@ -259,6 +264,26 @@ class S {
     return Intl.message(
       'Need validate captcha',
       name: 'needValidateCaptcha',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Complete Moodle's two-step verification`
+  String get loginMoodleMfa {
+    return Intl.message(
+      'Complete Moodle\'s two-step verification',
+      name: 'loginMoodleMfa',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Continue signing in on the page`
+  String get loginContinueOnPage {
+    return Intl.message(
+      'Continue signing in on the page',
+      name: 'loginContinueOnPage',
       desc: '',
       args: [],
     );
@@ -5039,6 +5064,16 @@ class S {
     return Intl.message(
       'Enrolled students',
       name: 'enrolledStudents',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Teachers and TAs`
+  String get teachersAndAssistants {
+    return Intl.message(
+      'Teachers and TAs',
+      name: 'teachersAndAssistants',
       desc: '',
       args: [],
     );

@@ -1004,12 +1004,16 @@ extension L10n {
   static var loadingCache: String { tr("loadingCache") }
   /// 登入
   static var login: String { tr("login") }
+  /// 請在頁面上繼續完成登入
+  static var loginContinueOnPage: String { tr("loginContinueOnPage") }
   /// 專為臺灣科技大學學生設計的校務App。Moodle、學期課表、成績查詢、在學證明等等，一App在手 各種服務應有盡有
   static var loginDescription: String { tr("loginDescription") }
   /// 登入Moodle中...
   static var loginMoodle: String { tr("loginMoodle") }
   /// 登入Moodle錯誤
   static var loginMoodleError: String { tr("loginMoodleError") }
+  /// 請完成 Moodle 的二步驟驗證
+  static var loginMoodleMfa: String { tr("loginMoodleMfa") }
   /// 登入Moodle中...
   static var loginMoodleWebApi: String { tr("loginMoodleWebApi") }
   /// 登入台科大系統...
@@ -1542,6 +1546,8 @@ extension L10n {
   static var tableSwitcherShared: String { tr("tableSwitcherShared") }
   /// 選擇課表
   static var tableSwitcherTitle: String { tr("tableSwitcherTitle") }
+  /// 老師與助教
+  static var teachersAndAssistants: String { tr("teachersAndAssistants") }
   /// 主題顏色
   static var themeColor: String { tr("themeColor") }
   /// 藍

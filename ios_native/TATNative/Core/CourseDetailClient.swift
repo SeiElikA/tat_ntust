@@ -17,7 +17,7 @@ final class CourseDetailClient {
     try await pigeonCall { api.members(courseId: courseId, refresh: refresh, completion: $0) }
   }
 
-  func filterMembers(courseId: String, query: String) async throws -> [CourseMember] {
+  func filterMembers(courseId: String, query: String) async throws -> CourseMembers {
     try await pigeonCall { api.filterMembers(courseId: courseId, query: query, completion: $0) }
   }
 }

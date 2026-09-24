@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_app/src/R.dart';
 import 'package:flutter_app/src/controller/course_member/course_member_controller.dart';
 import 'package:flutter_app/src/model/moodle_webapi/moodle_core_enrol_get_users.dart';
@@ -36,6 +37,14 @@ class _FakeMoodleRepository extends MoodleRepository {
 
 MoodleCoreEnrolGetUsers _member(String studentId, String name) =>
     MoodleCoreEnrolGetUsers(fullName: '$studentId @ $name');
+
+MoodleCoreEnrolGetUsers _staff(
+        String name, String shortname, String role, String email) =>
+    MoodleCoreEnrolGetUsers(
+      fullName: name,
+      email: email,
+      roles: [Roles(shortname: shortname, name: role)],
+    );
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -113,6 +122,50 @@ void main() {
     expect(find.text('陳怡君'), findsOneWidget);
     expect(find.text('B10000001'), findsOneWidget);
     expect(find.text('張雅涵'), findsOneWidget);
+  });
+
+  testWidgets('老師與助教自成一區排在前面，帶角色與 email；人數只算學生', (tester) async {
+    repo.result = Ok([
+      _staff('陳大文', 'editingteacher', '教師', 'dawen@mail.ntust.edu.tw'),
+      _member('B10000001', '陳怡君'),
+      _staff('李助教', 'ta', '協同教學/課程助教', 'ta@mail.ntust.edu.tw'),
+      _member('B10000002', '林建宏'),
+    ]);
+    await pumpPage(tester, knownMemberCount: 40);
+    await tester.pumpAndSettle();
+
+    expect(find.text(R.current.teachersAndAssistants), findsOneWidget);
+    expect(find.text('教師'), findsOneWidget);
+    expect(find.text('dawen@mail.ntust.edu.tw'), findsOneWidget);
+    expect(find.text('協同教學/課程助教'), findsOneWidget);
+    // 標題列一個、學生區的標題一個。
+    expect(find.text(R.current.enrolledStudents), findsNWidgets(2));
+    // 上一頁給的 40 只撐到名單到手。
+    expect(find.text('微積分（一） · 2 人'), findsOneWidget);
+    expect(tester.getTopLeft(find.text('李助教')).dy,
+        lessThan(tester.getTopLeft(find.text('陳怡君')).dy));
+  });
+
+  testWidgets('點老師那一列會複製 email', (tester) async {
+    final copied = <String?>[];
+    tester.binding.defaultBinaryMessenger
+        .setMockMethodCallHandler(SystemChannels.platform, (call) async {
+      if (call.method == 'Clipboard.setData') {
+        copied.add((call.arguments as Map)['text'] as String?);
+      }
+      return null;
+    });
+    repo.result = Ok([
+      _staff('陳大文', 'editingteacher', '教師', 'dawen@mail.ntust.edu.tw'),
+      _member('B10000001', '陳怡君'),
+    ]);
+    await pumpPage(tester);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('dawen@mail.ntust.edu.tw'));
+    await tester.pump();
+
+    expect(copied, ['dawen@mail.ntust.edu.tw']);
   });
 
   testWidgets('搜尋是本地過濾，不會再打一次 API', (tester) async {

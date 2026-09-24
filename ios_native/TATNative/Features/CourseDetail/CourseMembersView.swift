@@ -11,6 +11,16 @@ struct CourseMembersView: View {
 
   var body: some View {
     List {
+      if !model.visibleStaff.isEmpty {
+        Section {
+          ForEach(Array(model.visibleStaff.enumerated()), id: \.offset) { _, member in
+            staffRow(member)
+          }
+        } header: {
+          Text(L10n.teachersAndAssistants)
+            .textCase(nil)
+        }
+      }
       Section {
         rows
       } header: {
@@ -38,8 +48,9 @@ struct CourseMembersView: View {
   }
 
   private var header: String {
-    model.knownCount > 0
-      ? "\(model.course.name) · \(L10n.peopleCount(String(model.knownCount)))"
+    let count = model.studentCount
+    return count > 0
+      ? "\(model.course.name) · \(L10n.peopleCount(String(count)))"
       : model.course.name
   }
 
@@ -50,12 +61,12 @@ struct CourseMembersView: View {
           Task { await model.load(refresh: true) }
         }
       }
-      if let error = members.error, members.members.isEmpty {
+      if let error = members.error, members.students.isEmpty {
         InlineErrorView(message: error, signedIn: members.signedIn, presenter: app.presenter) {
           await model.load(refresh: true)
         }
       } else {
-        ForEach(Array(model.visible.enumerated()), id: \.offset) { _, member in
+        ForEach(Array(model.visibleStudents.enumerated()), id: \.offset) { _, member in
           memberRow(member)
         }
       }
@@ -74,19 +85,7 @@ struct CourseMembersView: View {
 
   private func memberRow(_ member: CourseMember) -> some View {
     HStack(spacing: 12) {
-      AsyncImage(url: member.avatarUrl.flatMap(URL.init(string:))) { phase in
-        if let image = phase.image {
-          image.resizable().scaledToFill()
-        } else {
-          Text(member.name.first.map(String.init) ?? "?")
-            .font(.subheadline.weight(.medium))
-            .foregroundStyle(.secondary)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(Color(.systemFill))
-        }
-      }
-      .frame(width: 36, height: 36)
-      .clipShape(Circle())
+      avatar(member)
       VStack(alignment: .leading, spacing: 2) {
         Text(member.name)
         if !member.studentId.isEmpty {
@@ -97,5 +96,61 @@ struct CourseMembersView: View {
       }
     }
     .padding(.vertical, 2)
+  }
+
+  /// 老師與助教：角色與 email；有 email 時整列都是複製鈕。
+  @ViewBuilder private func staffRow(_ member: CourseMember) -> some View {
+    let email = member.email ?? ""
+    let content = HStack(spacing: 12) {
+      avatar(member)
+      VStack(alignment: .leading, spacing: 2) {
+        Text(member.name)
+          .foregroundStyle(Color.primary)
+        if let role = member.role, !role.isEmpty {
+          Text(role)
+            .font(.subheadline)
+            .foregroundStyle(.secondary)
+        }
+        if !email.isEmpty {
+          Text(email)
+            .font(.subheadline)
+            .foregroundStyle(.secondary)
+        }
+      }
+      if !email.isEmpty {
+        Spacer(minLength: 8)
+        LucideImage(Lucide.copy, size: 18)
+          .foregroundStyle(Color.tatBrand)
+      }
+    }
+    .padding(.vertical, 2)
+    if email.isEmpty {
+      content
+    } else {
+      Button {
+        UIPasteboard.general.string = email
+        app.presenter.toast(L10n.copy, kind: .success)
+      } label: {
+        content.contentShape(Rectangle())
+      }
+      .buttonStyle(.plain)
+      .accessibilityLabel(L10n.copyAction)
+    }
+  }
+
+  private func avatar(_ member: CourseMember) -> some View {
+    AsyncImage(url: member.avatarUrl.flatMap(URL.init(string:))) { phase in
+      if let image = phase.image {
+        image.resizable().scaledToFill()
+      } else {
+        Text(member.name.first.map(String.init) ?? "?")
+          .font(.subheadline.weight(.medium))
+          .foregroundStyle(.secondary)
+          .frame(maxWidth: .infinity, maxHeight: .infinity)
+          .background(Color(.systemFill))
+      }
+    }
+    .frame(width: 36, height: 36)
+    .clipShape(Circle())
   }
 }

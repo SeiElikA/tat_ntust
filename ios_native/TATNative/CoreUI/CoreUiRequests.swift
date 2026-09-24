@@ -5,7 +5,8 @@ struct ToastItem: Identifiable, Equatable {
   enum Kind { case success, info, error }
 
   let id = UUID()
-  let message: String
+  /// 進度提示會在原地換字。
+  var message: String
   let kind: Kind
   /// nil 代表不自動收——那是進度提示。
   let autoClose: Duration?

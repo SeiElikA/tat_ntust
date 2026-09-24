@@ -286,7 +286,7 @@ void main() {
     // 因此整段測試不需要網路。
     await CacheStore.instance.write<List<MoodleCoreEnrolGetUsers>>(
       CacheKey<List<MoodleCoreEnrolGetUsers>>(
-        'cache_moodle_member',
+        'cache_moodle_members',
         'AT1001',
         decode: (json) => (json as List)
             .map((e) => MoodleCoreEnrolGetUsers.fromJson(e))

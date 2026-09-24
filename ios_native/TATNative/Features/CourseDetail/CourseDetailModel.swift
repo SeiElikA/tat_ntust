@@ -22,7 +22,8 @@ final class CourseDetailModel {
 @Observable
 final class CourseMembersModel {
   private(set) var members: CourseMembers?
-  private(set) var visible: [CourseMember] = []
+  private(set) var visibleStaff: [CourseMember] = []
+  private(set) var visibleStudents: [CourseMember] = []
   var query = ""
   let course: CourseRef
   /// 上一頁就知道的人數，骨架的列數跟著它。
@@ -39,19 +40,29 @@ final class CourseMembersModel {
   func load(refresh: Bool) async {
     if refresh { members = nil }
     let fetched = try? await client.members(courseId: course.courseId, refresh: refresh)
-    members = fetched ?? CourseMembers(members: [], error: L10n.unknownError, signedIn: true)
+    members = fetched ?? CourseMembers(staff: [], students: [], error: L10n.unknownError, signedIn: true)
     await filter()
   }
 
+  /// 標題列的人數：名單到手就用學生的實際筆數，抓不到時才用上一頁給的。
+  var studentCount: Int {
+    guard let members, members.error == nil else { return knownCount }
+    return members.students.count
+  }
+
   func filter() async {
-    guard let all = members?.members else {
-      visible = []
+    guard let all = members else {
+      visibleStaff = []
+      visibleStudents = []
       return
     }
     if query.trimmingCharacters(in: .whitespaces).isEmpty {
-      visible = all
+      visibleStaff = all.staff
+      visibleStudents = all.students
       return
     }
-    visible = (try? await client.filterMembers(courseId: course.courseId, query: query)) ?? all
+    let found = try? await client.filterMembers(courseId: course.courseId, query: query)
+    visibleStaff = found?.staff ?? all.staff
+    visibleStudents = found?.students ?? all.students
   }
 }

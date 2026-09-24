@@ -3705,6 +3705,9 @@ struct CourseMember: Hashable, CustomStringConvertible {
   var name: String
   var studentId: String
   var avatarUrl: String? = nil
+  /// 老師與助教才有：角色名稱照 Moodle 給的字，email 給使用者複製。
+  var role: String? = nil
+  var email: String? = nil
 
 
   // swift-format-ignore: AlwaysUseLowerCamelCase
@@ -3712,11 +3715,15 @@ struct CourseMember: Hashable, CustomStringConvertible {
     let name = pigeonVar_list[0] as! String
     let studentId = pigeonVar_list[1] as! String
     let avatarUrl: String? = nilOrValue(pigeonVar_list[2])
+    let role: String? = nilOrValue(pigeonVar_list[3])
+    let email: String? = nilOrValue(pigeonVar_list[4])
 
     return CourseMember(
       name: name,
       studentId: studentId,
-      avatarUrl: avatarUrl
+      avatarUrl: avatarUrl,
+      role: role,
+      email: email
     )
   }
   func toList() -> [Any?] {
@@ -3724,13 +3731,15 @@ struct CourseMember: Hashable, CustomStringConvertible {
       name,
       studentId,
       avatarUrl,
+      role,
+      email,
     ]
   }
   static func == (lhs: CourseMember, rhs: CourseMember) -> Bool {
     if Swift.type(of: lhs) != Swift.type(of: rhs) {
       return false
     }
-    return CoreApiPigeonInternal.deepEquals(lhs.name, rhs.name) && CoreApiPigeonInternal.deepEquals(lhs.studentId, rhs.studentId) && CoreApiPigeonInternal.deepEquals(lhs.avatarUrl, rhs.avatarUrl)
+    return CoreApiPigeonInternal.deepEquals(lhs.name, rhs.name) && CoreApiPigeonInternal.deepEquals(lhs.studentId, rhs.studentId) && CoreApiPigeonInternal.deepEquals(lhs.avatarUrl, rhs.avatarUrl) && CoreApiPigeonInternal.deepEquals(lhs.role, rhs.role) && CoreApiPigeonInternal.deepEquals(lhs.email, rhs.email)
   }
 
   func hash(into hasher: inout Hasher) {
@@ -3738,16 +3747,20 @@ struct CourseMember: Hashable, CustomStringConvertible {
     CoreApiPigeonInternal.deepHash(value: name, hasher: &hasher)
     CoreApiPigeonInternal.deepHash(value: studentId, hasher: &hasher)
     CoreApiPigeonInternal.deepHash(value: avatarUrl, hasher: &hasher)
+    CoreApiPigeonInternal.deepHash(value: role, hasher: &hasher)
+    CoreApiPigeonInternal.deepHash(value: email, hasher: &hasher)
   }
 
   public var description: String {
-    return "CourseMember(name: \(String(describing: name)), studentId: \(String(describing: studentId)), avatarUrl: \(String(describing: avatarUrl)))"
+    return "CourseMember(name: \(String(describing: name)), studentId: \(String(describing: studentId)), avatarUrl: \(String(describing: avatarUrl)), role: \(String(describing: role)), email: \(String(describing: email)))"
   }
 }
 
 /// Generated class from Pigeon that represents data sent in messages.
 struct CourseMembers: Hashable, CustomStringConvertible {
-  var members: [CourseMember]
+  /// 老師與助教，列在學生前面。
+  var staff: [CourseMember]
+  var students: [CourseMember]
   var error: String? = nil
   var notice: String? = nil
   var signedIn: Bool
@@ -3755,13 +3768,15 @@ struct CourseMembers: Hashable, CustomStringConvertible {
 
   // swift-format-ignore: AlwaysUseLowerCamelCase
   static func fromList(_ pigeonVar_list: [Any?]) -> CourseMembers? {
-    let members = pigeonVar_list[0] as! [CourseMember]
-    let error: String? = nilOrValue(pigeonVar_list[1])
-    let notice: String? = nilOrValue(pigeonVar_list[2])
-    let signedIn = pigeonVar_list[3] as! Bool
+    let staff = pigeonVar_list[0] as! [CourseMember]
+    let students = pigeonVar_list[1] as! [CourseMember]
+    let error: String? = nilOrValue(pigeonVar_list[2])
+    let notice: String? = nilOrValue(pigeonVar_list[3])
+    let signedIn = pigeonVar_list[4] as! Bool
 
     return CourseMembers(
-      members: members,
+      staff: staff,
+      students: students,
       error: error,
       notice: notice,
       signedIn: signedIn
@@ -3769,7 +3784,8 @@ struct CourseMembers: Hashable, CustomStringConvertible {
   }
   func toList() -> [Any?] {
     return [
-      members,
+      staff,
+      students,
       error,
       notice,
       signedIn,
@@ -3779,19 +3795,20 @@ struct CourseMembers: Hashable, CustomStringConvertible {
     if Swift.type(of: lhs) != Swift.type(of: rhs) {
       return false
     }
-    return CoreApiPigeonInternal.deepEquals(lhs.members, rhs.members) && CoreApiPigeonInternal.deepEquals(lhs.error, rhs.error) && CoreApiPigeonInternal.deepEquals(lhs.notice, rhs.notice) && CoreApiPigeonInternal.deepEquals(lhs.signedIn, rhs.signedIn)
+    return CoreApiPigeonInternal.deepEquals(lhs.staff, rhs.staff) && CoreApiPigeonInternal.deepEquals(lhs.students, rhs.students) && CoreApiPigeonInternal.deepEquals(lhs.error, rhs.error) && CoreApiPigeonInternal.deepEquals(lhs.notice, rhs.notice) && CoreApiPigeonInternal.deepEquals(lhs.signedIn, rhs.signedIn)
   }
 
   func hash(into hasher: inout Hasher) {
     hasher.combine("CourseMembers")
-    CoreApiPigeonInternal.deepHash(value: members, hasher: &hasher)
+    CoreApiPigeonInternal.deepHash(value: staff, hasher: &hasher)
+    CoreApiPigeonInternal.deepHash(value: students, hasher: &hasher)
     CoreApiPigeonInternal.deepHash(value: error, hasher: &hasher)
     CoreApiPigeonInternal.deepHash(value: notice, hasher: &hasher)
     CoreApiPigeonInternal.deepHash(value: signedIn, hasher: &hasher)
   }
 
   public var description: String {
-    return "CourseMembers(members: \(String(describing: members)), error: \(String(describing: error)), notice: \(String(describing: notice)), signedIn: \(String(describing: signedIn)))"
+    return "CourseMembers(staff: \(String(describing: staff)), students: \(String(describing: students)), error: \(String(describing: error)), notice: \(String(describing: notice)), signedIn: \(String(describing: signedIn)))"
   }
 }
 
@@ -11647,8 +11664,8 @@ protocol TatCourseDetailApiProtocol {
   func detail(courseId courseIdArg: String, semester semesterArg: String, completion: @escaping (Result<CourseDetailResult, PigeonError>) -> Void)
   /// 名單那支 API 很慢：[refresh] 為 false 時手上已經有就不重打。
   func members(courseId courseIdArg: String, refresh refreshArg: Bool, completion: @escaping (Result<CourseMembers, PigeonError>) -> Void)
-  /// 在上一次抓回來的名單裡找姓名或學號，不打網路。
-  func filterMembers(courseId courseIdArg: String, query queryArg: String, completion: @escaping (Result<[CourseMember], PigeonError>) -> Void)
+  /// 在上一次抓回來的名單裡找姓名或學號，不打網路。只填 staff 與 students。
+  func filterMembers(courseId courseIdArg: String, query queryArg: String, completion: @escaping (Result<CourseMembers, PigeonError>) -> Void)
 }
 class TatCourseDetailApi: TatCourseDetailApiProtocol {
   private let binaryMessenger: FlutterBinaryMessenger
@@ -11704,8 +11721,8 @@ class TatCourseDetailApi: TatCourseDetailApiProtocol {
       }
     }
   }
-  /// 在上一次抓回來的名單裡找姓名或學號，不打網路。
-  func filterMembers(courseId courseIdArg: String, query queryArg: String, completion: @escaping (Result<[CourseMember], PigeonError>) -> Void) {
+  /// 在上一次抓回來的名單裡找姓名或學號，不打網路。只填 staff 與 students。
+  func filterMembers(courseId courseIdArg: String, query queryArg: String, completion: @escaping (Result<CourseMembers, PigeonError>) -> Void) {
     let channelName: String = "dev.flutter.pigeon.flutter_app.TatCourseDetailApi.filterMembers\(messageChannelSuffix)"
     let channel = FlutterBasicMessageChannel(name: channelName, binaryMessenger: binaryMessenger, codec: codec)
     channel.sendMessage([courseIdArg, queryArg] as [Any?]) { response in
@@ -11721,7 +11738,7 @@ class TatCourseDetailApi: TatCourseDetailApiProtocol {
       } else if listResponse[0] == nil {
         completion(.failure(PigeonError(code: "null-error", message: "Flutter api returned null value for non-null return value.", details: "")))
       } else {
-        let result = listResponse[0] as! [CourseMember]
+        let result = listResponse[0] as! CourseMembers
         completion(.success(result))
       }
     }

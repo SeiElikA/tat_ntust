@@ -68,9 +68,9 @@ class _ScanTablePageState extends State<ScanTablePage> {
                   child: MobileScanner(
                     controller: _controller,
                     onDetect: _onDetect,
-                    placeholderBuilder: (context, child) =>
+                    placeholderBuilder: (context) =>
                         ColoredBox(color: context.tokens.card),
-                    errorBuilder: (context, error, child) => _cameraError(),
+                    errorBuilder: (context, error) => _cameraError(),
                     overlayBuilder: _overlay,
                   ),
                 ),

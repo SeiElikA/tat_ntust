@@ -24,8 +24,8 @@ DEVICE     = ENV['DEVICE'] == '1'
 BUNDLE_ID  = 'club.ntust.tat.72QP2FGS73'
 TEAM       = '72QP2FGS73'
 # 原生版的版號，App 與小工具 extension 必須相同。接在 Flutter 版上架過的 2.1.0（124）之後，minor 加一，不跳大版本。
-MARKETING_VERSION = '2.2.1'
-BUILD_NUMBER      = '128'
+MARKETING_VERSION = '2.2.2'
+BUILD_NUMBER      = '129'
 
 # 小工具 extension 向 App 借的檔案（相對 TATNative/）：畫面與資料格式、字串、Lucide、課表配色。
 # extension 裡沒有 Flutter 引擎，借來的檔案不可以用到核心的型別。
