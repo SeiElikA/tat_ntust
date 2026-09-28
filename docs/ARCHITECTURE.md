@@ -128,7 +128,8 @@ Future<Result<T>> run<T>({
    （`InteractiveLoginGateway`）。
 6. `fetch` = `_fetchCourseTable`：`_courseIdsFor(semester)` 先讀成績快取拿課號，
    沒有才 best-effort 問 Moodle；再由 `CourseConnector` 打 querycourse 的公開
-   API 逐門查回來。
+   API 逐門查回來。使用者按重新整理（`refresh: true`）時，成績單與 Moodle 的
+   課程清單也先重抓：只跳過課表快取的話，課號還是上一次存下來的那幾門。
 7. 組成 `CourseTableJson`（`Day` × `SectionNumber` 的巢狀 map）。只有本人的課表
    才 `Model.addCourseTable` 寫進 `course_table_list`。
 8. 回到 controller，`isLoading` 換狀態，頁面的 `Obx` 重畫。
@@ -421,8 +422,9 @@ ssoam2、stuinfosys、i.ntust 是不同 host，只有網域 cookie 能跨。改�
 
 ### 成績快取不只成績頁在用
 
-課表的歷史學期是靠 `score_store` 裡的課號反查課程查詢 API 的。
-「取學期清單時順便存成績」那個看起來突兀的副作用不能拿掉。
+課表（連當學期在內，成績單上當學期的課成績欄是「成績未到」）是靠 `score_store`
+裡的課號反查課程查詢 API 的。「取學期清單時順便存成績」與「重新整理課表時重抓成績單」
+這兩個看起來突兀的副作用都不能拿掉。
 
 ### 不要再引入另一套狀態管理
 

@@ -138,7 +138,7 @@ class CourseModel {
     if (courseTable == null) {
       // 代表沒有暫存的需要爬蟲
       final result = await NtustRepository.instance
-          .getCourseTable(studentId, semesterJson);
+          .getCourseTable(studentId, semesterJson, refresh: refresh);
       courseTable = result.dataOrNull;
       if (courseTable == null) {
         throw Exception();

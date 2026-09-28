@@ -174,11 +174,15 @@ class NtustRepository {
   ///
   /// 沒有 `cache:`：課表的持久化是 `Model.addCourseTable`（course_table_list），
   /// 同時放進 CacheStore 會有兩份會漂移的副本。
+  ///
+  /// [refresh] 連課號的來源一起重抓。課號來自成績單快取，只跳過課表快取的話，
+  /// 加退選之後重新整理拿到的還是舊的那幾門課。
   Future<Result<CourseTableJson>> getCourseTable(
-          String studentId, SemesterJson semester) =>
+          String studentId, SemesterJson semester,
+          {bool refresh = false}) =>
       run<CourseTableJson>(
         requires: const {SystemId.ntustSso},
-        fetch: () => _fetchCourseTable(studentId, semester),
+        fetch: () => _fetchCourseTable(studentId, semester, refresh: refresh),
         progressMessage: R.current.getCourse,
         errorMessage: R.current.getCourseError,
         debugLabel: 'courseTable',
@@ -261,8 +265,9 @@ class NtustRepository {
   /// （table[2]、table[3]、text-success[7]）的解析器，丟 RangeError、回 null、
   /// 課表載入失敗。
   Future<CourseTableJson?> _fetchCourseTable(
-      String studentId, SemesterJson semester) async {
-    final courseIds = await _courseIdsFor(semester);
+      String studentId, SemesterJson semester,
+      {bool refresh = false}) async {
+    final courseIds = await _courseIdsFor(semester, refresh: refresh);
     // null 或空都算失敗。用空清單去查課程 API 會得到一張零課程的課表，
     // 下面的 addCourseTable 會拿它覆蓋掉該學期原本正確的快取。
     if (courseIds == null || courseIds.isEmpty) return null;
@@ -297,22 +302,45 @@ class NtustRepository {
     return courseTable;
   }
 
-  /// 歷史學期（`urlPath` 為空）要靠課號反查課表。課號優先取自成績快取，
-  /// 取不到才改問 Moodle。
+  /// 課表一律靠課號反查。課號優先取自成績快取——當學期也在成績單上，成績欄是
+  /// 「成績未到」——取不到才改問 Moodle。
   ///
   /// Moodle 那條是 **best-effort**：`tryEnsure` 失敗不拋，只是回 null 讓
   /// 呼叫端走課表頁本來就有的錯誤框。也刻意放在成績快取沒中之後才做——
   /// 用 `run()` 的 `optional` 會在每一次抓課表時都先確保 Moodle 已登入，
   /// 即使根本用不到。
-  Future<List<String>?> _courseIdsFor(SemesterJson semester) async {
+  Future<List<String>?> _courseIdsFor(SemesterJson semester,
+      {bool refresh = false}) async {
+    if (refresh) await _refreshScore();
     final fromScore =
         await Model.instance.getScore().getCourseIdBySemester(semester);
     if (fromScore.where((id) => id.toUpperCase() != "TC1010301").isNotEmpty) {
       return fromScore;
     }
     await AuthSession.instance.tryEnsure(SystemId.moodleWebApi);
-    final ids = await MoodleWebApiConnector.getCourseIds(semester);
+    final ids =
+        await MoodleWebApiConnector.getCourseIds(semester, refresh: refresh);
     return (ids == null || ids.isEmpty) ? null : ids;
+  }
+
+  /// 重抓成績單，抓到才寫回。回 null 代表「這次拿不到」，不是「成績是空的」，
+  /// 不可以把硬碟上既有的成績蓋掉。
+  Future<ScoreRankJson?> _refreshScore() async {
+    try {
+      final scoreRank = await ScoreConnector.getScoreRank();
+      if (scoreRank == null) return null;
+      Model.instance.setScore(scoreRank);
+      // 各自 try：寫入失敗不該讓已經拿到的成績跟著作廢。
+      try {
+        await Model.instance.saveScore();
+      } catch (e) {
+        Log.d(e);
+      }
+      return scoreRank;
+    } catch (e) {
+      Log.d(e);
+      return null;
+    }
   }
 
   /// 學期選單的內容。
@@ -366,30 +394,11 @@ class NtustRepository {
     // 所以這裡不要先寫成 `[]`——空清單與「完全沒有答案」在上層是兩件事。
     List<SemesterJson>? value;
 
-    // 成績與 moodle 是兩個互相獨立的來源，所以刻意拆成兩個 try：共用一個
-    // try 的話，成績這段一拋（getScoreRank() 逾時或被導到登入頁時會回 null）
-    // 就會連「從 moodle 補當前學期」與排序一起跳過，卻仍然回成功，課表頁
-    // 拿到一份未排序、又缺當前學期的清單。
-    ScoreRankJson? history;
-    var liveScore = false;
-    try {
-      final scoreRank = await ScoreConnector.getScoreRank();
-      // 回 null 代表「這次拿不到成績」，不是「成績是空的」，
-      // 不可以寫進 Model 把硬碟上既有的成績蓋掉。
-      if (scoreRank != null) {
-        Model.instance.setScore(scoreRank);
-        history = scoreRank;
-        liveScore = true;
-        // 各自 try：寫入失敗不該讓已經拿到的學期清單整段消失。
-        try {
-          await Model.instance.saveScore();
-        } catch (e) {
-          Log.d(e);
-        }
-      }
-    } catch (e) {
-      Log.d(e);
-    }
+    // 成績與 moodle 是兩個互相獨立的來源：_refreshScore 自己吞掉例外，
+    // 成績這段失敗（逾時或被導到登入頁）才不會連「從 moodle 補當前學期」與
+    // 排序一起跳過，讓課表頁拿到一份未排序、又缺當前學期的清單。
+    var history = await _refreshScore();
+    final liveScore = history != null;
 
     // 這次拿不到成績時退回硬碟上那一份：修過哪些學期不會變，上一次存下來的
     // 答案今天仍然正確。少了這個回退，成績系統偶爾一次逾時（SSO 剛登入、

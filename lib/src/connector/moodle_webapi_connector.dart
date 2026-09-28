@@ -1619,9 +1619,10 @@ class MoodleWebApiConnector {
   /// 某學期的課號清單。失敗一律 null，不能回空清單：空清單會被上游當成
   /// 「這學期真的沒有課」而覆蓋掉磁碟上正確的快取。歷史學期只有
   /// `core_enrol_get_users_courses` 撈得到，timeline 端點只回 inprogress。
-  static Future<List<String>?> getCourseIds(SemesterJson semester) async {
+  static Future<List<String>?> getCourseIds(SemesterJson semester,
+      {bool refresh = false}) async {
     try {
-      final courses = await _getUsersCourses();
+      final courses = await _getUsersCourses(refresh: refresh);
       if (courses == null) return null;
       return courseIdsOfSemester(courses, semester);
     } catch (e, stack) {
