@@ -128,8 +128,10 @@ Future<Result<T>> run<T>({
    （`InteractiveLoginGateway`）。
 6. `fetch` = `_fetchCourseTable`：`_courseIdsFor(semester)` 先讀成績快取拿課號，
    沒有才 best-effort 問 Moodle；再由 `CourseConnector` 打 querycourse 的公開
-   API 逐門查回來。使用者按重新整理（`refresh: true`）時，成績單與 Moodle 的
-   課程清單也先重抓：只跳過課表快取的話，課號還是上一次存下來的那幾門。
+   API 逐門查回來。成績單上的免修、抵免、二次退選三種列不算在上的課，不排進
+   課表（成績頁照樣全部顯示）。使用者按重新整理（`refresh: true`）時只認當下
+   重抓到的成績單，抓不到就問 Moodle——與首次登入一致，不退回手機上存的那一份，
+   否則排出來的還是舊的課。
 7. 組成 `CourseTableJson`（`Day` × `SectionNumber` 的巢狀 map）。只有本人的課表
    才 `Model.addCourseTable` 寫進 `course_table_list`。
 8. 回到 controller，`isLoading` 換狀態，頁面的 `Obx` 重畫。

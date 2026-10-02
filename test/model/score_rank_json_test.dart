@@ -281,6 +281,25 @@ void main() {
           ['CS3009302']);
     });
 
+    test('抵免的課不會進課表', () async {
+      final scoreRank = ScoreRankJson();
+      scoreRank.addScoreBySemester(
+          semester('115', '1'), scoreItem('CS3009302'));
+      scoreRank.addScoreBySemester(
+          semester('115', '1'),
+          ScoreItemJson(
+              courseId: 'MA1001301',
+              name: '微積分',
+              credit: '3',
+              score: '',
+              generalDimension: '',
+              // 維護者確認：抵免和免修一樣標在備註欄。
+              remark: '抵免'));
+
+      expect(await scoreRank.getCourseIdBySemester(semester('115', '1')),
+          ['CS3009302']);
+    });
+
     test('英文版成績頁的 Withdrawal 與 Exemption 也不會進歷年課表', () async {
       final scoreRank = ScoreRankJson();
       scoreRank.addScoreBySemester(
