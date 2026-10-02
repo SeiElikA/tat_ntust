@@ -8,8 +8,10 @@ import 'package:flutter_app/src/connector/core/connector_parameter.dart';
 import 'package:flutter_app/src/connector/core/dio_connector.dart';
 import 'package:flutter_app/src/connector/moodle_webapi_connector.dart';
 import 'package:flutter_app/src/model/course/course_class_json.dart';
+import 'package:flutter_app/src/model/course_table/course_table_json.dart';
 import 'package:flutter_app/src/model/score/score_json.dart';
 import 'package:flutter_app/src/repository/ntust_repository.dart';
+import 'package:flutter_app/src/repository/result.dart';
 import 'package:flutter_app/src/service/connectivity_probe.dart';
 import 'package:flutter_app/src/service/task_ui_delegate.dart';
 import 'package:flutter_app/src/service/web_page_loader.dart';
@@ -138,14 +140,32 @@ void main() {
     expect(scorePage.loads, 0);
   });
 
-  test('成績頁載不到就退回存著的那一份，也不把它蓋掉', () async {
+  test('成績頁載不到就改問 Moodle，不拿存著的那一份來排，也不把它蓋掉', () async {
     scorePage.rows = null;
+    MoodleWebApiConnector.wsToken = 'token';
+    MoodleWebApiConnector.userId = '1';
+    MoodleWebApiConnector.wsPost = (ConnectorParameter parameter) async => [
+          {'id': 1, 'idnumber': '1151CS0000005'},
+        ];
 
-    expect(await courseIds(refresh: true),
-        unorderedEquals(['CS0000001', 'CS0000002']));
+    expect(await courseIds(refresh: true), ['CS0000005']);
     expect(scorePage.loads, 1);
     expect(await Model.instance.getScore().getCourseIdBySemester(semester),
-        unorderedEquals(['CS0000001', 'CS0000002']));
+        unorderedEquals(['CS0000001', 'CS0000002']),
+        reason: '抓不到不等於成績是空的，存著的那一份不可以被蓋掉');
+  });
+
+  test('成績頁與 Moodle 都拿不到，重新整理就是失敗，不用存著的成績單湊一張', () async {
+    scorePage.rows = null;
+    MoodleWebApiConnector.wsToken = 'token';
+    MoodleWebApiConnector.userId = '1';
+    MoodleWebApiConnector.wsPost =
+        (ConnectorParameter parameter) async => throw Exception('moodle down');
+
+    final result = await NtustRepository.instance
+        .getCourseTable(account, semester, refresh: true);
+
+    expect(result, isA<Failed<CourseTableJson>>());
   });
 
   test('成績單還沒有這學期時，重新整理要重問 Moodle，不能用記憶體裡那一份', () async {

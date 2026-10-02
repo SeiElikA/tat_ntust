@@ -305,15 +305,18 @@ class NtustRepository {
   /// 課表一律靠課號反查。課號優先取自成績快取——當學期也在成績單上，成績欄是
   /// 「成績未到」——取不到才改問 Moodle。
   ///
+  /// [refresh] 只認這一次重抓到的成績單，抓不到就問 Moodle，與首次登入一致。
+  /// 退回手機上存的那一份的話，重新整理排出來的還是舊的課。
+  ///
   /// Moodle 那條是 **best-effort**：`tryEnsure` 失敗不拋，只是回 null 讓
   /// 呼叫端走課表頁本來就有的錯誤框。也刻意放在成績快取沒中之後才做——
   /// 用 `run()` 的 `optional` 會在每一次抓課表時都先確保 Moodle 已登入，
   /// 即使根本用不到。
   Future<List<String>?> _courseIdsFor(SemesterJson semester,
       {bool refresh = false}) async {
-    if (refresh) await _refreshScore();
+    final score = refresh ? await _refreshScore() : Model.instance.getScore();
     final fromScore =
-        await Model.instance.getScore().getCourseIdBySemester(semester);
+        await score?.getCourseIdBySemester(semester) ?? const <String>[];
     if (fromScore.where((id) => id.toUpperCase() != "TC1010301").isNotEmpty) {
       return fromScore;
     }

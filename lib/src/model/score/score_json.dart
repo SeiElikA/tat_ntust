@@ -29,8 +29,8 @@ class ScoreRankJson {
     }
   }
 
-  /// 該學期修過的課號。**排除二次退選與免修**：那些課不在課表上，成績單留著
-  /// 它們只是為了記錄這件事，照抄進去會讓課表多出幾門實際上沒在上的課。
+  /// 該學期修過的課號。**排除二次退選、免修與抵免**：那些課不在課表上，成績單
+  /// 留著它們只是為了記錄這件事，照抄進去會讓課表多出幾門實際上沒在上的課。
   ///
   /// 唯一的呼叫端是「用成績還原歷年課表」（`NtustRepository._courseIdsFor`）。
   Future<List<String>> getCourseIdBySemester(SemesterJson semester) async {
@@ -134,9 +134,9 @@ class ScoreItemJson {
   /// 是 Withdrawal。
   static const Set<String> withdrawnRemarks = {'二次退選', 'Withdrawal'};
 
-  /// 免修。成績單只標在 `remark` 欄，英文版是 Exemption；不確定是不是整格，
-  /// 所以用 contains。
-  static const Set<String> exemptRemarks = {'免修', 'Exemption'};
+  /// 免修與抵免，都不必上課。成績單只標在 `remark` 欄，免修的英文版是
+  /// Exemption；不確定是不是整格，所以用 contains。
+  static const Set<String> exemptRemarks = {'免修', '抵免', 'Exemption'};
 
   bool get isWithdrawn =>
       withdrawnRemarks.contains(remark.trim()) ||
